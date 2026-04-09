@@ -1,4 +1,5 @@
 import { DebateMessage, UserData } from '../types';
+import { MOCK_DEBATES } from '../constants';
 
 const TOKEN_KEY = 'agora_token';
 
@@ -42,9 +43,14 @@ export const debateApi = {
     const res = await fetch('/api/debates/trending', {
       headers: getHeaders(),
     });
-    return res.json();
+    //return res.json();
+    
+    // Return frontend mock data
+    return MOCK_DEBATES.slice(0, 3);
   },
-  search: async (query: string) => {
+   search: async (query: string) => {
+
+    /*
     const url = query 
       ? `/api/debates/search?q=${encodeURIComponent(query)}` 
       : '/api/debates/search';
@@ -52,6 +58,17 @@ export const debateApi = {
       headers: getHeaders(),
     });
     return res.json();
+    */
+
+    // Return frontend mock data filtered by query
+    const q = query.toLowerCase();
+    if (!q) return MOCK_DEBATES;
+    
+    return MOCK_DEBATES.filter(d => 
+      d.title.toLowerCase().includes(q) || 
+      d.description.toLowerCase().includes(q) ||
+      d.category.toLowerCase().includes(q)
+    );
   },
   getQuiz: async (topic: string) => {
     const res = await fetch(`/api/debate/quiz?topic=${encodeURIComponent(topic)}`, {
