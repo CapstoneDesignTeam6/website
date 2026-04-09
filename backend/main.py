@@ -48,14 +48,22 @@ async def startup_event():
     finally:
         db.close()
     
-    # AI 모델 초기화
-    logger.info("Initializing AI model...")
-    try:
-        AgentService.initialize_model()
-        logger.info("AI model loaded successfully")
-    except Exception as e:
-        logger.warning(f"AI model initialization failed: {e}")
-        logger.warning("Continuing without AI model support...")
+    # AI 서버 상태 확인
+    logger.info("Checking AI servers...")
+    health = AgentService.health_check()
+    
+    if health["discussion_agent"]:
+        logger.info(f"✅ 토론 AI 서버 ({settings.DISCUSSION_AGENT_URL}) 정상")
+    else:
+        logger.warning(f"⚠️ 토론 AI 서버 ({settings.DISCUSSION_AGENT_URL}) 응답 없음")
+    
+    if health["evaluation_agent"]:
+        logger.info(f"✅ 평가 AI 서버 ({settings.EVALUATION_AGENT_URL}) 정상")
+    else:
+        logger.warning(f"⚠️ 평가 AI 서버 ({settings.EVALUATION_AGENT_URL}) 응답 없음")
+    
+    if not health["all_healthy"]:
+        logger.warning("⚠️ 일부 AI 서버가 응답하지 않습니다. 폴백 응답을 사용합니다.")
 
 @app.on_event("shutdown")
 async def shutdown_event():
