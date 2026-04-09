@@ -1,5 +1,5 @@
 import { DebateMessage, UserData } from '../types';
-import { MOCK_DEBATES } from '../constants';
+import { MOCK_DEBATES, MOCK_QUIZZES } from '../constants';
 
 const TOKEN_KEY = 'agora_token';
 
@@ -74,7 +74,8 @@ export const debateApi = {
     const res = await fetch(`/api/debate/quiz?topic=${encodeURIComponent(topic)}`, {
       headers: getHeaders(),
     });
-    return res.json();
+    // return res.json();
+    return MOCK_QUIZZES[topic] || MOCK_QUIZZES["default"];
   }
 };
 
