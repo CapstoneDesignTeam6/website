@@ -17,7 +17,7 @@ from agents.discussion_agent import DiscussionAgent
 from database import get_db
 from models.user import User
 
-router = APIRouter(prefix="/discussions", tags=["discussions"])
+router = APIRouter(prefix="/api/debate", tags=["debates"])
 
 # 의존성: 현재 사용자 조회
 async def get_current_user(token: str = None, db: Session = Depends(get_db)) -> User:
@@ -43,7 +43,7 @@ async def start_discussion(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-    """새로운 토론 시작"""
+    """새로운 토론 시작 및 배경 요약 생성"""
     # 게스트 일일 제한 확인
     if not DiscussionService.check_guest_daily_limit(user, db):
         raise HTTPException(
@@ -54,9 +54,21 @@ async def start_discussion(
     # 토론 생성
     discussion = DiscussionService.create_discussion(user, discussion_data, db)
     
+    # 배경 요약 생성 (평가 에이전트)
+    intro_result = AgentService.get_intro(
+        topic=discussion.topic,
+        stance=discussion.stance,
+        news_data=discussion.news_data
+    )
+    
+    # 요약 저장
+    discussion.intro_summary = intro_result.get("summary", "")
+    db.commit()
+    db.refresh(discussion)
+    
     return discussion
 
-@router.post("/{discussion_id}/add-message")
+@router.post("/message")
 async def add_message_to_discussion(
     discussion_id: int,
     speaker: str,
@@ -92,14 +104,14 @@ async def add_message_to_discussion(
         "created_at": message.created_at
     }
 
-@router.post("/{discussion_id}/end", response_model=dict)
+@router.post("/analyze", response_model=dict)
 async def end_discussion(
     discussion_id: int,
     end_request: DiscussionEndRequest,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-    """토론 종료 및 평가"""
+    """토론 종료 및 평가 요약"""
     # 토론 조회
     discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
     
@@ -115,8 +127,29 @@ async def end_discussion(
             detail="권한이 없습니다."
         )
     
-    # 토론 종료 및 평가
+    # 대화 히스토리 수집
+    history = [
+        {"role": msg.role, "content": msg.content}
+        for msg in discussion.messages
+    ]
+    
+    # 평가 에이전트에서 요약 생성
+    summary_result = AgentService.get_summary(
+        topic=discussion.topic,
+        stance=discussion.stance,
+        history=history,
+        news_data=discussion.news_data,
+        turns=end_request.turns
+    )
+    
+    # 평가 결과 저장
+    discussion.evaluation_detail = summary_result
+    
+    # 토론 종료 및 경험치 계산
     result = DiscussionService.end_discussion(discussion, end_request, user, db)
+    
+    # 평가 결과 포함
+    result["evaluation"] = summary_result
     
     return result
 
@@ -216,3 +249,128 @@ async def generate_agent_response(
         "timestamp": response_data.get("timestamp"),
         "note": response_data.get("note", "")
     }
+
+# ====== 평가 에이전트 관련 엔드포인트 ======
+
+@router.post("/{discussion_id}/intro")
+async def get_discussion_intro(
+    discussion_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """토론 배경 요약 (토론 시작 시 자동 호출, 필요시 재요청 가능)
+    
+    Response:
+        {"summary": "주제 요약 텍스트"}
+    """
+    discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
+    
+    if not discussion:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="토론을 찾을 수 없습니다."
+        )
+    
+    if discussion.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="권한이 없습니다."
+        )
+    
+    # 배경 요약 생성 또는 기존 값 반환
+    if not discussion.intro_summary:
+        intro_result = AgentService.get_intro(
+            topic=discussion.topic,
+            stance=discussion.stance,
+            news_data=discussion.news_data
+        )
+        discussion.intro_summary = intro_result.get("summary", "")
+        db.commit()
+    
+    return {
+        "summary": discussion.intro_summary,
+        "topic": discussion.topic,
+        "stance": discussion.stance
+    }
+
+@router.post("/{discussion_id}/counter-hint")
+async def get_discussion_counter_hint(
+    discussion_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """재반박 힌트 생성 (AI가 반박한 직후 호출)
+    
+    Response:
+        {"hint": "재반박 힌트 텍스트"}
+    """
+    discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
+    
+    if not discussion:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="토론을 찾을 수 없습니다."
+        )
+    
+    if discussion.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="권한이 없습니다."
+        )
+    
+    # 대화 히스토리 수집
+    history = [
+        {"role": msg.role, "content": msg.content}
+        for msg in discussion.messages
+    ]
+    
+    # 재반박 힌트 요청
+    hint_result = AgentService.get_counter_hint(
+        topic=discussion.topic,
+        stance=discussion.stance,
+        history=history,
+        news_data=discussion.news_data
+    )
+    
+    return hint_result
+
+@router.post("/{discussion_id}/rebuttal-hint")
+async def get_discussion_rebuttal_hint(
+    discussion_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """반박 힌트 생성 (AI가 새 주장한 직후 호출)
+    
+    Response:
+        {"hint": "반박 힌트 텍스트"}
+    """
+    discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
+    
+    if not discussion:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="토론을 찾을 수 없습니다."
+        )
+    
+    if discussion.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="권한이 없습니다."
+        )
+    
+    # 대화 히스토리 수집
+    history = [
+        {"role": msg.role, "content": msg.content}
+        for msg in discussion.messages
+    ]
+    
+    # 반박 힌트 요청
+    hint_result = AgentService.get_rebuttal_hint(
+        topic=discussion.topic,
+        stance=discussion.stance,
+        history=history,
+        news_data=discussion.news_data
+    )
+    
+    return hint_result

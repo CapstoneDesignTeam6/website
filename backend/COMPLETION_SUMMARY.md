@@ -32,8 +32,7 @@ backend/
 ├── agents/ (3개)                ✅
 │   ├── base.py
 │   ├── discussion_agent.py      (토론 에이전트)
-│   ├── search_agent.py          (검색 에이전트)
-│   └── news_agent.py            (뉴스 에이전트)
+│   └── search_agent.py          (검색 에이전트)
 │
 ├── api/ (3개)                   ✅
 │   ├── auth.py                 (회원가입/로그인/게스트)

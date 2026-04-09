@@ -5,7 +5,7 @@ from services.auth_service import AuthService
 from database import get_db
 from models.user import User
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter(prefix="/api/user", tags=["auth"])
 
 @router.post("/signup", response_model=UserResponse)
 async def signup(user_data: UserCreate, db: Session = Depends(get_db)):

@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
 from database import create_all_tables
 from models.level_config import LevelConfig, LEVEL_CONFIG_DATA
 from services.level_service import LevelService
@@ -8,10 +10,60 @@ from api import auth, discussion, level
 from database import SessionLocal
 from config import settings
 import logging
+import time
+import json
+from datetime import datetime
 
 # 로깅 설정
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
+
+# 요청/응답 로깅 미들웨어
+class LoggingMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        # 요청 정보
+        request_time = time.time()
+        request_id = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        
+        # 요청 본문 읽기 (가능한 경우)
+        body = b""
+        if request.method in ["POST", "PUT", "PATCH"]:
+            body = await request.body()
+        
+        # 요청 로그
+        logger.info(f"""
+        ╔═══════════════════════════════════════════════════════════════╗
+        ║ 📥 API 요청 [{request_id}]
+        ║ 🕐 시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        ║ 🔗 경로: {request.method} {request.url.path}
+        ║ 📋 쿼리: {dict(request.query_params) if request.query_params else 'None'}
+        ║ 👤 클라이언트: {request.client.host if request.client else 'Unknown'}
+        ║ 🔐 토큰: {request.headers.get('Authorization', 'None')[:30]}...
+        ║ 📦 본문: {body.decode('utf-8')[:100] if body else 'None'}
+        ╚═══════════════════════════════════════════════════════════════╝
+        """)
+        
+        # 응답 처리
+        response = await call_next(request)
+        
+        # 응답 시간
+        process_time = time.time() - request_time
+        
+        # 응답 로그
+        logger.info(f"""
+        ╔═══════════════════════════════════════════════════════════════╗
+        ║ 📤 API 응답 [{request_id}]
+        ║ ✅ 상태: {response.status_code}
+        ║ ⏱️  소요시간: {process_time:.3f}초
+        ║ 🔗 경로: {request.method} {request.url.path}
+        ║ 📍 Content-Type: {response.headers.get('content-type', 'N/A')}
+        ╚═══════════════════════════════════════════════════════════════╝
+        """)
+        
+        return response
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -19,6 +71,9 @@ app = FastAPI(
     description="AI 토론 에이전트 백엔드 API",
     version="1.0.0"
 )
+
+# 로깅 미들웨어 추가 (CORS 이전)
+app.add_middleware(LoggingMiddleware)
 
 # CORS 설정
 app.add_middleware(
