@@ -8,19 +8,22 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { View } from '../types';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { userApi } from '../services/api';
 
 interface NavbarProps {
-  currentView: View;
-  setView: (v: View) => void;
   isLoggedIn: boolean;
   setIsLoggedIn: (v: boolean) => void;
 }
 
-export const Navbar = ({ currentView, setView, isLoggedIn, setIsLoggedIn }: NavbarProps) => {
+export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const currentPath = location.pathname;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -36,33 +39,40 @@ export const Navbar = ({ currentView, setView, isLoggedIn, setIsLoggedIn }: Navb
     if (isLoggedIn) {
       setIsDropdownOpen(!isDropdownOpen);
     } else {
-      setView('login');
+      navigate('/login');
     }
   };
 
   const handleLogout = () => {
+    userApi.logout();
     setIsLoggedIn(false);
     setIsDropdownOpen(false);
     setIsMobileMenuOpen(false);
-    setView('home');
+    navigate('/');
   };
 
   const handleProfileUpdate = () => {
-    setView('profile');
+    navigate('/profile');
     setIsDropdownOpen(false);
     setIsMobileMenuOpen(false);
   };
 
-  const navigateTo = (v: View) => {
-    setView(v);
+  const navigateTo = (path: string) => {
+    navigate(path);
     setIsMobileMenuOpen(false);
+  };
+
+  const isActive = (path: string) => {
+    if (path === '/' && currentPath === '/') return true;
+    if (path !== '/' && currentPath.startsWith(path)) return true;
+    return false;
   };
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 md:py-4 flex justify-between items-center">
         <div className="flex items-center gap-6 md:gap-12">
-          <button onClick={() => navigateTo('home')} className="flex items-center gap-2 md:gap-3 text-xl md:text-2xl font-black tracking-tighter font-headline cursor-pointer group">
+          <button onClick={() => navigateTo('/')} className="flex items-center gap-2 md:gap-3 text-xl md:text-2xl font-black tracking-tighter font-headline cursor-pointer group">
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl overflow-hidden shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
               <img 
                 src="https://images.unsplash.com/photo-1675271591211-126ad94e495d?q=80&w=200&h=200&auto=format&fit=crop" 
@@ -74,11 +84,11 @@ export const Navbar = ({ currentView, setView, isLoggedIn, setIsLoggedIn }: Navb
             <span>Agora</span>
           </button>
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
-            <button onClick={() => navigateTo('about')} className={`${currentView === 'about' ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>소개</button>
-            <button onClick={() => navigateTo('search')} className={`${currentView === 'search' ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>주제 검색</button>
-            <button onClick={() => navigateTo('setup')} className={`${currentView === 'debate' || currentView === 'setup' ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>토론</button>
-            <button onClick={() => navigateTo('result')} className={`${currentView === 'result' ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>결과</button>
-            <button onClick={() => navigateTo('faq')} className={`${currentView === 'faq' ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>자주 묻는 질문</button>
+            <button onClick={() => navigateTo('/about')} className={`${isActive('/about') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>소개</button>
+            <button onClick={() => navigateTo('/search')} className={`${isActive('/search') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>주제 검색</button>
+            <button onClick={() => navigateTo('/setup')} className={`${isActive('/debate') || isActive('/setup') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>토론</button>
+            <button onClick={() => navigateTo('/result')} className={`${isActive('/result') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>결과</button>
+            <button onClick={() => navigateTo('/faq')} className={`${isActive('/faq') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>자주 묻는 질문</button>
           </nav>
         </div>
         
@@ -86,7 +96,7 @@ export const Navbar = ({ currentView, setView, isLoggedIn, setIsLoggedIn }: Navb
           <button className="p-2 text-outline hover:bg-gray-100 rounded-full transition-colors"><Bell size={20} /></button>
           <button 
             onClick={handleUserClick} 
-            className={`p-2 rounded-full transition-colors ${currentView === 'profile' || currentView === 'login' || currentView === 'signup' ? 'bg-primary/10 text-primary' : 'text-outline hover:bg-gray-100'}`}
+            className={`p-2 rounded-full transition-colors ${isActive('/profile') || isActive('/login') || isActive('/signup') ? 'bg-primary/10 text-primary' : 'text-outline hover:bg-gray-100'}`}
           >
             <User size={20} />
           </button>
@@ -158,13 +168,13 @@ export const Navbar = ({ currentView, setView, isLoggedIn, setIsLoggedIn }: Navb
                 {!isLoggedIn ? (
                   <div className="grid grid-cols-2 gap-3">
                     <button 
-                      onClick={() => navigateTo('login')}
+                      onClick={() => navigateTo('/login')}
                       className="py-3 px-4 bg-primary/10 text-primary font-bold rounded-xl text-sm"
                     >
                       로그인
                     </button>
                     <button 
-                      onClick={() => navigateTo('signup')}
+                      onClick={() => navigateTo('/signup')}
                       className="py-3 px-4 bg-primary text-white font-bold rounded-xl text-sm shadow-lg shadow-primary/20"
                     >
                       회원가입
@@ -188,17 +198,17 @@ export const Navbar = ({ currentView, setView, isLoggedIn, setIsLoggedIn }: Navb
 
               <nav className="flex-1 px-6 py-4 space-y-2 overflow-y-auto">
                 {[
-                  { id: 'about', label: '소개' },
-                  { id: 'search', label: '주제 검색' },
-                  { id: 'setup', label: '토론' },
-                  { id: 'result', label: '결과' },
-                  { id: 'faq', label: '자주 묻는 질문' },
+                  { path: '/about', label: '소개' },
+                  { path: '/search', label: '주제 검색' },
+                  { path: '/setup', label: '토론' },
+                  { path: '/result', label: '결과' },
+                  { path: '/faq', label: '자주 묻는 질문' },
                 ].map((item) => (
                   <button
-                    key={item.id}
-                    onClick={() => navigateTo(item.id as View)}
+                    key={item.path}
+                    onClick={() => navigateTo(item.path)}
                     className={`w-full text-left px-4 py-3 rounded-xl font-bold transition-colors ${
-                      currentView === item.id || (item.id === 'setup' && currentView === 'debate')
+                      isActive(item.path) || (item.path === '/setup' && isActive('/debate'))
                         ? 'bg-primary text-white'
                         : 'text-outline hover:bg-gray-50'
                     }`}

@@ -99,5 +99,18 @@ export const userApi = {
   },
   getToken: () => {
     return localStorage.getItem(TOKEN_KEY);
+  },
+  getCurrentUser: async () => {
+    const res = await fetch('/api/auth/me', { // 백엔드 @router.get("/me") 경로
+      method: 'GET',
+      headers: getHeaders(), // Authorization 헤더가 포함된 공통 헤더 사용
+    });
+
+    if (!res.ok) {
+      const error = await res.json();
+      throw new Error(error.detail || '사용자 정보를 불러오지 못했습니다.');
+    }
+
+    return res.json(); // UserDetailResponse 반환
   }
 };

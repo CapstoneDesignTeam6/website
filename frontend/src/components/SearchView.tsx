@@ -6,15 +6,15 @@ import {
   Loader2
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { View } from '../types';
+import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api';
 
 interface SearchViewProps {
-  setView: (v: View) => void;
   setTopic: (t: string) => void;
 }
 
-export const SearchView = ({ setView, setTopic }: SearchViewProps) => {
+export const SearchView = ({ setTopic }: SearchViewProps) => {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [debates, setDebates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -51,7 +51,7 @@ export const SearchView = ({ setView, setTopic }: SearchViewProps) => {
           <input 
             type="text"
             placeholder="주제, 키워드, 카테고리 검색..."
-            className="w-full bg-white border-2 border-gray-100 rounded-3xl md:rounded-4xl py-4 md:py-6 pl-12 md:pl-16 pr-6 md:pr-8 text-base md:text-lg focus:border-primary focus:ring-0 transition-all shadow-sm hover:shadow-md"
+            className="w-full bg-white border-2 border-gray-100 rounded-3xl md:rounded-[2rem] py-4 md:py-6 pl-12 md:pl-16 pr-6 md:pr-8 text-base md:text-lg focus:border-primary focus:ring-0 transition-all shadow-sm hover:shadow-md"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -72,7 +72,7 @@ export const SearchView = ({ setView, setTopic }: SearchViewProps) => {
               className="group bg-white border border-gray-100 rounded-2xl p-6 md:p-8 card-hover cursor-pointer flex flex-col"
               onClick={() => {
                 setTopic(debate.title);
-                setView('setup');
+                navigate('/setup');
               }}
             >
               <div className="flex gap-2 mb-4">

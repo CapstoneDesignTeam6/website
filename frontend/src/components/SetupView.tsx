@@ -2,10 +2,8 @@ import {
   FileText, 
   Rocket 
 } from 'lucide-react';
-import { View } from '../types';
 
 interface SetupViewProps {
-  setView: (v: View) => void;
   topic: string;
   setTopic: (t: string) => void;
   agentCount: number;
@@ -34,7 +32,7 @@ export const SetupView = ({
             <h2 className="text-lg md:text-xl font-bold font-headline mb-4 md:mb-6">토론 주제를 입력하세요</h2>
             <div className="relative">
               <textarea 
-                className="w-full bg-surface-container p-4 md:p-6 rounded-xl border-none focus:ring-2 focus:ring-primary min-h-[120px] md:min-h-[160px] resize-none text-sm md:text-base"
+                className="w-full bg-surface-container p-4 md:p-6 rounded-xl border-none focus:ring-2 focus:ring-primary min-h-30 md:min-h-40 resize-none text-sm md:text-base"
                 placeholder="예: 인공지능이 예술의 창의성에 미치는 영향에 대해 토론하고 싶습니다."
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}

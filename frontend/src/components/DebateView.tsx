@@ -14,10 +14,10 @@ import {
   User
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { View, DebateMessage } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { DebateMessage } from '../types';
 
 interface DebateViewProps {
-  setView: (v: View) => void;
   topic: string;
   messages: DebateMessage[];
   onSendMessage: (text: string) => void;
@@ -26,13 +26,13 @@ interface DebateViewProps {
 }
 
 export const DebateView = ({ 
-  setView, 
   topic, 
   messages, 
   onSendMessage, 
   isGenerating,
   onFinish
 }: DebateViewProps) => {
+  const navigate = useNavigate();
   const [inputText, setInputText] = useState('');
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
@@ -119,7 +119,7 @@ export const DebateView = ({
             ))}
           </nav>
 
-          <button onClick={() => setView('setup')} className="w-full py-4 bg-primary text-white rounded-xl font-bold text-sm transition-all mt-6">
+          <button onClick={() => navigate('/setup')} className="w-full py-4 bg-primary text-white rounded-xl font-bold text-sm transition-all mt-6">
             새 토론 시작
           </button>
           <button onClick={onFinish} className="w-full py-4 bg-secondary text-white rounded-xl font-bold text-sm transition-all mt-2">

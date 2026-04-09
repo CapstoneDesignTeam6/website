@@ -6,7 +6,7 @@ import {
   Brain
 } from 'lucide-react';
 import { motion } from 'motion/react';
-import { View } from '../types';
+import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api';
 
 const HERO_TOPICS = [
@@ -31,11 +31,11 @@ const HERO_TOPICS = [
 ];
 
 interface HomeViewProps {
-  setView: (v: View) => void;
   setTopic: (t: string) => void;
 }
 
-export const HomeView = ({ setView, setTopic }: HomeViewProps) => {
+export const HomeView = ({ setTopic }: HomeViewProps) => {
+  const navigate = useNavigate();
   const [trendingDebates, setTrendingDebates] = useState<any[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
 
@@ -96,13 +96,13 @@ export const HomeView = ({ setView, setTopic }: HomeViewProps) => {
                     <button 
                       onClick={() => {
                         setTopic(slide.title);
-                        setView('setup');
+                        navigate('/setup');
                       }} 
                       className="px-6 md:px-8 py-3 md:py-4 bg-primary text-white font-bold rounded-xl hover:bg-primary-container transition-all flex items-center justify-center gap-2 text-sm md:text-base pointer-events-auto"
                     >
                       자세히 보기 <ArrowRight size={18} />
                     </button>
-                    <button onClick={() => setView('setup')} className="px-6 md:px-8 py-3 md:py-4 bg-white/80 backdrop-blur border border-gray-200 text-on-surface font-bold rounded-xl hover:bg-white transition-all text-sm md:text-base pointer-events-auto">
+                    <button onClick={() => navigate('/setup')} className="px-6 md:px-8 py-3 md:py-4 bg-white/80 backdrop-blur border border-gray-200 text-on-surface font-bold rounded-xl hover:bg-white transition-all text-sm md:text-base pointer-events-auto">
                       토론 참여하기
                     </button>
                   </div>
@@ -122,7 +122,7 @@ export const HomeView = ({ setView, setTopic }: HomeViewProps) => {
                      </div>
                      <div className="flex justify-between items-center">
                         <div className="flex -space-x-2">
-                          {[1,2,3].map(j => <div key={j} className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white" />)}
+                           {[1,2,3].map(j => <div key={j} className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white" />)}
                         </div>
                         <span className="text-xs font-bold text-primary">2.4k 참여 중</span>
                      </div>
@@ -160,7 +160,7 @@ export const HomeView = ({ setView, setTopic }: HomeViewProps) => {
             <h2 className="text-2xl md:text-3xl font-extrabold font-headline mb-2">인기 주제</h2>
             <p className="text-sm md:text-base text-outline">지금 가장 뜨거운 주제들을 매거진 레이아웃으로 만나보세요.</p>
           </div>
-          <button onClick={() => setView('search')} className="text-primary font-bold flex items-center gap-2 hover:gap-3 transition-all text-sm md:text-base">모든 주제 보기 <ArrowRight size={18} /></button>
+          <button onClick={() => navigate('/search')} className="text-primary font-bold flex items-center gap-2 hover:gap-3 transition-all text-sm md:text-base">모든 주제 보기 <ArrowRight size={18} /></button>
         </div>
         <div className="grid md:grid-cols-3 gap-6 md:gap-8">
           {trendingDebates.map(debate => (
@@ -169,7 +169,7 @@ export const HomeView = ({ setView, setTopic }: HomeViewProps) => {
               className="group bg-white border border-gray-100 rounded-2xl p-6 md:p-8 card-hover cursor-pointer flex flex-col"
               onClick={() => {
                 setTopic(debate.title);
-                setView('setup');
+                navigate('/setup');
               }}
             >
               <div className="flex gap-2 mb-4">
