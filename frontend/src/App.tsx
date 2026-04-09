@@ -1,3 +1,8 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { 
   Search, 
@@ -990,16 +995,26 @@ const LoginView = ({ setView, setIsLoggedIn, setUserData }: { setView: (v: View)
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = (e: FormEvent) => {
+  const handleLogin = async (e: FormEvent) => {
     e.preventDefault();
-    // Mock login
-    setIsLoggedIn(true);
-    setUserData({
-      nickname: '논리적인 토론가',
-      email: email || 'agora@example.com',
-      interests: ['정치', '경제']
-    });
-    setView('home');
+    try {
+      const res = await fetch('/api/user/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsLoggedIn(true);
+        setUserData(data.user);
+        setView('home');
+      } else {
+        alert(data.detail || '로그인에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      alert('서버 통신 중 오류가 발생했습니다.');
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -1080,19 +1095,32 @@ const SignupView = ({ setView, setIsLoggedIn, setUserData }: { setView: (v: View
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const handleSignup = (e: FormEvent) => {
+  const handleSignup = async (e: FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       alert('비밀번호가 일치하지 않습니다.');
       return;
     }
-    setIsLoggedIn(true);
-    setUserData({
-      nickname: generateRandomNickname(),
-      email: email,
-      interests: []
-    });
-    setView('home');
+    
+    try {
+      const nickname = generateRandomNickname();
+      const res = await fetch('/api/user/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, nickname })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setIsLoggedIn(true);
+        setUserData(data.user);
+        setView('home');
+      } else {
+        alert(data.detail || '회원가입에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error("Signup error:", error);
+      alert('서버 통신 중 오류가 발생했습니다.');
+    }
   };
 
   const handleGoogleSignup = () => {
@@ -1434,11 +1462,7 @@ export default function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    if (isLoggedIn && (view === 'login' || view === 'signup')) {
-    setView('profile');
-   }
-  }, [isLoggedIn, view, setView]);
-  
+  }, [view]);
   const [userData, setUserData] = useState<any>(null);
   const [topic, setTopic] = useState('');
   const [agentCount, setAgentCount] = useState(3);
@@ -1452,56 +1476,76 @@ export default function App() {
     setMessages([]);
     setIsGenerating(true);
 
-    // Mock initial agent response
-    setTimeout(() => {
-      const firstAgent = { name: 'AI 에이전트 1', side: 'pro' as const };
+    try {
+      const res = await fetch('/api/debate/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic })
+      });
+      const data = await res.json();
+      
       setMessages([{
         role: 'agent',
-        agentName: firstAgent.name,
-        side: firstAgent.side,
-        content: `"${topic}"에 대한 토론을 시작하게 되어 기쁩니다. 저는 이 주제에 대해 찬성하는 입장이며, 다양한 논거를 통해 이를 뒷받침하겠습니다.`,
-        timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        agentName: data.agentName,
+        side: data.side,
+        content: data.content,
+        timestamp: data.timestamp
       }]);
+    } catch (error) {
+      console.error("Failed to start debate:", error);
+    } finally {
       setIsGenerating(false);
-    }, 1000);
+    }
   };
 
   const handleSendMessage = async (text: string) => {
     setIsGenerating(true);
     
-    // Mock side detection (simple keyword based)
-    const side: 'pro' | 'con' | 'neutral' = text.includes('반대') ? 'con' : text.includes('찬성') ? 'pro' : 'neutral';
-    
-    const userMsg: DebateMessage = {
-      role: 'user',
-      side,
-      content: text,
-      timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-    };
-    setMessages(prev => [...prev, userMsg]);
-
-    // Mock AI Response
-    setTimeout(() => {
-      const opponentSide: 'pro' | 'con' = side === 'pro' ? 'con' : 'pro';
-      const opponentAgent = { 
-        name: `AI 에이전트 2`, 
-        side: opponentSide
+    try {
+      const res = await fetch('/api/debate/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, message: text, history: messages })
+      });
+      const data = await res.json();
+      
+      const userMsg: DebateMessage = {
+        role: 'user',
+        side: data.userSide,
+        content: text,
+        timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
       };
       
-      setMessages(prev => [...prev, {
+      setMessages(prev => [...prev, userMsg, {
         role: 'agent',
-        agentName: opponentAgent.name,
-        side: opponentAgent.side,
-        content: `당신의 의견인 "${text}"에 대해 흥미로운 관점을 제시해 주셨네요. 하지만 ${opponentSide === 'pro' ? '찬성' : '반대'} 측 입장에서는 다른 시각이 필요하다고 생각합니다.`,
-        timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        agentName: data.aiResponse.agentName,
+        side: data.aiResponse.side,
+        content: data.aiResponse.content,
+        timestamp: data.aiResponse.timestamp
       }]);
+    } catch (error) {
+      console.error("Failed to send message:", error);
+    } finally {
       setIsGenerating(false);
-    }, 1500);
+    }
   };
 
   const handleFinishDebate = async () => {
     setView('result');
-    setDebateResult('토론이 성공적으로 마무리되었습니다. 양측 모두 논리적인 근거를 바탕으로 훌륭한 토론을 펼쳤습니다. 찬성 측은 경제적 효율성을, 반대 측은 사회적 가치를 강조하며 주제를 다각도로 분석했습니다.');
+    setDebateResult('분석 중...');
+    
+    try {
+      const res = await fetch('/api/debate/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic, messages })
+      });
+      const data = await res.json();
+      setDebateResult(data.result);
+    } catch (error) {
+      console.error("Failed to analyze debate:", error);
+      setDebateResult("결과 분석에 실패했습니다.");
+    }
   };
 
   return (
@@ -1543,8 +1587,19 @@ export default function App() {
             {view === 'faq' && <FAQView />}
             {view === 'search' && <SearchView setView={setView} setTopic={setTopic} />}
             {view === 'profile' && <ProfileView isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} userData={userData} setUserData={setUserData} setView={setView} />}
-            {view === 'login' && !isLoggedIn && <LoginView setView={setView} setIsLoggedIn={setIsLoggedIn} setUserData={setUserData} />}
-{view === 'signup' && !isLoggedIn && <SignupView setView={setView} setIsLoggedIn={setIsLoggedIn} setUserData={setUserData} />}
+            {view === "login" && !isLoggedIn && (
+              <LoginView
+                setView={setView}
+                setIsLoggedIn={setIsLoggedIn}
+                setUserData={setUserData}
+              />
+            )}
+            {view === "signup" && !isLoggedIn && (
+              <SignupView
+                setView={setView}
+                setIsLoggedIn={setIsLoggedIn}
+                setUserData={setUserData}
+              />)}
           </motion.div>
         </AnimatePresence>
       </main>
