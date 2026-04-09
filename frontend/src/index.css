@@ -1,0 +1,61 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&family=Inter:wght@400;500;600&display=swap');
+
+@theme {
+  --font-sans: "Inter", "Malgun Gothic", ui-sans-serif, system-ui, sans-serif;
+  --font-headline: "Manrope", "Malgun Gothic", sans-serif;
+  
+  --color-primary: #004ac6;
+  --color-primary-container: #2563eb;
+  --color-secondary: #bb0112;
+  --color-secondary-container: #e02928;
+  --color-surface: #f8f9fa;
+  --color-surface-container: #f3f4f5;
+  --color-outline: #737686;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-[#191c1d] antialiased;
+  }
+  
+  button:not(:disabled) {
+    @apply transition-all duration-200 cursor-pointer shadow-none;
+  }
+  
+  /* Primary buttons: Blue background -> White background with Blue text and border */
+  button.bg-primary:not(:disabled):hover {
+    background-color: white !important;
+    color: var(--color-primary) !important;
+    box-shadow: inset 0 0 0 2px var(--color-primary) !important;
+  }
+  
+  /* Outline or Gray buttons: Light background/border -> Blue background with White text */
+  button.border:not(:disabled):hover,
+  button.border-2:not(:disabled):hover,
+  button.bg-gray-100:not(:disabled):hover,
+  button.bg-surface-container:not(:disabled):hover {
+    background-color: var(--color-primary) !important;
+    color: white !important;
+    border-color: var(--color-primary) !important;
+  }
+}
+
+.card-hover {
+  @apply transition-all duration-300 hover:shadow-xl hover:translate-y-0 hover:scale-100;
+}
+
+.editorial-shadow {
+  box-shadow: 0 12px 32px rgba(25, 28, 29, 0.04);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #e1e3e4;
+  border-radius: 10px;
+}
