@@ -23,25 +23,10 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
     const fetchDebates = async () => {
       setIsLoading(true);
       try {
-        const response = await debateApi.search(searchQuery);
-        console.log("Search API Response:", response);
-        
-        // 응답이 배열인 경우
-        if (Array.isArray(response)) {
-          setDebates(response);
-        }
-        // 응답이 객체이고 data 필드가 있는 경우
-        else if (response?.data && Array.isArray(response.data)) {
-          setDebates(response.data);
-        }
-        // 그 외의 경우
-        else {
-          console.warn("Unexpected response format:", response);
-          setDebates([]);
-        }
+        const data = await debateApi.search(searchQuery);
+        setDebates(data);
       } catch (error) {
         console.error("Failed to fetch debates:", error);
-        setDebates([]);
       } finally {
         setIsLoading(false);
       }
@@ -79,7 +64,7 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
             <Loader2 size={48} className="animate-spin mx-auto text-primary mb-4" />
             <p className="text-outline">검색 중...</p>
           </div>
-        ) : Array.isArray(debates) && debates.length > 0 ? (
+        ) : debates.length > 0 ? (
           debates.map(debate => (
             <motion.div 
               layout
@@ -91,14 +76,14 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
               }}
             >
               <div className="flex gap-2 mb-4">
-                <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-outline rounded uppercase">{debate.stance}</span>
-                {debate.messageCount > 15 && <span className="px-2 py-0.5 bg-red-50 text-[10px] font-bold text-secondary rounded uppercase tracking-widest">Hot</span>}
+                <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-outline rounded uppercase">{debate.category}</span>
+                {debate.isHot && <span className="px-2 py-0.5 bg-red-50 text-[10px] font-bold text-secondary rounded uppercase tracking-widest">Hot</span>}
               </div>
-              <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4 group-hover:text-primary transition-colors line-clamp-2">{debate.topic}</h3>
-              <p className="text-xs md:text-sm text-outline mb-6 md:mb-8 line-clamp-2 leading-relaxed flex-1">작성자: <strong>{debate.author}</strong></p>
+              <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4 group-hover:text-primary transition-colors">{debate.title}</h3>
+              <p className="text-xs md:text-sm text-outline mb-6 md:mb-8 line-clamp-3 leading-relaxed flex-1">{debate.description}</p>
               <div className="pt-4 md:pt-6 border-t border-gray-50 flex justify-between items-center">
                 <div className="flex items-center gap-2 text-outline text-[10px] md:text-xs">
-                  <MessageSquare size={14} /> {debate.messageCount}개 메시지
+                  <MessageSquare size={14} /> {debate.participants}명 참여 중
                 </div>
                 <span className="text-[10px] md:text-xs font-bold text-primary group-hover:translate-x-1 transition-transform flex items-center gap-1">
                   참여하기 <ArrowRight size={14} />
