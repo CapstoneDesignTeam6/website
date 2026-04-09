@@ -11,6 +11,9 @@ class DiscussionSession(Base):
     
     title = Column(String)
     topic = Column(String)                                              # 토론 주제
+    stance = Column(Integer, default=1)                                 # 사용자 입장 (1=찬성, -1=반대)
+    news_data = Column(JSON, default=[])                                # 주제 관련 뉴스 데이터
+    intro_summary = Column(String, nullable=True)                       # 토론 시작 요약
     agents_config = Column(JSON, default={})                            # 에이전트 설정
     status = Column(String, default="ongoing")                          # ongoing / completed
     

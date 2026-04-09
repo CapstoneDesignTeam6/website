@@ -15,6 +15,8 @@ class DiscussionService:
             user_id=user.id,
             title=discussion_data.title,
             topic=discussion_data.topic,
+            stance=discussion_data.stance,
+            news_data=discussion_data.news_data,
             agents_config=discussion_data.agents_config,
             status="ongoing"
         )
@@ -43,11 +45,16 @@ class DiscussionService:
         # 토론 상태 업데이트
         session.status = "completed"
         session.completed_at = datetime.utcnow()
-        session.score = end_request.score
-        session.evaluation_detail = end_request.evaluation_detail
+        
+        # 점수 및 평가 정보 설정
+        score = end_request.score if end_request.score is not None else 50.0  # 기본값: 50점
+        evaluation_detail = end_request.evaluation_detail or {}
+        
+        session.score = score
+        session.evaluation_detail = evaluation_detail
         
         # 경험치 계산
-        exp, star_rating = LevelService.calculate_score_exp(end_request.score)
+        exp, star_rating = LevelService.calculate_score_exp(score)
         session.exp_earned = exp
         
         db.commit()
