@@ -90,7 +90,7 @@ export const FAQView = () => {
         ))}
       </div>
 
-      <div className="mt-12 md:mt-24 bg-surface-container rounded-[1.5rem] md:rounded-[2.5rem] p-8 md:p-12 text-center">
+      <div className="mt-12 md:mt-24 bg-surface-container rounded-3xl md:rounded-[2.5rem] p-8 md:p-12 text-center">
         <h3 className="text-xl md:text-2xl font-bold mb-3 md:mb-4">원하는 답변을 찾지 못하셨나요?</h3>
         <p className="text-xs md:text-sm text-outline mb-6 md:mb-8">Agora 운영팀이 직접 상세히 안내해 드리겠습니다.</p>
         <button className="px-8 md:px-10 py-3 md:py-4 bg-primary text-white font-bold rounded-xl transition-all text-sm md:text-base">

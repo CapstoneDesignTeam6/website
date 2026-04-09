@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 // --- Types & Services ---
 import { View, DebateMessage, UserData } from './types';
-import { debateApi } from './services/api';
+import { debateApi, userApi } from './services/api';
 
 // --- Components ---
 import { Navbar } from './components/Navbar';
@@ -34,6 +34,18 @@ export default function App() {
   const [messages, setMessages] = useState<DebateMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [debateResult, setDebateResult] = useState('');
+
+  useEffect(() => {
+    const token = userApi.getToken();
+    if (token) {
+      // In a real app, you'd verify the token and fetch user data here
+      setIsLoggedIn(true);
+      setUserData({
+        nickname: '다시 돌아온 토론가',
+        email: 'user@example.com'
+      });
+    }
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
