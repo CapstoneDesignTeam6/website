@@ -79,7 +79,7 @@ export const QuizView = ({ topic, type, onComplete }: QuizViewProps) => {
         <p className="text-sm text-outline">간단한 퀴즈를 통해 주제에 대해 더 깊이 알아보세요.</p>
       </header>
 
-      <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-10 editorial-shadow border border-gray-50">
+      <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 editorial-shadow border border-gray-50">
         <div className="flex items-start gap-4 mb-8">
           <div className="w-10 h-10 rounded-xl bg-primary/5 text-primary flex items-center justify-center shrink-0">
             <HelpCircle size={24} />

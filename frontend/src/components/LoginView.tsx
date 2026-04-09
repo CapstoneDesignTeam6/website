@@ -1,14 +1,15 @@
 import { useState, FormEvent } from 'react';
-import { View, UserData } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { UserData } from '../types';
 import { userApi } from '../services/api';
 
 interface LoginViewProps {
-  setView: (v: View) => void;
   setIsLoggedIn: (v: boolean) => void;
   setUserData: (d: UserData) => void;
 }
 
-export const LoginView = ({ setView, setIsLoggedIn, setUserData }: LoginViewProps) => {
+export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -18,7 +19,7 @@ export const LoginView = ({ setView, setIsLoggedIn, setUserData }: LoginViewProp
       const data = await userApi.login(email, password);
       setIsLoggedIn(true);
       setUserData(data.user);
-      setView('home');
+      navigate('/');
     } catch (error: any) {
       alert(error.message);
     }
@@ -30,7 +31,7 @@ export const LoginView = ({ setView, setIsLoggedIn, setUserData }: LoginViewProp
       nickname: 'Google User',
       email: 'google_user@gmail.com'
     });
-    setView('home');
+    navigate('/');
   };
 
   return (
@@ -40,7 +41,7 @@ export const LoginView = ({ setView, setIsLoggedIn, setUserData }: LoginViewProp
         <p className="text-sm md:text-base text-outline">Agora에 오신 것을 환영합니다.</p>
       </header>
 
-      <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-10 editorial-shadow border border-gray-50 card-hover">
+      <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 editorial-shadow border border-gray-50 card-hover">
         <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
           <div className="space-y-1.5 md:space-y-2">
             <label className="text-xs md:text-sm font-bold text-on-surface ml-1">이메일</label>
@@ -87,7 +88,7 @@ export const LoginView = ({ setView, setIsLoggedIn, setUserData }: LoginViewProp
           </button>
 
           <p className="text-center text-xs md:text-sm text-outline pt-3 md:pt-4">
-            계정이 없으신가요? <button type="button" onClick={() => setView('signup')} className="text-primary font-bold hover:underline">회원가입</button>
+            계정이 없으신가요? <button type="button" onClick={() => navigate('/signup')} className="text-primary font-bold hover:underline">회원가입</button>
           </p>
         </form>
       </div>

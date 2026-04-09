@@ -1,16 +1,17 @@
 import { useState, FormEvent } from 'react';
 import { User } from 'lucide-react';
-import { View, UserData } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { UserData } from '../types';
 
 interface ProfileViewProps {
   isLoggedIn: boolean;
   setIsLoggedIn: (v: boolean) => void;
   userData: UserData | null;
   setUserData: (d: UserData) => void;
-  setView: (v: View) => void;
 }
 
-export const ProfileView = ({ isLoggedIn, userData, setUserData, setView }: ProfileViewProps) => {
+export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewProps) => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     nickname: userData?.nickname || '',
     email: userData?.email || '',
@@ -40,7 +41,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData, setView }: Prof
           <p className="text-base md:text-lg text-outline text-left">Agora에서 당신의 활동 정보를 관리하세요.</p>
         </header>
 
-        <div className="bg-white rounded-[1.5rem] md:rounded-[2.5rem] p-6 md:p-12 editorial-shadow border border-gray-50 card-hover">
+        <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-12 editorial-shadow border border-gray-50 card-hover">
           <form onSubmit={handleSubmit} className="space-y-6 md:space-y-10">
             <div className="space-y-2 md:space-y-3">
               <label className="text-sm md:text-base font-bold text-on-surface ml-1">닉네임</label>
@@ -87,7 +88,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData, setView }: Prof
               </button>
               <button 
                 type="button"
-                onClick={() => setView('home')}
+                onClick={() => navigate('/')}
                 className="flex-1 md:flex-none px-8 md:px-12 py-3 md:py-5 border border-gray-200 text-outline font-bold rounded-2xl hover:bg-gray-50 transition-all text-sm md:text-base"
               >
                 취소

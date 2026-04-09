@@ -1,75 +1,88 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import {
+  Routes,
+  Route,
+  useLocation,
+  useNavigate,
+  Navigate,
+} from "react-router-dom";
 
 // --- Types & Services ---
-import { View, DebateMessage, UserData } from './types';
-import { debateApi, userApi } from './services/api';
+import { DebateMessage, UserData } from "./types";
+import { debateApi, userApi } from "./services/api";
 
 // --- Components ---
-import { Navbar } from './components/Navbar';
-import { Footer } from './components/Footer';
-import { HomeView } from './components/HomeView';
-import { AboutView } from './components/AboutView';
-import { SetupView } from './components/SetupView';
-import { DebateView } from './components/DebateView';
-import { ResultView } from './components/ResultView';
-import { FAQView } from './components/FAQView';
-import { SearchView } from './components/SearchView';
-import { LoginView } from './components/LoginView';
-import { SignupView } from './components/SignupView';
-import { ProfileView } from './components/ProfileView';
-import { QuizView } from './components/QuizView';
+import { Navbar } from "./components/Navbar";
+import { Footer } from "./components/Footer";
+import { HomeView } from "./components/HomeView";
+import { AboutView } from "./components/AboutView";
+import { SetupView } from "./components/SetupView";
+import { DebateView } from "./components/DebateView";
+import { ResultView } from "./components/ResultView";
+import { FAQView } from "./components/FAQView";
+import { SearchView } from "./components/SearchView";
+import { LoginView } from "./components/LoginView";
+import { SignupView } from "./components/SignupView";
+import { ProfileView } from "./components/ProfileView";
+import { QuizView } from "./components/QuizView";
 
 export default function App() {
-  const [view, setView] = useState<View>('home');
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [topic, setTopic] = useState('');
+  const [topic, setTopic] = useState("");
   const [agentCount, setAgentCount] = useState(3);
   const [messages, setMessages] = useState<DebateMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [debateResult, setDebateResult] = useState('');
+  const [debateResult, setDebateResult] = useState("");
 
   useEffect(() => {
-    const token = userApi.getToken();
-    if (token) {
-      // In a real app, you'd verify the token and fetch user data here
-      setIsLoggedIn(true);
-      setUserData({
-        nickname: '다시 돌아온 토론가',
-        email: 'user@example.com'
-      });
-    }
+    const initAuth = async () => {
+      const token = userApi.getToken();
+      if (token) {
+        try {
+          // 백엔드의 @router.get("/me")를 호출하는 함수가 userApi에 있다고 가정
+          // userApi.getCurrentUser()를 추가하여 실제 데이터를 가져오세요.
+          const user = await userApi.getCurrentUser();
+          setIsLoggedIn(true);
+          setUserData(user);
+        } catch (error) {
+          console.error("세션이 만료되었습니다.");
+          userApi.logout();
+          setIsLoggedIn(false);
+        }
+      }
+    };
+    initAuth();
   }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [view]);
+  }, [location.pathname]);
 
   const handleStartDebate = async () => {
     if (!topic.trim()) return;
-    setView('pre-quiz');
+    navigate("/pre-quiz");
   };
 
   const startActualDebate = async () => {
-    setView('debate');
+    navigate("/debate");
     setMessages([]);
     setIsGenerating(true);
 
     try {
       const data = await debateApi.start(topic);
-      setMessages([{
-        role: 'agent',
-        agentName: data.agentName,
-        side: data.side,
-        content: data.content,
-        timestamp: data.timestamp
-      }]);
+      setMessages([
+        {
+          role: "agent",
+          agentName: data.agentName,
+          side: data.side,
+          content: data.content,
+          timestamp: data.timestamp,
+        },
+      ]);
     } catch (error) {
       console.error("Failed to start debate:", error);
     } finally {
@@ -79,24 +92,31 @@ export default function App() {
 
   const handleSendMessage = async (text: string) => {
     setIsGenerating(true);
-    
+
     try {
       const data = await debateApi.sendMessage(topic, text, messages);
-      
+
       const userMsg: DebateMessage = {
-        role: 'user',
+        role: "user",
         side: data.userSide,
         content: text,
-        timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString("ko-KR", {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
       };
-      
-      setMessages(prev => [...prev, userMsg, {
-        role: 'agent',
-        agentName: data.aiResponse.agentName,
-        side: data.aiResponse.side,
-        content: data.aiResponse.content,
-        timestamp: data.aiResponse.timestamp
-      }]);
+
+      setMessages((prev) => [
+        ...prev,
+        userMsg,
+        {
+          role: "agent",
+          agentName: data.aiResponse.agentName,
+          side: data.aiResponse.side,
+          content: data.aiResponse.content,
+          timestamp: data.aiResponse.timestamp,
+        },
+      ]);
     } catch (error) {
       console.error("Failed to send message:", error);
     } finally {
@@ -105,13 +125,13 @@ export default function App() {
   };
 
   const handleFinishDebate = async () => {
-    setView('post-quiz');
+    navigate("/post-quiz");
   };
 
   const showResult = async () => {
-    setView('result');
-    setDebateResult('분석 중...');
-    
+    navigate("/result");
+    setDebateResult("분석 중...");
+
     try {
       const data = await debateApi.analyze(topic, messages);
       setDebateResult(data.result);
@@ -121,82 +141,111 @@ export default function App() {
     }
   };
 
-  const renderView = () => {
-    switch (view) {
-      case 'home':
-        return <HomeView setView={setView} setTopic={setTopic} />;
-      case 'about':
-        return <AboutView setView={setView} />;
-      case 'setup':
-        return (
-          <SetupView 
-            setView={setView} 
-            topic={topic} 
-            setTopic={setTopic} 
-            agentCount={agentCount} 
-            setAgentCount={setAgentCount} 
-            onStart={handleStartDebate} 
-          />
-        );
-      case 'pre-quiz':
-        return <QuizView topic={topic} type="pre" onComplete={startActualDebate} />;
-      case 'post-quiz':
-        return <QuizView topic={topic} type="post" onComplete={showResult} />;
-      case 'debate':
-        return (
-          <DebateView 
-            setView={setView} 
-            topic={topic} 
-            messages={messages} 
-            onSendMessage={handleSendMessage} 
-            isGenerating={isGenerating} 
-            onFinish={handleFinishDebate}
-          />
-        );
-      case 'result':
-        return <ResultView setView={setView} topic={topic} result={debateResult} />;
-      case 'faq':
-        return <FAQView />;
-      case 'search':
-        return <SearchView setView={setView} setTopic={setTopic} />;
-      case 'login':
-        return <LoginView setView={setView} setIsLoggedIn={setIsLoggedIn} setUserData={setUserData} />;
-      case 'signup':
-        return <SignupView setView={setView} setIsLoggedIn={setIsLoggedIn} setUserData={setUserData} />;
-      case 'profile':
-        return (
-          <ProfileView 
-            isLoggedIn={isLoggedIn} 
-            setIsLoggedIn={setIsLoggedIn} 
-            userData={userData} 
-            setUserData={setUserData} 
-            setView={setView} 
-          />
-        );
-      default:
-        return <HomeView setView={setView} setTopic={setTopic} />;
-    }
-  };
-
   return (
     <div className="min-h-screen flex flex-col font-sans">
-      <Navbar currentView={view} setView={setView} isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
-      
+      <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+
       <main className="flex-1">
         <AnimatePresence mode="wait">
           <motion.div
-            key={view}
+            key={location.pathname}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
           >
-            {renderView()}
+            <Routes location={location}>
+              <Route path="/" element={<HomeView setTopic={setTopic} />} />
+              <Route path="/about" element={<AboutView />} />
+              <Route
+                path="/setup"
+                element={
+                  <SetupView
+                    topic={topic}
+                    setTopic={setTopic}
+                    agentCount={agentCount}
+                    setAgentCount={setAgentCount}
+                    onStart={handleStartDebate}
+                  />
+                }
+              />
+              <Route
+                path="/pre-quiz"
+                element={
+                  <QuizView
+                    topic={topic}
+                    type="pre"
+                    onComplete={startActualDebate}
+                  />
+                }
+              />
+              <Route
+                path="/post-quiz"
+                element={
+                  <QuizView topic={topic} type="post" onComplete={showResult} />
+                }
+              />
+              <Route
+                path="/debate"
+                element={
+                  <DebateView
+                    topic={topic}
+                    messages={messages}
+                    onSendMessage={handleSendMessage}
+                    isGenerating={isGenerating}
+                    onFinish={handleFinishDebate}
+                  />
+                }
+              />
+              <Route
+                path="/result"
+                element={<ResultView topic={topic} result={debateResult} />}
+              />
+              <Route path="/faq" element={<FAQView />} />
+              <Route
+                path="/search"
+                element={<SearchView setTopic={setTopic} />}
+              />
+              <Route
+                path="/login"
+                element={
+                  <LoginView
+                    setIsLoggedIn={setIsLoggedIn}
+                    setUserData={setUserData}
+                  />
+                }
+              />
+              <Route
+                path="/signup"
+                element={
+                  <SignupView
+                    setIsLoggedIn={setIsLoggedIn}
+                    setUserData={setUserData}
+                  />
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  isLoggedIn ? (
+                    <ProfileView
+                      isLoggedIn={isLoggedIn}
+                      setIsLoggedIn={setIsLoggedIn}
+                      userData={userData}
+                      setUserData={setUserData}
+                    />
+                  ) : (
+                    <Navigate to="/login" replace />
+                  )
+                }
+              />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           </motion.div>
         </AnimatePresence>
       </main>
 
-      {view !== 'debate' && <Footer />}
+      {location.pathname !== "/debate" && <Footer />}
     </div>
   );
 }
