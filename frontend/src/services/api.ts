@@ -93,13 +93,16 @@ export const userApi = {
     if (data.access_token) {
       localStorage.setItem(TOKEN_KEY, data.access_token);
     }
+    if (data.user) {
+      data.user.nickname = data.user.username;
+    }
     return data;
   },
-  signup: async (email: string, password: string, nickname: string) => {
+  signup: async (email: string, password: string, username: string) => {
     const res = await fetch('/api/user/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, nickname }),
+      body: JSON.stringify({ email, password, username: username }),
     });
     if (!res.ok) {
       const error = await res.json();
@@ -108,6 +111,9 @@ export const userApi = {
     const data = await res.json();
     if (data.access_token) {
       localStorage.setItem(TOKEN_KEY, data.access_token);
+    }
+    if (data.user) {
+      data.user.nickname = data.user.username;
     }
     return data;
   },
@@ -130,4 +136,5 @@ export const userApi = {
 
     return res.json(); // UserDetailResponse 반환
   }
+  
 };

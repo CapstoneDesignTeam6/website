@@ -18,15 +18,14 @@ class UserLogin(BaseModel):
 
 class UserResponse(BaseModel):
     id: int
-    username: Optional[str]
-    email: Optional[str]
-    is_guest: bool
-    level: int
-    experience_points: int
-    created_at: datetime
-    
-    class Config:
-        from_attributes = True
+    username: Optional[str] = None
+    email: Optional[str] = None
+    is_guest: bool = False
+    level: int = 1
+    experience_points: int = 0
+    created_at: Optional[datetime] = None
+
+    model_config = {"from_attributes": True, "extra": "ignore"}
 
 class UserDetailResponse(UserResponse):
     current_level_exp: int

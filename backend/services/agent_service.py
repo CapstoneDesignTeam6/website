@@ -229,14 +229,14 @@ class AgentService:
             intro = random.choice(EVALUATION_AGENT_MOCK_DATA["intro_samples"])
             
             return {
-                "summary": f""{topic}"에 대한 토론\n\n{intro}",
+                "summary": f'"{topic}"에 대한 토론\n\n{intro}',
                 "is_mock": True,
                 "timestamp": datetime.utcnow().isoformat()
             }
         
         except Exception as e:
             logger.error(f"❌ Intro 생성 중 오류: {str(e)}")
-            return {"summary": f""{topic}"에 대한 토론을 시작합니다.", "error": str(e)}
+            return {"summary": f'"{topic}"에 대한 토론을 시작합니다.', "error": str(e)}
     
     @staticmethod
     def get_counter_hint(
@@ -335,8 +335,8 @@ class AgentService:
             logger.info(f"🎯 Summary Mock 데이터 생성: {turns} 라운드")
             
             return {
-                "summary": f""{topic}"에 대한 {turns}라운드 토론을 완료했습니다. 양쪽 주장 모두 타당한 근거를 제시했으며, 깊이 있는 논의가 이루어졌습니다.",
-                "issues": f"주요 쟁점: 1) 실효성, 2) 윤리적 고려사항, 3) 경제적 영향",
+                "summary": f'"{topic}"에 대한 {turns}라운드 토론을 완료했습니다. 양쪽 주장 모두 타당한 근거를 제시했으며, 깊이 있는 논의가 이루어졌습니다.',
+                "issues": "주요 쟁점: 1) 실효성, 2) 윤리적 고려사항, 3) 경제적 영향",
                 "logic_feedback": "논리적 구조가 명확했습니다. 더 구체적인 사례나 통계 자료를 활용하면 더욱 설득력 있는 주장을 펼칠 수 있을 것 같습니다.",
                 "extra_info": "관련 주제: 국내외 사례 연구, 정책 현황 분석 등을 추가로 학습하시면 도움이 될 것입니다.",
                 "is_mock": True,

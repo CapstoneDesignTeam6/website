@@ -42,10 +42,25 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        const data = await debateApi.getTrending();
-        setTrendingDebates(data);
+        const response = await debateApi.getTrending();
+        console.log("Trending API Response:", response);
+        
+        // 응답이 배열인 경우
+        if (Array.isArray(response)) {
+          setTrendingDebates(response);
+        } 
+        // 응답이 객체이고 data 필드가 있는 경우
+        else if (response?.data && Array.isArray(response.data)) {
+          setTrendingDebates(response.data);
+        } 
+        // 그 외의 경우
+        else {
+          console.warn("Unexpected response format:", response);
+          setTrendingDebates([]);
+        }
       } catch (error) {
         console.error("Failed to fetch trending debates:", error);
+        setTrendingDebates([]);
       }
     };
     fetchTrending();

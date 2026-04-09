@@ -1,96 +1,109 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
-from schemas.user import UserCreate, UserLogin, UserResponse, UserDetailResponse
+from supabase import Client
+from schemas.user import UserCreate, UserLogin, UserResponse
 from services.auth_service import AuthService
-from database import get_db
-from models.user import User
+from database import get_supabase
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/user", tags=["auth"])
 
-@router.post("/signup", response_model=UserResponse)
-async def signup(user_data: UserCreate, db: Session = Depends(get_db)):
+
+def _to_user_response(user: dict) -> UserResponse:
+    return UserResponse(**user)
+
+
+@router.post("/signup")
+def signup(user_data: UserCreate, supabase: Client = Depends(get_supabase)):
     """회원가입"""
-    # 중복 확인
-    if AuthService.user_exists(username=user_data.username, db=db):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="이미 사용 중인 아이디입니다."
+    print(">>> [1] signup 진입")
+    try:
+        print(">>> [2] user_exists(username) 호출 전")
+        exists = AuthService.user_exists(supabase, username=user_data.username)
+        print(f">>> [3] user_exists(username) 완료: {exists}")
+        if exists:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="이미 사용 중인 아이디입니다."
+            )
+
+        print(">>> [4] user_exists(email) 호출 전")
+        exists = AuthService.user_exists(supabase, email=user_data.email)
+        print(f">>> [5] user_exists(email) 완료: {exists}")
+        if exists:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="이미 사용 중인 이메일입니다."
+            )
+
+        print(">>> [6] create_user 호출 전")
+        user = AuthService.create_user(
+            username=user_data.username,
+            email=user_data.email,
+            password=user_data.password,
+            supabase=supabase
         )
-    
-    if AuthService.user_exists(email=user_data.email, db=db):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="이미 사용 중인 이메일입니다."
-        )
-    
-    # 사용자 생성
-    user = AuthService.create_user(
-        username=user_data.username,
-        email=user_data.email,
-        password=user_data.password,
-        db=db
-    )
-    
-    return user
+        print(f">>> [7] create_user 완료: {user}")
+
+        access_token = AuthService.create_access_token(data={"sub": str(user['id'])})
+        print(">>> [8] 응답 반환")
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": _to_user_response(user)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f">>> [ERROR] {type(e).__name__}: {e}")
+        logger.error(f"[signup] 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"회원가입 처리 중 오류가 발생했습니다: {str(e)}")
+
 
 @router.post("/login")
-async def login(login_data: UserLogin, db: Session = Depends(get_db)):
+def login(login_data: UserLogin, supabase: Client = Depends(get_supabase)):
     """로그인"""
-    # 사용자 인증
-    user = AuthService.authenticate_user(
-        username=login_data.username,
-        email=login_data.email,
-        password=login_data.password,
-        db=db
-    )
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="아이디, 이메일 또는 비밀번호가 잘못되었습니다."
+    try:
+        user = AuthService.authenticate_user(
+            username=login_data.username,
+            email=login_data.email,
+            password=login_data.password,
+            supabase=supabase
         )
-    
-    # 토큰 생성
-    access_token = AuthService.create_access_token(data={"sub": str(user.id)})
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": UserResponse.from_orm(user)
-    }
+
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="아이디, 이메일 또는 비밀번호가 잘못되었습니다."
+            )
+
+        access_token = AuthService.create_access_token(data={"sub": str(user['id'])})
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": _to_user_response(user)
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[login] 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"로그인 처리 중 오류가 발생했습니다: {str(e)}")
+
 
 @router.post("/guest")
-async def create_guest(db: Session = Depends(get_db)):
+def create_guest(supabase: Client = Depends(get_supabase)):
     """게스트 모드"""
-    user = AuthService.create_guest_user(db=db)
-    
-    # 게스트용 토큰 생성
-    access_token = AuthService.create_access_token(data={"sub": str(user.id)})
-    
-    return {
-        "access_token": access_token,
-        "token_type": "bearer",
-        "user": UserResponse.from_orm(user)
-    }
-
-@router.get("/me", response_model=UserDetailResponse)
-async def get_current_user(
-    token: str = Depends(lambda: None),  # 헤더에서 토큰 추출
-    db: Session = Depends(get_db)
-):
-    """현재 사용자 정보"""
-    # 토큰 검증 로직 (실제로는 Depends를 사용하여 구현)
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="토큰이 필요합니다."
-        )
-    
-    user = AuthService.get_user_from_token(token, db)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="유효하지 않은 토큰입니다."
-        )
-    
-    return UserDetailResponse.from_orm(user)
+    try:
+        user = AuthService.create_guest_user(supabase=supabase)
+        access_token = AuthService.create_access_token(data={"sub": str(user['id'])})
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": _to_user_response(user)
+        }
+    except Exception as e:
+        logger.error(f"[guest] 오류: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"게스트 생성 중 오류가 발생했습니다: {str(e)}")
