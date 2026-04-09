@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     
     # 게스트 토론 제한 (일일)
     GUEST_DAILY_LIMIT: int = 3
+
+    # OpenAI (AI 서버 미동작 시 폴백)
+    OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
     
     class Config:
         env_file = ".env"

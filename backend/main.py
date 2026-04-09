@@ -7,6 +7,7 @@ from models.level_config import LevelConfig, LEVEL_CONFIG_DATA
 from services.level_service import LevelService
 from services.agent_service import AgentService
 from api import auth, discussion, level
+from api.auth import auth_router
 from database import SessionLocal
 from config import settings
 import logging
@@ -80,6 +81,7 @@ app.add_middleware(
 
 # 라우터 등록
 app.include_router(auth.router)
+app.include_router(auth_router)
 app.include_router(discussion.router)
 app.include_router(discussion.public_router)
 app.include_router(level.router)

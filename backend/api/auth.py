@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from supabase import Client
 from schemas.user import UserCreate, UserLogin, UserResponse
 from services.auth_service import AuthService
@@ -8,6 +8,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/user", tags=["auth"])
+auth_router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 def _to_user_response(user: dict) -> UserResponse:
@@ -107,3 +108,18 @@ def create_guest(supabase: Client = Depends(get_supabase)):
     except Exception as e:
         logger.error(f"[guest] 오류: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"게스트 생성 중 오류가 발생했습니다: {str(e)}")
+
+
+# /api/auth/me - 프론트엔드 호환
+@auth_router.get("/me")
+def get_me(request: Request, supabase: Client = Depends(get_supabase)):
+    """현재 로그인 사용자 정보 (Authorization 헤더 토큰 사용)"""
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
+        raise HTTPException(status_code=401, detail="토큰이 필요합니다.")
+    token = auth_header[len('Bearer '):]
+    user = AuthService.get_user_from_token(token, supabase)
+    if not user:
+        raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+    user['nickname'] = user.get('username')
+    return user

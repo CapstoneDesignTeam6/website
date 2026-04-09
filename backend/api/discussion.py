@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from supabase import Client
+from pydantic import BaseModel
 from typing import List
 from datetime import datetime
 
@@ -23,142 +24,159 @@ router = APIRouter(prefix="/api/debate", tags=["debates"])
 # 공개 API 라우터 (복수형 - 인증 불필요)
 public_router = APIRouter(prefix="/api/debates", tags=["discussions"])
 
-# 의존성: 현재 사용자 조회
+# 의존성: 현재 사용자 조회 (토큰 없으면 게스트로 처리)
 async def get_current_user(request: Request, supabase: Client = Depends(get_supabase)) -> dict:
-    """Authorization 헤더에서 토큰을 읽어 사용자 조회"""
+    """Authorization 헤더에서 토큰을 읽어 사용자 조회. 토큰 없으면 게스트 반환."""
     auth_header = request.headers.get('Authorization', '')
-    if not auth_header.startswith('Bearer '):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="토큰이 필요합니다."
-        )
-    token = auth_header[len('Bearer '):]
+    if auth_header.startswith('Bearer '):
+        token = auth_header[len('Bearer '):]
+        user = AuthService.get_user_from_token(token, supabase)
+        if user:
+            return user
 
-    user = AuthService.get_user_from_token(token, supabase)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="유효하지 않은 토큰입니다."
-        )
+    # 토큰 없거나 유효하지 않으면 게스트로 처리
+    return {"id": 0, "is_guest": True, "level": 1, "experience_points": 0}
 
-    return user
+class DebateStartRequest(BaseModel):
+    topic: str
 
-@router.post("/start", response_model=DiscussionResponse)
+class DebateMessageRequest(BaseModel):
+    topic: str
+    message: str
+    history: list = []
+
+class DebateAnalyzeRequest(BaseModel):
+    topic: str
+    messages: list = []
+
+
+@router.post("/start")
 async def start_discussion(
-    discussion_data: DiscussionCreate,
+    body: DebateStartRequest,
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    """새로운 토론 시작 및 배경 요약 생성"""
-    # 게스트 일일 제한 확인
-    if not DiscussionService.check_guest_daily_limit(user, db):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=f"게스트는 하루에 {3}회까지만 토론할 수 있습니다."
-        )
-    
-    # 토론 생성
-    discussion = DiscussionService.create_discussion(user, discussion_data, db)
-    
-    # 배경 요약 생성 (평가 에이전트)
-    intro_result = AgentService.get_intro(
-        topic=discussion.topic,
-        stance=discussion.stance,
-        news_data=discussion.news_data
-    )
-    
-    # 요약 저장
-    discussion.intro_summary = intro_result.get("summary", "")
-    db.commit()
-    db.refresh(discussion)
-    
-    return discussion
+    """토론 시작 - 프론트: { topic } → { agentName, side, content, timestamp }"""
+    import random
+    from datetime import datetime as dt
 
-@router.post("/message")
-async def add_message_to_discussion(
-    discussion_id: int,
-    speaker: str,
-    content: str,
-    role: str = "agent",
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
-):
-    """토론에 메시지 추가"""
-    # 토론 조회
-    discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
-    
-    if not discussion:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="토론을 찾을 수 없습니다."
-        )
-    
-    if discussion.user_id != user['id']:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="권한이 없습니다."
-        )
-    
-    # 메시지 추가
-    message = DiscussionService.add_message(discussion, speaker, content, role, db)
-    
+    agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
+    agent_name = random.choice(agents)
+
+    intro = AgentService.get_intro(topic=body.topic, stance=1)
+
     return {
-        "id": message.id,
-        "speaker": message.speaker,
-        "content": message.content,
-        "role": message.role,
-        "created_at": message.created_at
+        "agentName": agent_name,
+        "side": "con",
+        "content": intro.get("summary", f'"{body.topic}"에 대한 토론을 시작합니다.'),
+        "timestamp": dt.now().strftime("%H:%M"),
     }
 
-@router.post("/analyze", response_model=dict)
-async def end_discussion(
-    discussion_id: int,
-    end_request: DiscussionEndRequest,
+
+@router.post("/message")
+async def send_message(
+    body: DebateMessageRequest,
     db: Session = Depends(get_db),
-    supabase: Client = Depends(get_supabase),
     user: dict = Depends(get_current_user)
 ):
-    """토론 종료 및 평가 요약"""
-    # 토론 조회
-    discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
-    
-    if not discussion:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="토론을 찾을 수 없습니다."
-        )
-    
-    if discussion.user_id != user['id']:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="권한이 없습니다."
-        )
-    
-    # 대화 히스토리 수집
+    """메시지 전송 - 프론트: { topic, message, history } → { userSide, aiResponse }"""
+    import random
+    from datetime import datetime as dt
+
+    agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
+    agent_name = random.choice(agents)
+
+    # "agent" → "assistant" 로 변환 (GPT 형식)
     history = [
-        {"role": msg.role, "content": msg.content}
-        for msg in discussion.messages
+        {
+            "role": "assistant" if m.get("role") == "agent" else "user",
+            "content": m.get("content", "")
+        }
+        for m in body.history
+        if m.get("content", "").strip()  # 빈 메시지 제외
     ]
-    
-    # 평가 에이전트에서 요약 생성
-    summary_result = AgentService.get_summary(
-        topic=discussion.topic,
-        stance=discussion.stance,
-        history=history,
-        news_data=discussion.news_data,
-        turns=end_request.turns
+
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"📜 GPT에 전달되는 history ({len(history)}개):")
+    for i, h in enumerate(history):
+        logger.info(f"  [{i+1}] {h['role']}: {h['content'][:80]}...")
+
+    ai_result = AgentService.generate_response(
+        agent_name=agent_name,
+        agent_role="토론 에이전트",
+        topic=body.topic,
+        conversation_history=history,
     )
-    
-    # 평가 결과 저장
-    discussion.evaluation_detail = summary_result
-    
-    # 토론 종료 및 경험치 계산
-    result = DiscussionService.end_discussion(discussion, end_request, user, db, supabase)
-    
-    # 평가 결과 포함
-    result["evaluation"] = summary_result
-    
-    return result
+
+    return {
+        "userSide": "pro",
+        "aiResponse": {
+            "agentName": agent_name,
+            "side": "con",
+            "content": ai_result.get("response", "응답을 생성할 수 없습니다."),
+            "timestamp": dt.now().strftime("%H:%M"),
+        }
+    }
+
+
+@router.post("/analyze")
+async def analyze_debate(
+    body: DebateAnalyzeRequest,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    """토론 분석 - 프론트: { topic, messages } → { result }"""
+    history = [{"role": m.get("role", "user"), "content": m.get("content", "")} for m in body.messages]
+
+    summary = AgentService.get_summary(
+        topic=body.topic,
+        stance=1,
+        history=history,
+        turns=len(body.messages),
+    )
+
+    result_text = "\n\n".join([
+        f"[토론 요약]\n{summary.get('summary', '')}",
+        f"[주요 쟁점]\n{summary.get('issues', '')}",
+        f"[논리 피드백]\n{summary.get('logic_feedback', '')}",
+        f"[추가 정보]\n{summary.get('extra_info', '')}",
+    ])
+
+    return {"result": result_text}
+
+
+@router.get("/quiz")
+async def get_quiz(
+    topic: str = "",
+    db: Session = Depends(get_db)
+):
+    """퀴즈 반환 - 프론트 Quiz 타입과 일치: { id, topic, question, options, correctOptionId, explanation }"""
+    import random
+    options = [
+        {"id": 1, "text": "찬성 입장이 더 타당하다"},
+        {"id": 2, "text": "반대 입장이 더 타당하다"},
+    ]
+    correct_id = random.choice([1, 2])
+    return {
+        "id": 1,
+        "topic": topic,
+        "question": f"'{topic}'에 대해 어떤 입장이 더 타당할까요?",
+        "options": options,
+        "correctOptionId": correct_id,
+        "explanation": f"'{topic}' 주제는 양측 모두 타당한 근거가 있습니다. 다양한 관점에서 생각해보는 것이 중요합니다.",
+    }
+
+
+@router.get("/stats/summary", response_model=dict)
+async def get_discussion_stats(
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    """토론 통계"""
+    stats = DiscussionService.get_discussion_stats(user, db)
+    return stats
+
 
 @router.get("/{discussion_id}", response_model=DiscussionDetailResponse)
 async def get_discussion(
@@ -193,15 +211,6 @@ async def get_user_discussions(
     """사용자의 토론 히스토리"""
     discussions = DiscussionService.get_user_discussions(user, db, skip, limit)
     return discussions
-
-@router.get("/stats/summary", response_model=dict)
-async def get_discussion_stats(
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
-):
-    """토론 통계"""
-    stats = DiscussionService.get_discussion_stats(user, db)
-    return stats
 
 @router.post("/{discussion_id}/generate-agent-response")
 async def generate_agent_response(
@@ -518,47 +527,3 @@ async def search_debates(
             "message": "Success",
             "data": []
         }
-
-
-@router.get("/quiz")
-async def get_quiz(
-    topic: str = "",
-    db: Session = Depends(get_db)
-):
-    """토론 주제 관련 해석 및 실천 팁 제공 (퀴즈 형식)"""
-    return {
-        "code": 200,
-        "message": "Success",
-        "data": {
-            "topic": topic,
-            "quizzes": [
-                {
-                    "id": 1,
-                    "type": "multiple_choice",
-                    "question": f"'{topic}'에 대해 어떤 입장이 더 타당할까요?",
-                    "options": [
-                        {
-                            "id": "A",
-                            "text": "찬성 입장이 더 타당하다",
-                            "explanation": "이 입장의 주요 근거는..."
-                        },
-                        {
-                            "id": "B",
-                            "text": "반대 입장이 더 타당하다",
-                            "explanation": "이 입장의 주요 근거는..."
-                        }
-                    ]
-                },
-                {
-                    "id": 2,
-                    "type": "practice",
-                    "question": "이 주제로 다음에 토론할 때 피해야 할 점은?",
-                    "tips": [
-                        "논거 없이 감정적으로 반박하기",
-                        "상대방의 의견을 왜곡해서 이해하기",
-                        "통계나 자료를 검증하지 않고 사용하기"
-                    ]
-                }
-            ]
-        }
-    }
