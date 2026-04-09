@@ -6,16 +6,13 @@ pydantic-settings==2.1.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
 python-multipart==0.0.6
-pyjwt==2.8.1
-
-# AI Model
-torch==2.1.1
-transformers==4.35.2
-requests==2.31.0
-beautifulsoup4==4.12.2
+pyjwt==2.12.1  # 최신 버전으로 업데이트
+email-validator==2.1.0  # 이메일 검증
+requests==2.31.0  # 외부 API 호출
 
 # Database
 alembic==1.12.1
+psycopg2-binary==2.9.9  # PostgreSQL adapter for SQLAlchemy
 
 # Utils
 python-dotenv==1.0.0
@@ -23,3 +20,4 @@ python-dotenv==1.0.0
 # Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1
+

@@ -1,5 +1,4 @@
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
+import requests
 from typing import List, Tuple, Optional
 from config import settings
 import logging
@@ -30,59 +29,14 @@ FALLBACK_RESPONSES = {
     ]
 }
 
+
 class AgentService:
-    """AI 에이전트 관리 및 실행 서비스"""
+    """AI 에이전트 관리 및 실행 서비스 (외부 에이전트 서버와 통신)
     
-    _model = None
-    _tokenizer = None
-    
-    @classmethod
-    def initialize_model(cls):
-        """모델 초기화 (싱글톤)"""
-        if cls._model is not None:
-            return
-        
-        try:
-            logger.info(f"Loading model: {settings.MODEL_NAME}")
-            
-            cls._tokenizer = AutoTokenizer.from_pretrained(
-                settings.MODEL_NAME, 
-                trust_remote_code=True
-            )
-            
-            if cls._tokenizer.pad_token is None:
-                cls._tokenizer.pad_token = cls._tokenizer.eos_token
-            
-            config = AutoConfig.from_pretrained(settings.MODEL_NAME, trust_remote_code=True)
-            config.pad_token_id = cls._tokenizer.pad_token_id
-            
-            cls._model = AutoModelForCausalLM.from_pretrained(
-                settings.MODEL_NAME,
-                config=config,
-                torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-                device_map="auto",
-                trust_remote_code=True
-            )
-            
-            logger.info("Model loaded successfully")
-        except Exception as e:
-            logger.error(f"Failed to load model: {e}")
-            raise
-    
-    @classmethod
-    def get_model(cls):
-        """모델 조회"""
-        if cls._model is None:
-            cls.initialize_model()
-        return cls._model
-    
-    @classmethod
-    def get_tokenizer(cls):
-        """토크나이저 조회"""
-        if cls._tokenizer is None:
-            cls.initialize_model()
-        return cls._tokenizer
-    
+    이 서비스는 외부의 별도 에이전트 서버와 통신하여 AI 응답을 생성합니다.
+    에이전트 서버가 응답하지 않을 경우 폴백 응답을 제공합니다.
+    """
+
     @staticmethod
     def generate_response(
         agent_name: str,
@@ -91,126 +45,185 @@ class AgentService:
         conversation_history: List[Tuple[str, str]],
         max_tokens: int = settings.MAX_NEW_TOKENS,
         temperature: float = settings.TEMPERATURE,
-        timeout: int = 30
     ) -> dict:
-        """에이전트 응답 생성
+        """외부 토론 AI 서버에 요청하여 에이전트 응답 생성
         
         Args:
-            agent_name: 에이전트 이름
-            agent_role: 에이전트 역할
+            agent_name: 에이전트 이름 (예: "논리적 비판가")
+            agent_role: 에이전트 역할 설명
             topic: 토론 주제
-            conversation_history: 대화 히스토리
+            conversation_history: 대화 히스토리 [(발화자, 내용), ...]
             max_tokens: 최대 토큰 수
             temperature: 온도 (창의성)
-            timeout: 타임아웃 (초)
         
         Returns:
             {
                 "response": "생성된 응답",
                 "is_fallback": False (정상 응답) / True (폴백 응답),
-                "timestamp": "2024-01-01T12:00:00"
+                "agent": "에이전트 이름",
+                "timestamp": "ISO 타임스탬프",
+                "note": "추가 정보 (있을 경우)"
             }
         """
         try:
-            model = AgentService.get_model()
-            tokenizer = AgentService.get_tokenizer()
-            
-            # 컨텍스트 구성
-            context = f"Topic: {topic}\nYour Name: {agent_name}\nYour Role: {agent_role}\n\n"
-            
-            # 대화 히스토리 추가
-            for speaker, remark in conversation_history[-5:]:  # 최근 5개만 포함
-                context += f"{speaker}: {remark}\n"
-            
-            prompt = context + f"{agent_name}:"
-            
-            # 토큰 생성
-            inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
-            
-            with torch.no_grad():
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=max_tokens,
-                    temperature=temperature,
-                    do_sample=True,
-                    pad_token_id=tokenizer.pad_token_id,
-                    top_p=0.95
-                )
-            
-            # 응답 디코딩
-            response = tokenizer.decode(
-                outputs[0][inputs["input_ids"].shape[1]:],
-                skip_special_tokens=True
-            )
-            
-            # 첫 번째 문장만 추출
-            clean_response = response.split("\n")[0].strip()
-            
-            logger.info(f"✅ [{agent_name}] 응답 생성 성공")
-            
-            return {
-                "response": clean_response,
-                "is_fallback": False,
-                "timestamp": datetime.utcnow().isoformat(),
-                "agent": agent_name
+            # 요청 데이터 구성
+            payload = {
+                "agent_name": agent_name,
+                "agent_role": agent_role,
+                "topic": topic,
+                "conversation_history": conversation_history[-5:],  # 최근 5개만 전송
+                "max_tokens": max_tokens,
+                "temperature": temperature,
             }
-        
-        except torch.cuda.OutOfMemoryError:
-            logger.warning(f"⚠️ [{agent_name}] CUDA 메모리 부족 - 폴백 응답 사용")
+
+            # 토론 진행 AI 서버에 요청
+            response = requests.post(
+                f"{settings.DISCUSSION_AGENT_URL}/generate-response",
+                json=payload,
+                timeout=settings.AGENT_TIMEOUT
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                logger.info(f"✅ [{agent_name}] 토론 AI 서버에서 응답 수신")
+                return {
+                    "response": data.get("response", ""),
+                    "is_fallback": False,
+                    "agent": agent_name,
+                    "timestamp": datetime.utcnow().isoformat(),
+                }
+            else:
+                logger.warning(
+                    f"⚠️ [{agent_name}] 토론 AI 서버 오류 (상태: {response.status_code})"
+                )
+                return AgentService._get_fallback_response(agent_name)
+
+        except requests.exceptions.Timeout:
+            logger.warning(f"⚠️ [{agent_name}] 토론 AI 서버 타임아웃 - 폴백 응답 사용")
             return AgentService._get_fallback_response(agent_name)
-        
+
+        except requests.exceptions.ConnectionError:
+            logger.warning(
+                f"⚠️ [{agent_name}] 토론 AI 서버 연결 실패 ({settings.DISCUSSION_AGENT_URL})"
+            )
+            return AgentService._get_fallback_response(agent_name)
+
         except Exception as e:
-            logger.warning(f"⚠️ [{agent_name}] 응답 생성 실패 ({str(e)}) - 폴백 응답 사용")
+            logger.error(f"❌ [{agent_name}] 예상치 못한 오류: {str(e)}")
             return AgentService._get_fallback_response(agent_name)
-    
+
     @staticmethod
     def _get_fallback_response(agent_name: str) -> dict:
-        """폴백 응답 (에이전트 실패 시)"""
+        """폴백 응답 (에이전트 서버 사용 불가 시)
+        
+        에이전트 서버가 응답하지 않을 때 미리 정의된 응답을 제공합니다.
+        """
         fallback_list = FALLBACK_RESPONSES.get(agent_name, FALLBACK_RESPONSES["균형잡힌 중재자"])
         response = random.choice(fallback_list)
-        
+
         return {
             "response": response,
             "is_fallback": True,
-            "timestamp": datetime.utcnow().isoformat(),
             "agent": agent_name,
-            "note": "AI 모델이 응답을 생성하지 못했으므로 기본 응답을 제공합니다."
+            "timestamp": datetime.utcnow().isoformat(),
+            "note": "에이전트 서버를 사용할 수 없어 기본 응답을 제공합니다.",
         }
-    
+
     @staticmethod
-    def evaluate_response(response: str) -> dict:
-        """응답 평가"""
-        try:
-            model = AgentService.get_model()
-            tokenizer = AgentService.get_tokenizer()
-            
-            prompt = f"""다음 토론 응답을 평가해주세요:
-'{response}'
-
-평가 기준:
-- 논리성 (0-100)
-- 일관성 (0-100)
-- 깊이 (0-100)
-
-각 점수와 종합 평가를 JSON 형식으로 제공해주세요."""
-            
-            inputs = tokenizer(prompt, return_tensors='pt').to(model.device)
-            
-            with torch.no_grad():
-                outputs = model.generate(
-                    **inputs,
-                    max_new_tokens=100,
-                    temperature=0.3,
-                    pad_token_id=tokenizer.pad_token_id
-                )
-            
-            evaluation = tokenizer.decode(
-                outputs[0][inputs['input_ids'].shape[1]:],
-                skip_special_tokens=True
-            )
-            
-            return {"evaluation": evaluation}
+    def evaluate_response(response_text: str) -> dict:
+        """응답 평가 (외부 평가 AI 서버 이용)
         
+        Args:
+            response_text: 평가할 응답
+        
+        Returns:
+            평가 결과
+        """
+        try:
+            payload = {
+                "response": response_text,
+            }
+
+            response = requests.post(
+                f"{settings.EVALUATION_AGENT_URL}/evaluate-response",
+                json=payload,
+                timeout=settings.AGENT_TIMEOUT
+            )
+
+            if response.status_code == 200:
+                logger.info("✅ 평가 AI 서버에서 응답 평가 완료")
+                return response.json()
+            else:
+                logger.warning(f"⚠️ 응답 평가 실패 (상태: {response.status_code})")
+                return {
+                    "logic": 0,
+                    "consistency": 0,
+                    "depth": 0,
+                    "note": "평가를 진행할 수 없습니다."
+                }
+
+        except requests.exceptions.Timeout:
+            logger.warning("⚠️ 평가 AI 서버 타임아웃")
+            return {
+                "logic": 0,
+                "consistency": 0,
+                "depth": 0,
+                "error": "Timeout"
+            }
+
         except Exception as e:
-            logger.error(f"Error evaluating response: {e}")
-            return {"evaluation": "평가 실패"}
+            logger.error(f"❌ 응답 평가 중 오류: {str(e)}")
+            return {
+                "logic": 0,
+                "consistency": 0,
+                "depth": 0,
+                "error": str(e)
+            }
+
+    @staticmethod
+    def health_check() -> dict:
+        """두 개의 AI 서버 상태 확인
+        
+        Returns:
+            {
+                "discussion_agent": True/False,
+                "evaluation_agent": True/False,
+                "all_healthy": True/False
+            }
+        """
+        try:
+            discussion_healthy = False
+            evaluation_healthy = False
+            
+            # 토론 AI 서버 상태 확인
+            try:
+                response = requests.get(
+                    f"{settings.DISCUSSION_AGENT_URL}/health",
+                    timeout=5
+                )
+                discussion_healthy = response.status_code == 200
+            except Exception as e:
+                logger.warning(f"⚠️ 토론 AI 서버 헬스 체크 실패: {str(e)}")
+            
+            # 평가 AI 서버 상태 확인
+            try:
+                response = requests.get(
+                    f"{settings.EVALUATION_AGENT_URL}/health",
+                    timeout=5
+                )
+                evaluation_healthy = response.status_code == 200
+            except Exception as e:
+                logger.warning(f"⚠️ 평가 AI 서버 헬스 체크 실패: {str(e)}")
+            
+            return {
+                "discussion_agent": discussion_healthy,
+                "evaluation_agent": evaluation_healthy,
+                "all_healthy": discussion_healthy and evaluation_healthy
+            }
+        except Exception as e:
+            logger.error(f"❌ 헬스 체크 중 오류: {str(e)}")
+            return {
+                "discussion_agent": False,
+                "evaluation_agent": False,
+                "all_healthy": False
+            }
