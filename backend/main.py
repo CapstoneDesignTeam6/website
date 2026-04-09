@@ -28,12 +28,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         request_time = time.time()
         request_id = datetime.now().strftime("%Y%m%d%H%M%S%f")
         
-        # 요청 본문 읽기 (가능한 경우)
-        body = b""
-        if request.method in ["POST", "PUT", "PATCH"]:
-            body = await request.body()
-        
-        # 요청 로그
+        # 요청 로그 (body 읽기 제거 - BaseHTTPMiddleware deadlock 방지)
         logger.info(f"""
         ╔═══════════════════════════════════════════════════════════════╗
         ║ 📥 API 요청 [{request_id}]
@@ -42,7 +37,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         ║ 📋 쿼리: {dict(request.query_params) if request.query_params else 'None'}
         ║ 👤 클라이언트: {request.client.host if request.client else 'Unknown'}
         ║ 🔐 토큰: {request.headers.get('Authorization', 'None')[:30]}...
-        ║ 📦 본문: {body.decode('utf-8')[:100] if body else 'None'}
         ╚═══════════════════════════════════════════════════════════════╝
         """)
         
