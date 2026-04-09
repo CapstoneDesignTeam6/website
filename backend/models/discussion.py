@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Float, JSON
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, DateTime, Float, JSON
+from sqlalchemy.orm import relationship  # noqa: F401 (messages에서 사용)
 from datetime import datetime
 from database import Base
 
@@ -7,7 +7,7 @@ class DiscussionSession(Base):
     __tablename__ = "discussion_sessions"
     
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    user_id = Column(Integer, index=True)  # Supabase users 테이블 참조 (FK 없음)
     
     title = Column(String)
     topic = Column(String)                                              # 토론 주제
@@ -28,7 +28,6 @@ class DiscussionSession(Base):
     completed_at = Column(DateTime, nullable=True)
     
     # 관계
-    user = relationship("User", back_populates="discussions")
     messages = relationship("Message", back_populates="session", cascade="all, delete-orphan")
     
     def __repr__(self):

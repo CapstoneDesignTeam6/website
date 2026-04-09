@@ -6,21 +6,17 @@ class Settings(BaseSettings):
     APP_NAME: str = "Discussion Agent Backend"
     DEBUG: bool = True
     
-    # 데이터베이스
-    # Supabase 형식: postgresql://user:password@host:port/database
-    DATABASE_URL: str = os.getenv(
-        "DATABASE_URL", 
-        "postgresql://postgres.user@host:5432/postgres"  # Supabase 기본값
-    )
+    # Supabase 설정
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "https://your-project.supabase.co")
+    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "your-anon-key")
+    
+    # 데이터베이스 URL (로컬 SQLite 또는 Supabase PostgreSQL)
+    DATABASE_URL: str = "sqlite:///./test.db"  # 로컬 개발용 SQLite
     
     # JWT 설정
     SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    
-    # 네이버 API
-    NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID", "")
-    NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET", "")
     
     # 에이전트 서버 (외부 에이전트 담당자가 운영)
     # 1. 토론 진행용 AI 서버

@@ -42,10 +42,25 @@ export const HomeView = ({ setView, setTopic }: HomeViewProps) => {
   useEffect(() => {
     const fetchTrending = async () => {
       try {
-        const data = await debateApi.getTrending();
-        setTrendingDebates(data);
+        const response = await debateApi.getTrending();
+        console.log("Trending API Response:", response);
+        
+        // 응답이 배열인 경우
+        if (Array.isArray(response)) {
+          setTrendingDebates(response);
+        } 
+        // 응답이 객체이고 data 필드가 있는 경우
+        else if (response?.data && Array.isArray(response.data)) {
+          setTrendingDebates(response.data);
+        } 
+        // 그 외의 경우
+        else {
+          console.warn("Unexpected response format:", response);
+          setTrendingDebates([]);
+        }
       } catch (error) {
         console.error("Failed to fetch trending debates:", error);
+        setTrendingDebates([]);
       }
     };
     fetchTrending();
@@ -163,31 +178,37 @@ export const HomeView = ({ setView, setTopic }: HomeViewProps) => {
           <button onClick={() => setView('search')} className="text-primary font-bold flex items-center gap-2 hover:gap-3 transition-all text-sm md:text-base">모든 주제 보기 <ArrowRight size={18} /></button>
         </div>
         <div className="grid md:grid-cols-3 gap-6 md:gap-8">
-          {trendingDebates.map(debate => (
-            <div 
-              key={debate.id} 
-              className="group bg-white border border-gray-100 rounded-2xl p-6 md:p-8 card-hover cursor-pointer flex flex-col"
-              onClick={() => {
-                setTopic(debate.title);
-                setView('setup');
-              }}
-            >
-              <div className="flex gap-2 mb-4">
-                <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-outline rounded uppercase">{debate.category}</span>
-                {debate.isHot && <span className="px-2 py-0.5 bg-red-50 text-[10px] font-bold text-secondary rounded uppercase tracking-widest">Hot</span>}
-              </div>
-              <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4 group-hover:text-primary transition-colors">{debate.title}</h3>
-              <p className="text-xs md:text-sm text-outline mb-6 md:mb-8 line-clamp-3 leading-relaxed flex-1">{debate.description}</p>
-              <div className="pt-4 md:pt-6 border-t border-gray-50 flex justify-between items-center">
-                <div className="flex items-center gap-2 text-outline text-[10px] md:text-xs">
-                  <MessageSquare size={14} /> {debate.participants}명 참여 중
+          {Array.isArray(trendingDebates) && trendingDebates.length > 0 ? (
+            trendingDebates.map(debate => (
+              <div 
+                key={debate.id} 
+                className="group bg-white border border-gray-100 rounded-2xl p-6 md:p-8 card-hover cursor-pointer flex flex-col"
+                onClick={() => {
+                  setTopic(debate.topic);
+                  setView('setup');
+                }}
+              >
+                <div className="flex gap-2 mb-4">
+                  <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-outline rounded uppercase">{debate.stance}</span>
+                  {debate.messageCount > 15 && <span className="px-2 py-0.5 bg-red-50 text-[10px] font-bold text-secondary rounded uppercase tracking-widest">Hot</span>}
                 </div>
-                <span className="text-[10px] md:text-xs font-bold text-primary group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                  참여하기 <ArrowRight size={14} />
-                </span>
+                <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4 group-hover:text-primary transition-colors line-clamp-2">{debate.topic}</h3>
+                <p className="text-xs md:text-sm text-outline mb-6 md:mb-8 line-clamp-2 leading-relaxed flex-1">작성자: <strong>{debate.author}</strong></p>
+                <div className="pt-4 md:pt-6 border-t border-gray-50 flex justify-between items-center">
+                  <div className="flex items-center gap-2 text-outline text-[10px] md:text-xs">
+                    <MessageSquare size={14} /> {debate.messageCount}개 메시지
+                  </div>
+                  <span className="text-[10px] md:text-xs font-bold text-primary group-hover:translate-x-1 transition-transform flex items-center gap-1">
+                    참여하기 <ArrowRight size={14} />
+                  </span>
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="col-span-full text-center py-12 text-outline">
+              <p>로딩 중이거나 데이터가 없습니다...</p>
             </div>
-          ))}
+          )}
         </div>
       </section>
     </div>

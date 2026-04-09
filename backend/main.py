@@ -87,6 +87,7 @@ app.add_middleware(
 # 라우터 등록
 app.include_router(auth.router)
 app.include_router(discussion.router)
+app.include_router(discussion.public_router)
 app.include_router(level.router)
 
 @app.on_event("startup")
@@ -94,6 +95,16 @@ async def startup_event():
     """앱 시작 시 초기화"""
     logger.info("Initializing database...")
     create_all_tables()
+
+    # Supabase 연결 테스트
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        sb.table('users').select('id').limit(1).execute()
+        logger.info("✅ Supabase 연결 성공")
+    except Exception as e:
+        logger.error(f"❌ Supabase 연결 실패: {e}")
+        logger.error("→ Supabase 대시보드에서 프로젝트가 Active 상태인지 확인하세요.")
     
     # 레벨 설정 초기화
     db = SessionLocal()

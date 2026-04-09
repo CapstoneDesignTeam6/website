@@ -24,9 +24,6 @@ class User(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
-    # 관계
-    discussions = relationship("DiscussionSession", back_populates="user")
-    
     def __repr__(self):
         username = self.username if not self.is_guest else f"guest_{self.guest_session_id}"
         return f"<User(id={self.id}, name={username}, level={self.level})>"
