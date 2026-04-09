@@ -1,5 +1,7 @@
-node_modules/  # npm 패키지 디렉터리 제외
-.venv          # Python 가상 환경 제외
-
-
-.env # 환경 설정 파일 제외
+node_modules/
+.venv
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.db
