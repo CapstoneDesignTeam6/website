@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Routes,
   Route,
@@ -37,6 +37,9 @@ export default function App() {
   const [messages, setMessages] = useState<DebateMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [debateResult, setDebateResult] = useState("");
+  const [currentRound, setCurrentRound] = useState(1);
+  const [totalRounds, setTotalRounds] = useState(4);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -71,6 +74,8 @@ export default function App() {
     navigate("/debate");
     setMessages([]);
     setIsGenerating(true);
+    setCurrentRound(1);
+    setProgress(0);
 
     try {
       const data = await debateApi.start(topic);
@@ -81,8 +86,12 @@ export default function App() {
           side: data.side,
           content: data.content,
           timestamp: data.timestamp,
+          round: data.currentRound || 1,
         },
       ]);
+      if (data.currentRound) setCurrentRound(data.currentRound);
+      if (data.totalRounds) setTotalRounds(data.totalRounds);
+      if (data.progress) setProgress(data.progress);
     } catch (error) {
       console.error("Failed to start debate:", error);
     } finally {
@@ -104,6 +113,7 @@ export default function App() {
           hour: "2-digit",
           minute: "2-digit",
         }),
+        round: data.currentRound || currentRound,
       };
 
       setMessages((prev) => [
@@ -115,8 +125,12 @@ export default function App() {
           side: data.aiResponse.side,
           content: data.aiResponse.content,
           timestamp: data.aiResponse.timestamp,
+          round: data.currentRound || currentRound,
         },
       ]);
+      if (data.currentRound) setCurrentRound(data.currentRound);
+      if (data.totalRounds) setTotalRounds(data.totalRounds);
+      if (data.progress) setProgress(data.progress);
     } catch (error) {
       console.error("Failed to send message:", error);
     } finally {
@@ -194,6 +208,9 @@ export default function App() {
                     onSendMessage={handleSendMessage}
                     isGenerating={isGenerating}
                     onFinish={handleFinishDebate}
+                    currentRound={currentRound}
+                    totalRounds={totalRounds}
+                    progress={progress}
                   />
                 }
               />

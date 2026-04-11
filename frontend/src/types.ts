@@ -4,6 +4,7 @@ export interface DebateMessage {
   side: 'pro' | 'con' | 'neutral';
   content: string;
   timestamp: string;
+  round?: number;
 }
 
 export type View = 'home' | 'about' | 'setup' | 'debate' | 'result' | 'faq' | 'search' | 'profile' | 'login' | 'signup' | 'pre-quiz' | 'post-quiz';
