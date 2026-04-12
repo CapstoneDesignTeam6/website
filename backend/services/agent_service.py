@@ -2,7 +2,6 @@ import requests
 from typing import List, Dict, Optional
 from config import settings
 import logging
-import re
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -70,6 +69,72 @@ class AgentService:
         }
 
     @staticmethod
+    def get_trending_topics() -> list:
+        """네이버 뉴스 API로 최신 기사를 수집한 뒤 GPT로 토론 주제 5개 생성."""
+        search_queries = ["사회이슈", "정치논란", "기술AI", "경제정책", "국제분쟁"]
+        news_items = []
+
+        for query in search_queries:
+            try:
+                res = requests.get(
+                    "https://openapi.naver.com/v1/search/news.json",
+                    headers={
+                        "X-Naver-Client-Id": settings.NAVER_CLIENT_ID,
+                        "X-Naver-Client-Secret": settings.NAVER_CLIENT_SECRET,
+                    },
+                    params={"query": query, "display": 3, "sort": "date"},
+                    timeout=5,
+                )
+                if res.status_code == 200:
+                    items = res.json().get("items", [])
+                    for item in items[:2]:
+                        # HTML 태그 제거
+                        import re
+                        title = re.sub(r"<[^>]+>", "", item.get("title", ""))
+                        desc  = re.sub(r"<[^>]+>", "", item.get("description", ""))
+                        news_items.append(f"- {title}: {desc}")
+            except Exception as e:
+                logger.warning(f"⚠️ 네이버 뉴스 검색 실패 ({query}): {e}")
+
+        if not news_items:
+            raise RuntimeError("네이버 뉴스 API 호출에 실패했습니다.")
+
+        news_text = "\n".join(news_items[:10])
+
+        system_prompt = (
+            "당신은 시사 토론 기획자입니다. 아래 최신 뉴스들을 바탕으로 토론 주제 5개를 JSON 배열로 만들어주세요.\n"
+            "각 항목 형식:\n"
+            "{\n"
+            '  "title": "뉴스 키워드를 포함한 논쟁적 질문 (예: \'48개국 확대, 축제인가 민폐인가?\')",\n'
+            '  "description": "[이슈] 주제 배경을 2~3문장으로 설명. 현재 상황·쟁점·양측 입장을 균형있게.",\n'
+            '  "category": "정치 | 경제 | 사회 | 기술 | 환경 | 문화 | 스포츠 중 하나"\n'
+            "}\n"
+            "반드시 JSON 배열만 출력하고 다른 텍스트는 쓰지 마세요. 한국어로 작성하세요."
+        )
+        user_prompt = f"다음 뉴스를 참고해서 토론 주제를 만들어주세요:\n{news_text}"
+
+        raw = _call_gpt(system_prompt, user_prompt, max_tokens=1000)
+
+        import json, re as re2
+        # GPT가 ```json ... ``` 블록으로 감싸는 경우 처리
+        json_match = re2.search(r"\[.*\]", raw, re2.DOTALL)
+        parsed = json.loads(json_match.group() if json_match else raw)
+
+        result = []
+        for i, item in enumerate(parsed[:5], start=1):
+            result.append({
+                "id": i,
+                "category": item.get("category", "사회"),
+                "isHot": i <= 2,
+                "title": item.get("title", ""),
+                "description": item.get("description", ""),
+                "participants": 0,
+            })
+
+        logger.info(f"✅ 트렌딩 토론 주제 {len(result)}개 생성 완료")
+        return result
+
+    @staticmethod
     def evaluate_response(response_text: str) -> dict:
         """응답 평가 (외부 평가 AI 서버)"""
         try:
@@ -105,182 +170,113 @@ class AgentService:
         }
 
     @staticmethod
-    def get_intro(topic: str, stance: int, news_data: List = None) -> dict:
-        """토론 시작 전 주제 배경 요약. AI 서버 우선, 실패 시 GPT 폴백."""
-        # AI 서버 시도
-        try:
-            res = requests.post(
-                f"{settings.EVALUATION_AGENT_URL}/intro",
-                json={"topic": topic, "stance": stance, "news_data": news_data or []},
-                timeout=settings.AGENT_TIMEOUT,
-            )
-            if res.status_code == 200:
-                logger.info(f"✅ Intro AI 서버 응답 완료: {topic}")
-                return res.json()
-        except Exception as e:
-            logger.warning(f"⚠️ AI 서버 intro 실패, GPT 폴백: {e}")
-
-        # GPT 폴백
-        # ── 프롬프트 수정 위치 ──────────────────────────────────────
-        system_prompt = (
-            "당신은 토론 진행자입니다. "
-            "주어진 주제에 대해 배경과 핵심 쟁점을 3-4문장으로 요약해주세요. "
-            "한국어로 답하세요."
+    def get_intro(topic: str, user_label: str = "찬성", ai_label: str = "반대", news_data: List = None) -> dict:
+        """토론 시작 전 주제 배경 요약."""
+        res = requests.post(
+            f"{settings.EVALUATION_AGENT_URL}/intro",
+            json={"topic": topic, "user_label": user_label, "ai_label": ai_label, "news_data": news_data or []},
+            timeout=settings.AGENT_TIMEOUT,
         )
-        user_prompt = (
-            f"주제: '{topic}'\n"
-            f"사용자 입장: {'찬성' if stance == 1 else '반대'}\n\n"
-            f"이 주제의 배경과 핵심 쟁점을 요약해주세요."
-        )
-        # ────────────────────────────────────────────────────────────
-        summary = _call_gpt(system_prompt, user_prompt)
-        logger.info(f"✅ Intro GPT 생성 완료: {topic}")
-        return {"summary": summary}
+        res.raise_for_status()
+        logger.info(f"✅ Intro AI 서버 응답 완료: {topic}")
+        return res.json()
 
     @staticmethod
     def get_counter_hint(
         topic: str,
-        stance: int,
-        history: List[Dict],
+        user_label: str = "찬성",
+        ai_label: str = "반대",
+        history: List[Dict] = None,
         news_data: List = None
     ) -> dict:
-        """재반박 힌트 생성. AI 서버 우선, 실패 시 GPT 폴백."""
-        # AI 서버는 role을 "ai"/"user" 사용
+        """재반박 힌트 생성."""
         ai_history = [
             {"role": "ai" if m.get("role") in ("agent", "assistant") else "user",
              "content": m.get("content", "")}
-            for m in history
+            for m in (history or [])
         ]
-        try:
-            res = requests.post(
-                f"{settings.EVALUATION_AGENT_URL}/hint/counter",
-                json={"topic": topic, "stance": stance, "history": ai_history, "news_data": news_data or []},
-                timeout=settings.AGENT_TIMEOUT,
-            )
-            if res.status_code == 200:
-                logger.info("✅ Counter hint AI 서버 응답 완료")
-                return res.json()
-        except Exception as e:
-            logger.warning(f"⚠️ AI 서버 counter hint 실패, GPT 폴백: {e}")
-
-        # GPT 폴백
-        history_text = "\n".join([
-            f"{'사용자' if m.get('role') == 'user' else 'AI'}: {m.get('content', '')}"
-            for m in history[-4:]
-        ])
-        # ── 프롬프트 수정 위치 ──────────────────────────────────────
-        system_prompt = (
-            "당신은 토론 코치입니다. "
-            "사용자가 AI의 반박에 재반박할 수 있도록 간결한 힌트를 1-2문장으로 제시해주세요. "
-            "한국어로 답하세요."
+        res = requests.post(
+            f"{settings.EVALUATION_AGENT_URL}/hint/counter",
+            json={"topic": topic, "user_label": user_label, "ai_label": ai_label, "history": ai_history, "news_data": news_data or []},
+            timeout=settings.AGENT_TIMEOUT,
         )
-        user_prompt = (
-            f"주제: '{topic}'\n"
-            f"최근 대화:\n{history_text}\n\n재반박 힌트를 알려주세요."
-        )
-        # ────────────────────────────────────────────────────────────
-        return {"hint": _call_gpt(system_prompt, user_prompt, max_tokens=150)}
+        res.raise_for_status()
+        logger.info("✅ Counter hint AI 서버 응답 완료")
+        return res.json()
 
     @staticmethod
     def get_rebuttal_hint(
         topic: str,
-        stance: int,
-        history: List[Dict],
+        user_label: str = "찬성",
+        ai_label: str = "반대",
+        history: List[Dict] = None,
         news_data: List = None
     ) -> dict:
-        """반박 힌트 생성. AI 서버 우선, 실패 시 GPT 폴백."""
+        """반박 힌트 생성."""
         ai_history = [
             {"role": "ai" if m.get("role") in ("agent", "assistant") else "user",
              "content": m.get("content", "")}
-            for m in history
+            for m in (history or [])
         ]
-        try:
-            res = requests.post(
-                f"{settings.EVALUATION_AGENT_URL}/hint/rebuttal",
-                json={"topic": topic, "stance": stance, "history": ai_history, "news_data": news_data or []},
-                timeout=settings.AGENT_TIMEOUT,
-            )
-            if res.status_code == 200:
-                logger.info("✅ Rebuttal hint AI 서버 응답 완료")
-                return res.json()
-        except Exception as e:
-            logger.warning(f"⚠️ AI 서버 rebuttal hint 실패, GPT 폴백: {e}")
+        res = requests.post(
+            f"{settings.EVALUATION_AGENT_URL}/hint/rebuttal",
+            json={"topic": topic, "user_label": user_label, "ai_label": ai_label, "history": ai_history, "news_data": news_data or []},
+            timeout=settings.AGENT_TIMEOUT,
+        )
+        res.raise_for_status()
+        logger.info("✅ Rebuttal hint AI 서버 응답 완료")
+        return res.json()
 
-        # GPT 폴백
-        history_text = "\n".join([
-            f"{'사용자' if m.get('role') == 'user' else 'AI'}: {m.get('content', '')}"
-            for m in history[-4:]
-        ])
-        # ── 프롬프트 수정 위치 ──────────────────────────────────────
-        system_prompt = (
-            "당신은 토론 코치입니다. "
-            "사용자가 AI의 새 주장을 반박할 수 있도록 간결한 힌트를 1-2문장으로 제시해주세요. "
-            "한국어로 답하세요."
+    @staticmethod
+    def get_quiz(
+        topic: str,
+        user_label: str = "찬성",
+        ai_label: str = "반대",
+        history: List[Dict] = None,
+        news_data: List = None
+    ) -> dict:
+        """퀴즈 생성."""
+        ai_history = [
+            {"role": "ai" if m.get("role") in ("agent", "assistant") else "user",
+             "content": m.get("content", "")}
+            for m in (history or [])
+        ]
+        res = requests.post(
+            f"{settings.EVALUATION_AGENT_URL}/quiz",
+            json={
+                "topic": topic,
+                "user_label": user_label,
+                "ai_label": ai_label,
+                "history": ai_history,
+                "news_data": news_data or [],
+            },
+            timeout=settings.AGENT_TIMEOUT,
         )
-        user_prompt = (
-            f"주제: '{topic}'\n"
-            f"최근 대화:\n{history_text}\n\n반박 힌트를 알려주세요."
-        )
-        # ────────────────────────────────────────────────────────────
-        return {"hint": _call_gpt(system_prompt, user_prompt, max_tokens=150)}
+        res.raise_for_status()
+        logger.info("✅ Quiz AI 서버 응답 완료")
+        return res.json()
 
     @staticmethod
     def get_summary(
         topic: str,
-        stance: int,
-        history: List[Dict],
+        user_label: str = "찬성",
+        ai_label: str = "반대",
+        history: List[Dict] = None,
         news_data: List = None,
         turns: int = 1
     ) -> dict:
-        """토론 종료 후 전체 정리 + 피드백. AI 서버 우선, 실패 시 GPT 폴백."""
+        """토론 종료 후 전체 정리 + 피드백."""
         ai_history = [
             {"role": "ai" if m.get("role") in ("agent", "assistant") else "user",
              "content": m.get("content", "")}
-            for m in history
+            for m in (history or [])
         ]
-        try:
-            res = requests.post(
-                f"{settings.EVALUATION_AGENT_URL}/summarize",
-                json={"topic": topic, "stance": stance, "turns": turns,
-                      "history": ai_history, "news_data": news_data or []},
-                timeout=settings.AGENT_TIMEOUT,
-            )
-            if res.status_code == 200:
-                logger.info("✅ Summary AI 서버 응답 완료")
-                return res.json()
-        except Exception as e:
-            logger.warning(f"⚠️ AI 서버 summary 실패, GPT 폴백: {e}")
-
-        # GPT 폴백
-        history_text = "\n".join([
-            f"{'사용자' if m.get('role') == 'user' else 'AI'}: {m.get('content', '')}"
-            for m in history
-        ])
-        # ── 프롬프트 수정 위치 ──────────────────────────────────────
-        system_prompt = (
-            "당신은 토론 평가 전문가입니다. 아래 형식으로 정확히 답하세요:\n"
-            "[요약] 토론 전체 요약 (2문장)\n"
-            "[쟁점] 주요 쟁점 3가지\n"
-            "[피드백] 사용자 논리에 대한 피드백 (2문장)\n"
-            "[추가정보] 관련 추가 정보 (1문장)\n"
-            "한국어로 답하세요."
+        res = requests.post(
+            f"{settings.EVALUATION_AGENT_URL}/summarize",
+            json={"topic": topic, "user_label": user_label, "ai_label": ai_label, "turns": turns,
+                  "history": ai_history, "news_data": news_data or []},
+            timeout=settings.AGENT_TIMEOUT,
         )
-        user_prompt = (
-            f"주제: '{topic}'\n"
-            f"사용자 입장: {'찬성' if stance == 1 else '반대'}\n"
-            f"토론 내용:\n{history_text}"
-        )
-        # ────────────────────────────────────────────────────────────
-        gpt_response = _call_gpt(system_prompt, user_prompt, max_tokens=500)
-        logger.info("✅ Summary GPT 생성 완료")
-
-        def extract(tag: str) -> str:
-            m = re.search(rf'\[{tag}\](.*?)(?=\[|$)', gpt_response, re.DOTALL)
-            return m.group(1).strip() if m else gpt_response
-
-        return {
-            "summary": extract("요약"),
-            "issues": extract("쟁점"),
-            "logic_feedback": extract("피드백"),
-            "extra_info": extract("추가정보"),
-        }
+        res.raise_for_status()
+        logger.info("✅ Summary AI 서버 응답 완료")
+        return res.json()

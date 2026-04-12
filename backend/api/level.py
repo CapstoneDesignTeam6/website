@@ -1,36 +1,36 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
+from supabase import Client
 
 from schemas.level import UserLevelResponse
 from services.auth_service import AuthService
 from services.level_service import LevelService
-from database import get_db
-from models.user import User
+from database import get_db, get_supabase
 
 router = APIRouter(prefix="/level", tags=["level"])
 
 # 의존성: 현재 사용자 조회
-async def get_current_user(token: str = None, db: Session = Depends(get_db)) -> User:
-    """현재 사용자 조회"""
-    if not token:
+async def get_current_user(request: Request, supabase: Client = Depends(get_supabase)) -> dict:
+    """Authorization 헤더에서 토큰을 읽어 사용자 조회"""
+    auth_header = request.headers.get('Authorization', '')
+    if not auth_header.startswith('Bearer '):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="토큰이 필요합니다."
         )
-    
-    user = AuthService.get_user_from_token(token, db)
+    token = auth_header[len('Bearer '):]
+    user = AuthService.get_user_from_token(token, supabase)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="유효하지 않은 토큰입니다."
         )
-    
     return user
 
 @router.get("/my-level", response_model=UserLevelResponse)
 async def get_my_level(
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
+    user: dict = Depends(get_current_user)
 ):
     """현재 사용자의 레벨 정보 조회"""
     level_info = LevelService.get_user_level_info(user, db)
