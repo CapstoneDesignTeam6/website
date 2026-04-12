@@ -16,7 +16,7 @@ interface HomeViewProps {
 }
 
 // 백엔드에서 받아오는 트렌딩 토론 데이터 타입 정의
-interface BackendTrendingDebate {
+interface TrendingDebate {
   id: number;
   topic: string;
   stance: string; // "찬성" or "반대"
@@ -57,7 +57,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
         const response = await debateApi.getTrending();
         console.log("Trending API Response:", response);
         
-        let debatesToUse: BackendTrendingDebate[] = [];
+        let debatesToUse: TrendingDebate[] = [];
         if (response?.data && Array.isArray(response.data)) {
           debatesToUse = response.data;
         } else {
