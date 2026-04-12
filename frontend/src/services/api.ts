@@ -71,9 +71,24 @@ export const debateApi = {
     const res = await fetch(`/api/debate/quiz?topic=${encodeURIComponent(topic)}`, {
       headers: getHeaders(),
     });
-    // return res.json();
-    return MOCK_QUIZZES[topic] || MOCK_QUIZZES["default"];
-  }
+    return res.json();
+  },
+  getCounterHint: async (discussionId: number) => {
+    const res = await fetch(`/api/debate/${discussionId}/counter-hint`, {
+      method: 'POST',
+      headers: getHeaders(),
+      // No body needed as per backend implementation
+    });
+    return res.json();
+  },
+  getRebuttalHint: async (discussionId: number) => {
+    const res = await fetch(`/api/debate/${discussionId}/rebuttal-hint`, {
+      method: 'POST',
+      headers: getHeaders(),
+      // No body needed as per backend implementation
+    });
+    return res.json();
+  },
 };
 
 export const userApi = {
