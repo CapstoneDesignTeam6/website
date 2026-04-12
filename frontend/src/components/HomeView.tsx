@@ -133,7 +133,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
             heroSlides.map((slide, i) => (
               <div 
                 key={i} 
-                className={`relative bg-linear-to-br ${slide.color} rounded-3xl md:rounded-[2.5rem] p-6 md:p-12 w-full shrink-0 overflow-hidden`}
+                className={`relative bg-gradient-to-br ${slide.color} rounded-3xl md:rounded-[2.5rem] p-6 md:p-12 w-full shrink-0 overflow-hidden`}
               >
                 <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center relative z-10">
                   <div>
@@ -160,7 +160,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
                     </div>
                   </div>
                   <div className="hidden lg:block relative">
-                    <div className="bg-white/80 backdrop-blur-xl border border-white/40 rounded-4xl p-8 shadow-2xl rotate-3">
+                    <div className="bg-white/80 backdrop-blur-xl border border-white/40 rounded-3xl p-8 shadow-2xl rotate-3">
                        <div className="flex justify-between items-start mb-8">
                           <div className="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center text-primary">
                              <Brain size={24} />
