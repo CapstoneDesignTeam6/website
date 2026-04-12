@@ -1,5 +1,5 @@
-import { DebateMessage, UserData } from '../types';
-import { MOCK_DEBATES, MOCK_QUIZZES } from '../constants';
+import { DebateMessage } from '../types';
+import { MOCK_DEBATES } from '../constants';
 
 const TOKEN_KEY = 'agora_token';
 
@@ -43,10 +43,7 @@ export const debateApi = {
     const res = await fetch('/api/debates/trending', {
       headers: getHeaders(),
     });
-    //return res.json();
-    
-    // Return frontend mock data
-    return MOCK_DEBATES.slice(0, 3);
+    return res.json();
   },
    search: async (query: string) => {
 
@@ -74,8 +71,7 @@ export const debateApi = {
     const res = await fetch(`/api/debate/quiz?topic=${encodeURIComponent(topic)}`, {
       headers: getHeaders(),
     });
-    // return res.json();
-    return MOCK_QUIZZES[topic] || MOCK_QUIZZES["default"];
+    return res.json();
   }
 };
 

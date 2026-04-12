@@ -34,6 +34,10 @@ class Settings(BaseSettings):
 
     # OpenAI (AI 서버 미동작 시 폴백)
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")
+
+    # Naver Search API (트렌딩 토론 주제 생성용)
+    NAVER_CLIENT_ID: str = os.getenv("NAVER_CLIENT_ID", "")
+    NAVER_CLIENT_SECRET: str = os.getenv("NAVER_CLIENT_SECRET", "")
     
     class Config:
         env_file = ".env"
