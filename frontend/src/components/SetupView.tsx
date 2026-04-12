@@ -18,10 +18,10 @@ export const SetupView = ({
   setAgentCount, 
   onStart 
 }: SetupViewProps) => (
-  <div className="max-w-4xl mx-auto px-4 md:px-8 py-12 md:py-24">
-    <header className="text-center mb-12 md:mb-16">
-      <h1 className="text-2xl md:text-4xl font-extrabold font-headline tracking-tight mb-4">새로운 토론 설계</h1>
-      <p className="text-sm md:text-base text-outline">디지털 아틀리에에서 지성적인 담론을 시작해보세요.</p>
+  <div className="max-w-4xl mx-auto px-4 md:px-8 py-12 md:py-20">
+    <header className="text-center mb-10 md:mb-12">
+      <h1 className="text-2xl md:text-4xl font-extrabold font-headline tracking-tight mb-4">새로운 토론 시작</h1>
+      <p className="text-sm md:text-base text-outline">최신 뉴스를 기반으로 심도 있는 토론을 나눠보세요.</p>
     </header>
 
     <div className="space-y-8 md:space-y-12">
@@ -57,8 +57,8 @@ export const SetupView = ({
                 {[1, 2, 3, 4, 5].map(n => (
                   <button 
                     key={n} 
-                    onClick={() => setAgentCount(n)}
-                    className={`w-10 h-10 md:w-14 md:h-14 rounded-full border-2 font-bold text-sm md:text-lg transition-all ${agentCount === n ? 'bg-primary border-primary text-white shadow-lg ring-2 md:ring-4 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`}
+                    onClick={() => setAgentCount(n)} // 에이전트 수 설정
+                    className={`w-8 h-8 md:w-12 md:h-12 rounded-full border-2 font-bold text-sm md:text-lg transition-all ${agentCount === n ? 'bg-primary border-primary text-white shadow-lg ring-2 md:ring-4 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`} // 선택된 에이전트 수에 따라 스타일 변경
                   >
                     {n}
                   </button>
@@ -73,11 +73,10 @@ export const SetupView = ({
         <button 
           onClick={onStart} 
           disabled={!topic.trim()}
-          className="px-8 md:px-12 py-4 md:py-5 bg-primary text-white font-bold text-lg md:text-xl rounded-full transition-all flex items-center gap-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-8 md:px-12 py-3 md:py-4 bg-primary text-white font-bold text-lg md:text-xl rounded-full transition-all flex items-center gap-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed" // 토론 시작 버튼
         >
           토론 시작하기 <Rocket size={24} />
         </button>
-        <p className="mt-4 md:mt-6 text-xs md:text-sm text-outline">시작 버튼을 누르면 Agora 아틀리에가 즉시 구성됩니다.</p>
       </div>
     </div>
   </div>
