@@ -9,6 +9,7 @@ import {
 } from "react-router-dom";
 
 // --- Types & Services ---
+// --- 타입 및 서비스 ---
 import { DebateMessage, UserData } from "./types";
 import { debateApi, userApi } from "./services/api";
 
@@ -40,6 +41,7 @@ export default function App() {
   const [currentRound, setCurrentRound] = useState(1);
   const [totalRounds, setTotalRounds] = useState(4);
   const [progress, setProgress] = useState(0);
+  const [discussionId, setDiscussionId] = useState<number | null>(null); // discussionId 상태
 
   useEffect(() => {
     const initAuth = async () => {
@@ -63,21 +65,22 @@ export default function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [location.pathname]);
+  }, [location.pathname]); // 경로 변경 시 스크롤 상단으로 이동
 
   const handleStartDebate = async () => {
     if (!topic.trim()) return;
     navigate("/pre-quiz");
-  };
+  }; // 토론 시작 처리
 
   const startActualDebate = async () => {
-    navigate("/debate");
+    // navigate("/debate"); // discussionId가 설정된 후로 이동
     setMessages([]);
     setIsGenerating(true);
     setCurrentRound(1);
     setProgress(0);
 
     try {
+      // debateApi.start는 이제 discussionId를 반환합니다.
       const data = await debateApi.start(topic);
       setMessages([
         {
@@ -89,15 +92,20 @@ export default function App() {
           round: data.currentRound || 1,
         },
       ]);
+      setDiscussionId(data.discussionId); // discussionId 저장
       if (data.currentRound) setCurrentRound(data.currentRound);
       if (data.totalRounds) setTotalRounds(data.totalRounds);
       if (data.progress) setProgress(data.progress);
+
+      navigate("/debate"); // discussionId가 설정된 후 토론 페이지로 이동
     } catch (error) {
       console.error("Failed to start debate:", error);
+      // 오류 발생 시 이전 페이지로 돌아가거나 사용자에게 알림
+      navigate("/setup"); 
     } finally {
       setIsGenerating(false);
     }
-  };
+  }; // 실제 토론 시작
 
   const handleSendMessage = async (text: string) => {
     setIsGenerating(true);
@@ -136,11 +144,11 @@ export default function App() {
     } finally {
       setIsGenerating(false);
     }
-  };
+  }; // 메시지 전송 처리
 
   const handleFinishDebate = async () => {
     navigate("/post-quiz");
-  };
+  }; // 토론 종료 처리
 
   const showResult = async () => {
     navigate("/result");
@@ -153,7 +161,7 @@ export default function App() {
       console.error("Failed to analyze debate:", error);
       setDebateResult("결과 분석에 실패했습니다.");
     }
-  };
+  }; // 결과 표시
 
   return (
     <div className="min-h-screen flex flex-col font-sans">
@@ -202,16 +210,21 @@ export default function App() {
               <Route
                 path="/debate"
                 element={
-                  <DebateView
-                    topic={topic}
-                    messages={messages}
-                    onSendMessage={handleSendMessage}
-                    isGenerating={isGenerating}
-                    onFinish={handleFinishDebate}
-                    currentRound={currentRound}
-                    totalRounds={totalRounds}
-                    progress={progress}
-                  />
+                  discussionId ? ( // discussionId가 있을 때만 DebateView 렌더링
+                    <DebateView
+                      topic={topic}
+                      messages={messages}
+                      onSendMessage={handleSendMessage}
+                      isGenerating={isGenerating}
+                      onFinish={handleFinishDebate}
+                      currentRound={currentRound}
+                      totalRounds={totalRounds}
+                      progress={progress}
+                      discussionId={discussionId} // discussionId 전달
+                    />
+                  ) : (
+                    <Navigate to="/setup" replace /> // discussionId가 없으면 설정 페이지로 리다이렉트
+                  )
                 }
               />
               <Route
