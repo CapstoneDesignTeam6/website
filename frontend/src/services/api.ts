@@ -71,7 +71,8 @@ export const debateApi = {
     const res = await fetch(`/api/debate/quiz?topic=${encodeURIComponent(topic)}`, {
       headers: getHeaders(),
     });
-    return res.json();
+    // return res.json();
+    return MOCK_QUIZZES[topic] || MOCK_QUIZZES["default"];
   }
 };
 
