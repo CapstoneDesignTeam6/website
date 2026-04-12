@@ -86,7 +86,7 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
           </button>
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
             <button onClick={() => navigateTo('/about')} className={`${isActive('/about') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>소개</button>
-            <button onClick={() => navigateTo('/search')} className={`${isActive('/search') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>주제 검색</button>
+            <button onClick={() => navigateTo('/search')} className={`${isActive('/search') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>주제 탐색</button>
             <button onClick={() => navigateTo('/setup')} className={`${isActive('/debate') || isActive('/setup') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>토론</button>
             <button onClick={() => navigateTo('/result')} className={`${isActive('/result') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>결과</button>
             <button onClick={() => navigateTo('/faq')} className={`${isActive('/faq') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>자주 묻는 질문</button>
@@ -200,7 +200,7 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
               <nav className="flex-1 px-6 py-4 space-y-2 overflow-y-auto">
                 {[
                   { path: '/about', label: '소개' },
-                  { path: '/search', label: '주제 검색' },
+                  { path: '/search', label: '주제 탐색' },
                   { path: '/setup', label: '토론' },
                   { path: '/result', label: '결과' },
                   { path: '/faq', label: '자주 묻는 질문' },
