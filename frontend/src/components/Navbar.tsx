@@ -11,7 +11,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { userApi } from '../services/api';
 
-// import logo from '../assets/logo.png'; // Uncomment this when the file is uploaded to /src/assets/logo.png
 const logo = '/src/assets/logo.png';
 
 interface NavbarProps {
@@ -76,11 +75,11 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
       <div className="max-w-7xl mx-auto px-4 md:px-8 py-3 md:py-4 flex justify-between items-center">
         <div className="flex items-center gap-6 md:gap-12">
           <button onClick={() => navigateTo('/')} className="flex items-center gap-2 md:gap-3 text-xl md:text-2xl font-black tracking-tighter font-headline cursor-pointer group">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl overflow-hidden shadow-lg shadow-primary/20 group-hover:scale-110 transition-transform">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl overflow-hidden group-hover:scale-110 transition-transform">
               <img 
                 src={logo} 
                 alt="Agora Logo" 
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
             <span>Agora</span>
