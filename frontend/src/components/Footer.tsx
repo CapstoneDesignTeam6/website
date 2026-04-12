@@ -4,14 +4,13 @@ export const Footer = () => (
       <div className="space-y-4">
         <span className="text-xl md:text-2xl font-black font-headline tracking-tighter">Agora</span>
         <p className="text-outline text-xs md:text-sm max-w-xs leading-relaxed">
-          건강한 담론과 팩트 기반의 토론을 통해 더 나은 사회를 꿈꾸는 디지털 공론장입니다.
+          읽는 뉴스에서 생각하는 뉴스로, AI 에이전트와 함께 깊이 있는 이해를 경험해보세요.
         </p>
       </div>
       <div className="grid grid-cols-2 gap-8 md:gap-16">
         <div className="space-y-4">
           <h4 className="font-bold text-xs md:text-sm text-on-surface">고객 지원</h4>
           <ul className="space-y-2 text-xs md:text-sm text-outline">
-            <li><a href="#" className="hover:text-primary">공지사항</a></li>
             <li><a href="#" className="hover:text-primary">도움말</a></li>
             <li><a href="#" className="hover:text-primary">문의하기</a></li>
           </ul>
