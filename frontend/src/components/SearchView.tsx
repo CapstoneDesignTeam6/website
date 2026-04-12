@@ -51,7 +51,7 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
           <input 
             type="text"
             placeholder="주제, 키워드, 카테고리 검색..."
-            className="w-full bg-white border-2 border-gray-100 rounded-3xl md:rounded-[2rem] py-4 md:py-6 pl-12 md:pl-16 pr-6 md:pr-8 text-base md:text-lg focus:border-primary focus:ring-0 transition-all shadow-sm hover:shadow-md"
+            className="w-full bg-white border-2 border-gray-100 rounded-3xl md:rounded-4xl py-4 md:py-6 pl-12 md:pl-16 pr-6 md:pr-8 text-base md:text-lg focus:border-primary focus:ring-0 transition-all shadow-sm hover:shadow-md"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />

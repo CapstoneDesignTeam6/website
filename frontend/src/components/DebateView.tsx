@@ -145,7 +145,7 @@ export const DebateView = ({
       <motion.aside 
         initial={false}
         animate={{ width: isLeftSidebarOpen ? 384 : 0, opacity: isLeftSidebarOpen ? 1 : 0 }}
-        className="bg-white flex flex-col border-r border-gray-200 overflow-hidden relative hidden md:flex"
+        className="bg-white flex flex-col border-r border-gray-200 overflow-hidden relative md:flex"
       >
         <div className="p-8 flex flex-col h-full w-96 overflow-y-auto custom-scrollbar">
           <div className="flex justify-between items-center mb-10">
@@ -204,7 +204,7 @@ export const DebateView = ({
       {/* Left Sidebar Toggle Button */}
       <button 
         onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isLeftSidebarOpen ? 'left-[368px]' : 'left-4'}`}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isLeftSidebarOpen ? 'left-92' : 'left-4'}`}
       >
         {isLeftSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
       </button>
@@ -333,7 +333,7 @@ export const DebateView = ({
         </div>
 
         {/* Floating Help Button & Chatbot Popup */}
-        <div className="absolute bottom-6 right-6 z-[60] flex flex-col items-end gap-4">
+        <div className="absolute bottom-6 right-6 z-60 flex flex-col items-end gap-4">
           <AnimatePresence>
             {isHelpOpen && (
               <motion.div
@@ -405,7 +405,7 @@ export const DebateView = ({
       {/* Right Sidebar Toggle Button */}
       <button 
         onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isRightSidebarOpen ? 'right-[304px]' : 'right-4'}`}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isRightSidebarOpen ? 'right-76' : 'right-4'}`}
       >
         {isRightSidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
       </button>
@@ -414,7 +414,7 @@ export const DebateView = ({
       <motion.aside 
         initial={false}
         animate={{ width: isRightSidebarOpen ? 320 : 0, opacity: isRightSidebarOpen ? 1 : 0 }}
-        className="bg-surface-container flex flex-col border-l border-gray-200 overflow-hidden relative hidden md:flex"
+        className="bg-surface-container flex flex-col border-l border-gray-200 overflow-hidden relative md:flex"
       >
         <div className="p-6 flex flex-col h-full w-80">
           <div className="mb-10">

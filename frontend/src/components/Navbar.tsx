@@ -148,14 +148,14 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[60] md:hidden"
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-60 md:hidden"
             />
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 bottom-0 w-[280px] bg-white z-[70] shadow-2xl md:hidden flex flex-col"
+              className="fixed right-0 top-0 bottom-0 w-70 bg-white z-70 shadow-2xl md:hidden flex flex-col"
               style={{ backgroundColor: 'white' }}
             >
               <div className="p-6 border-b border-gray-100 flex justify-between items-center">

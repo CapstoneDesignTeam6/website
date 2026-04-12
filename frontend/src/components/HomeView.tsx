@@ -133,7 +133,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
             heroSlides.map((slide, i) => (
               <div 
                 key={i} 
-                className={`relative bg-gradient-to-br ${slide.color} rounded-3xl md:rounded-[2.5rem] p-6 md:p-12 w-full shrink-0 overflow-hidden`}
+                className={`relative bg-linear-to-br ${slide.color} rounded-3xl md:rounded-[2.5rem] p-6 md:p-12 w-full shrink-0 overflow-hidden`}
               >
                 <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center relative z-10">
                   <div>
