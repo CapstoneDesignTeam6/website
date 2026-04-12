@@ -43,10 +43,8 @@ export const debateApi = {
     const res = await fetch('/api/debates/trending', {
       headers: getHeaders(),
     });
-    //return res.json();
-    
-    // Return frontend mock data
-    return MOCK_DEBATES.slice(0, 3);
+    return res.json();
+
   },
    search: async (query: string) => {
 
@@ -76,7 +74,23 @@ export const debateApi = {
     });
     // return res.json();
     return MOCK_QUIZZES[topic] || MOCK_QUIZZES["default"];
-  }
+  },
+  getCounterHint: async (discussionId: number) => {
+    const res = await fetch(`/api/debate/${discussionId}/counter-hint`, {
+      method: 'POST',
+      headers: getHeaders(),
+      // No body needed as per backend implementation
+    });
+    return res.json();
+  },
+  getRebuttalHint: async (discussionId: number) => {
+    const res = await fetch(`/api/debate/${discussionId}/rebuttal-hint`, {
+      method: 'POST',
+      headers: getHeaders(),
+      // No body needed as per backend implementation
+    });
+    return res.json();
+  },
 };
 
 export const userApi = {
