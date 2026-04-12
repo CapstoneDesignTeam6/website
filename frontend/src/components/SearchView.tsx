@@ -13,18 +13,55 @@ interface SearchViewProps {
   setTopic: (t: string) => void;
 }
 
+// 백엔드 Search API 응답 항목 타입
+interface SearchDebateItem {
+  id: number;
+  topic: string; // 백엔드에서 topic 사용
+  stance: string;
+  author: string;
+  viewCount: number; // 백엔드에서 viewCount 사용
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 카드 섹션에 사용될 데이터 타입 정의 (HomeView와 동일하게)
+interface CardDebate {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  isHot: boolean;
+  participants: number;
+}
+
 export const SearchView = ({ setTopic }: SearchViewProps) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [debates, setDebates] = useState<any[]>([]);
+  const [debates, setDebates] = useState<CardDebate[]>([]); // CardDebate[] 타입 사용
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchDebates = async () => {
       setIsLoading(true);
       try {
-        const data = await debateApi.search(searchQuery);
-        setDebates(data);
+        const response = await debateApi.search(searchQuery);
+        // 백엔드 search API는 { code, message, data: [...] } 형태로 반환
+        if (response?.data && Array.isArray(response.data)) {
+          // SearchDebateItem을 CardDebate 형식으로 변환하여 사용
+          const mappedDebates: CardDebate[] = response.data.map(item => ({
+            id: item.id,
+            title: item.topic, // 백엔드 topic을 title로 사용
+            description: `${item.topic}에 대한 토론입니다. 현재 ${item.messageCount}개의 메시지가 오고 갔습니다.`, // 설명 생성
+            category: "시사", // 백엔드에 category 필드가 없으므로 임의 지정
+            isHot: item.viewCount > 100, // 조회수 100 이상이면 Hot으로 간주 (임의 로직)
+            participants: item.viewCount, // 백엔드 viewCount를 participants로 사용
+          }));
+          setDebates(mappedDebates);
+        } else {
+          console.warn("Unexpected response format for search debates:", response);
+          setDebates([]);
+        }
       } catch (error) {
         console.error("Failed to fetch debates:", error);
       } finally {
@@ -39,7 +76,7 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
       <header className="text-center mb-12 md:mb-16">
-        <h1 className="text-3xl md:text-5xl font-extrabold font-headline tracking-tight mb-4 md:mb-6 text-on-surface">토론 주제 검색</h1>
+        <h1 className="text-3xl md:text-5xl font-extrabold font-headline tracking-tight mb-4 md:mb-6 text-on-surface">토론 주제 탐색</h1>
         <p className="text-base md:text-lg text-outline max-w-2xl mx-auto">관심 있는 시사 이슈를 검색하고 토론에 참여해보세요.</p>
       </header>
 
@@ -97,7 +134,7 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
               <Search size={32} className="md:w-10 md:h-10" />
             </div>
             <h3 className="text-lg md:text-xl font-bold mb-2">검색 결과가 없습니다</h3>
-            <p className="text-sm md:text-base text-outline">다른 키워드로 검색해보거나 새로운 주제를 제안해보세요.</p>
+            <p className="text-sm md:text-base text-outline">다른 키워드로 검색해보거나 새로운 주제를 제안해보세요</p>
           </div>
         )}
       </div>

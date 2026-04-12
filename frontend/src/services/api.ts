@@ -1,6 +1,28 @@
 import { DebateMessage } from '../types';
-import { MOCK_DEBATES } from '../constants';
 
+// 백엔드 Trending API 응답 항목 타입
+interface TrendingTopicResponse {
+  id: number;
+  category: string;
+  isHot: boolean;
+  title: string;
+  description: string;
+  participants: number;
+}
+
+// 백엔드 Search API 응답 항목 타입
+interface SearchDebateItem {
+  id: number;
+  topic: string;
+  stance: string;
+  author: string;
+  viewCount: number;
+  messageCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 로컬 스토리지에 저장되는 인증 토큰 키
 const TOKEN_KEY = 'agora_token';
 
 const getHeaders = () => {
@@ -15,7 +37,7 @@ const getHeaders = () => {
 };
 
 export const debateApi = {
-  start: async (topic: string) => {
+  start: async (topic: string) => { // 토론 시작 API
     const res = await fetch('/api/debate/start', {
       method: 'POST',
       headers: getHeaders(),
@@ -23,7 +45,7 @@ export const debateApi = {
     });
     return res.json();
   },
-  sendMessage: async (topic: string, message: string, history: DebateMessage[]) => {
+  sendMessage: async (topic: string, message: string, history: DebateMessage[]) => { // 메시지 전송 API
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
@@ -31,7 +53,7 @@ export const debateApi = {
     });
     return res.json();
   },
-  analyze: async (topic: string, messages: DebateMessage[]) => {
+  analyze: async (topic: string, messages: DebateMessage[]) => { // 토론 분석 API
     const res = await fetch('/api/debate/analyze', {
       method: 'POST',
       headers: getHeaders(),
@@ -39,33 +61,20 @@ export const debateApi = {
     });
     return res.json();
   },
-  getTrending: async () => {
+  getTrending: async (): Promise<TrendingTopicResponse[]> => { // 트렌딩 토론 목록 가져오기 API
     const res = await fetch('/api/debates/trending', {
       headers: getHeaders(),
     });
     return res.json();
   },
-   search: async (query: string) => {
-
-    /*
-    const url = query 
+   search: async (query: string): Promise<{ code: number; message: string; data: SearchDebateItem[] }> => { // 토론 검색 API
+    const url = query
       ? `/api/debates/search?q=${encodeURIComponent(query)}` 
       : '/api/debates/search';
     const res = await fetch(url, {
       headers: getHeaders(),
     });
     return res.json();
-    */
-
-    // Return frontend mock data filtered by query
-    const q = query.toLowerCase();
-    if (!q) return MOCK_DEBATES;
-    
-    return MOCK_DEBATES.filter(d => 
-      d.title.toLowerCase().includes(q) || 
-      d.description.toLowerCase().includes(q) ||
-      d.category.toLowerCase().includes(q)
-    );
   },
   getQuiz: async (topic: string) => {
     const res = await fetch(`/api/debate/quiz?topic=${encodeURIComponent(topic)}`, {
@@ -77,7 +86,7 @@ export const debateApi = {
     const res = await fetch(`/api/debate/${discussionId}/counter-hint`, {
       method: 'POST',
       headers: getHeaders(),
-      // No body needed as per backend implementation
+      // 백엔드 구현에 따라 본문 필요 없음
     });
     return res.json();
   },
@@ -85,14 +94,14 @@ export const debateApi = {
     const res = await fetch(`/api/debate/${discussionId}/rebuttal-hint`, {
       method: 'POST',
       headers: getHeaders(),
-      // No body needed as per backend implementation
+      // 백엔드 구현에 따라 본문 필요 없음
     });
     return res.json();
   },
 };
 
 export const userApi = {
-  login: async (email: string, password: string) => {
+  login: async (email: string, password: string) => { // 로그인 API
     const res = await fetch('/api/user/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -111,7 +120,7 @@ export const userApi = {
     }
     return data;
   },
-  signup: async (email: string, password: string, username: string) => {
+  signup: async (email: string, password: string, username: string) => { // 회원가입 API
     const res = await fetch('/api/user/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -130,10 +139,10 @@ export const userApi = {
     }
     return data;
   },
-  logout: () => {
+  logout: () => { // 로그아웃
     localStorage.removeItem(TOKEN_KEY);
   },
-  getToken: () => {
+  getToken: () => { // 토큰 가져오기
     return localStorage.getItem(TOKEN_KEY);
   },
   getCurrentUser: async () => {

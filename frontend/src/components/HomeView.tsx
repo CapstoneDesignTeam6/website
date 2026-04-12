@@ -18,13 +18,11 @@ interface HomeViewProps {
 // 백엔드에서 받아오는 트렌딩 토론 데이터 타입 정의
 interface TrendingDebate {
   id: number;
-  topic: string;
-  stance: string; // "찬성" or "반대"
-  author: string;
-  viewCount: number;
-  messageCount: number;
-  createdAt: string;
-  updatedAt: string;
+  category: string;
+  isHot: boolean;
+  title: string; // 백엔드에서 topic 대신 title 사용
+  description: string;
+  participants: number; // 백엔드에서 viewCount 대신 participants 사용
 }
 
 // 슬라이더에 사용될 데이터 타입 정의
@@ -58,8 +56,8 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
         console.log("Trending API Response:", response);
         
         let debatesToUse: TrendingDebate[] = [];
-        if (response?.data && Array.isArray(response.data)) {
-          debatesToUse = response.data;
+        if (Array.isArray(response)) { // debateApi.getTrending은 배열을 직접 반환
+          debatesToUse = response;
         } else {
           console.warn("Unexpected response format for trending debates:", response);
           debatesToUse = [];
@@ -71,22 +69,22 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
           "from-[#ffe4e1] to-white",
           "from-[#e0f7fa] to-white"
         ];
-        const mappedHeroSlides: HeroSlide[] = debatesToUse.slice(0, 3).map((debate, index) => ({
-          tag: "인기 토론", // 백엔드에 category 필드가 없으므로 임의 지정
-          title: debate.topic,
-          desc: `${debate.topic}에 대한 뜨거운 토론이 진행 중입니다. ${debate.viewCount}명이 참여했습니다.`, // 설명 생성
+        const mappedHeroSlides: HeroSlide[] = debatesToUse.slice(0, 3).map((topicItem, index) => ({
+          tag: topicItem.category, // 백엔드 응답의 category 사용
+          title: topicItem.title,
+          desc: topicItem.description, // 백엔드 응답의 description 사용
           color: slideColors[index % slideColors.length] // 색상 순환 적용
         }));
         setHeroSlides(mappedHeroSlides);
 
         // 카드 섹션용 데이터 매핑
-        const mappedCardDebates: CardDebate[] = debatesToUse.map(debate => ({
-          id: debate.id,
-          title: debate.topic,
-          description: `${debate.topic}에 대한 토론입니다. 현재 ${debate.messageCount}개의 메시지가 오고 갔습니다.`, // 설명 생성
-          category: "시사", // 백엔드에 category 필드가 없으므로 임의 지정
-          isHot: debate.viewCount > 100, // 조회수 100 이상이면 Hot으로 간주 (임의 로직)
-          participants: debate.viewCount,
+        const mappedCardDebates: CardDebate[] = debatesToUse.map(topicItem => ({
+          id: topicItem.id,
+          title: topicItem.title,
+          description: topicItem.description,
+          category: topicItem.category,
+          isHot: topicItem.isHot,
+          participants: topicItem.participants,
         }));
         setCardDebates(mappedCardDebates);
       } catch (error) {
