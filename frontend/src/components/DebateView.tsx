@@ -24,6 +24,7 @@ interface DebateViewProps {
   currentRound?: number;
   totalRounds?: number;
   progress?: number;
+  discussionId: number; // Add this prop
 }
 
 export const DebateView = ({ 
@@ -34,12 +35,17 @@ export const DebateView = ({
   onFinish,
   currentRound = 1,
   totalRounds = 4,
-  progress = 25
+  progress = 25,
+  discussionId, // Destructure the new prop
 }: DebateViewProps) => {
   const navigate = useNavigate();
   const [inputText, setInputText] = useState('');
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+  const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
+    { sender: 'bot', text: '안녕하세요! 토론 진행 중 궁금한 점이나 도움이 필요하시면 언제든 물어보세요. 논리적인 근거 제시나 반박 전략에 대해 조언해 드릴 수 있습니다.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
+  ]);
+  const [isHintGenerating, setIsHintGenerating] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
   const [helpInput, setHelpInput] = useState('');
   const [isFirstInput, setIsFirstInput] = useState(true);
@@ -75,12 +81,55 @@ export const DebateView = ({
     if (isFirstInput) setIsFirstInput(false);
   };
 
-  const handleHelpSubmit = (e: React.FormEvent) => {
+  const handleHelpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!helpInput.trim()) return;
-    // Handle help input (e.g., send to a specific help API or just log it)
-    console.log("Help requested:", helpInput);
+    if (!helpInput.trim() || isHintGenerating) return;
+
+    const userMessage = helpInput;
+    setChatbotMessages(prev => [...prev, { sender: 'user', text: userMessage, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
     setHelpInput('');
+    setIsHintGenerating(true);
+
+    let hintEndpoint = '';
+    let hintType = '';
+
+    if (userMessage.includes('재반박 힌트')) {
+      hintEndpoint = `/api/debate/${discussionId}/counter-hint`;
+      hintType = '재반박';
+    } else if (userMessage.includes('반박 힌트')) {
+      hintEndpoint = `/api/debate/${discussionId}/rebuttal-hint`;
+      hintType = '반박';
+    }
+
+    if (hintEndpoint) {
+      try {
+        const response = await fetch(hintEndpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            // Assuming authentication token is handled globally or not needed for hints
+            // 'Authorization': `Bearer ${yourAuthToken}`
+          },
+          // No body needed as per backend implementation, as the backend fetches discussion history by discussionId
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setChatbotMessages(prev => [...prev, { sender: 'bot', text: data.hint || `${hintType} 힌트를 생성할 수 없습니다.`, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
+      } catch (error) {
+        console.error(`Error fetching ${hintType} hint:`, error);
+        setChatbotMessages(prev => [...prev, { sender: 'bot', text: `${hintType} 힌트를 가져오는 데 실패했습니다. 다시 시도해주세요.`, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
+      } finally {
+        setIsHintGenerating(false);
+      }
+    } else {
+      // Generic response if no specific hint keyword is found
+      setChatbotMessages(prev => [...prev, { sender: 'bot', text: '어떤 도움이 필요하신가요? "재반박 힌트" 또는 "반박 힌트"라고 입력해보세요.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
+      setIsHintGenerating(false);
+    }
   };
 
   const proCount = messages.filter(m => m.side === 'pro').length;
@@ -304,9 +353,24 @@ export const DebateView = ({
                     <ChevronRight size={20} className="rotate-90" />
                   </button>
                 </div>
-                <div className="p-4 h-48 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed">
-                  안녕하세요! 토론 진행 중 궁금한 점이나 도움이 필요하시면 언제든 물어보세요. 논리적인 근거 제시나 반박 전략에 대해 조언해 드릴 수 있습니다.
+                <div className="p-4 h-48 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col space-y-2 custom-scrollbar">
+                  {chatbotMessages.map((msg, index) => (
+                    <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] p-2 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
+                        <p className="text-sm">{msg.text}</p>
+                        <span className={`block text-[9px] mt-1 ${msg.sender === 'user' ? 'text-white/70' : 'text-gray-500'}`}>{msg.timestamp}</span>
+                      </div>
+                    </div>
+                  ))}
+                  {isHintGenerating && (
+                    <div className="flex justify-start">
+                      <div className="max-w-[80%] p-2 rounded-lg bg-white text-gray-800 border border-gray-100">
+                        <Loader2 size={16} className="animate-spin text-gray-400" />
+                      </div>
+                    </div>
+                  )}
                 </div>
+
                 <form onSubmit={handleHelpSubmit} className="p-3 border-t border-gray-100 bg-white flex gap-2">
                   <input 
                     type="text"
