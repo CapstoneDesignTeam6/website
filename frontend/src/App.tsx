@@ -34,7 +34,7 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [topic, setTopic] = useState("");
-  const [agentCount, setAgentCount] = useState(3);
+  const [agentCount, setAgentCount] = useState(1);
   const [messages, setMessages] = useState<DebateMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [debateResult, setDebateResult] = useState("");
