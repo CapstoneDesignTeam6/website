@@ -40,7 +40,7 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
       <header className="text-center mb-12 md:mb-16">
         <h1 className="text-3xl md:text-5xl font-extrabold font-headline tracking-tight mb-4 md:mb-6 text-on-surface">토론 주제 검색</h1>
-        <p className="text-base md:text-lg text-outline max-w-2xl mx-auto">관심 있는 시사 이슈를 검색하고 지성적인 담론에 참여해보세요.</p>
+        <p className="text-base md:text-lg text-outline max-w-2xl mx-auto">관심 있는 시사 이슈를 검색하고 토론에 참여해보세요.</p>
       </header>
 
       <div className="max-w-3xl mx-auto mb-12 md:mb-16">
@@ -50,7 +50,7 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
           </div>
           <input 
             type="text"
-            placeholder="주제, 키워드, 카테고리 검색..."
+            placeholder="주제, 키워드, 카테고리 등으로 검색해보세요"
             className="w-full bg-white border-2 border-gray-100 rounded-3xl md:rounded-4xl py-4 md:py-6 pl-12 md:pl-16 pr-6 md:pr-8 text-base md:text-lg focus:border-primary focus:ring-0 transition-all shadow-sm hover:shadow-md"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
