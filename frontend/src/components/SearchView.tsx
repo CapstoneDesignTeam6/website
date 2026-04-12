@@ -74,9 +74,9 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
   }, [searchQuery]);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-24">
-      <header className="text-center mb-12 md:mb-16">
-        <h1 className="text-3xl md:text-5xl font-extrabold font-headline tracking-tight mb-4 md:mb-6 text-on-surface">토론 주제 탐색</h1>
+    <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20">
+      <header className="text-center mb-10 md:mb-12">
+        <h1 className="text-2xl md:text-4xl font-extrabold font-headline tracking-tight mb-4 md:mb-6 text-on-surface">토론 주제 탐색</h1>
         <p className="text-base md:text-lg text-outline max-w-2xl mx-auto">관심 있는 시사 이슈를 검색하고 토론에 참여해보세요.</p>
       </header>
 
@@ -129,8 +129,8 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
             </motion.div>
           ))
         ) : (
-          <div className="col-span-full text-center py-12 md:py-24">
-            <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6 text-outline">
+          <div className="col-span-full text-center ">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto  text-outline">
               <Search size={32} className="md:w-10 md:h-10" />
             </div>
             <h3 className="text-lg md:text-xl font-bold mb-2">검색 결과가 없습니다</h3>
