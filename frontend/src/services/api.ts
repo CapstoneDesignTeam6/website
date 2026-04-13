@@ -65,7 +65,13 @@ export const debateApi = {
     const res = await fetch('/api/debates/trending', {
       headers: getHeaders(),
     });
-    return res.json();
+    if (!res.ok) {
+      // 서버 응답이 성공적이지 않을 경우 (예: 500 Internal Server Error)
+      // JSON 파싱을 시도하기 전에 오류를 처리합니다.
+      const errorText = await res.text(); // 오류 메시지를 텍스트로 읽어옵니다.
+      throw new Error(`Failed to fetch trending debates: ${res.status} ${res.statusText} - ${errorText}`);
+    }
+    return res.json(); // 성공적인 응답일 경우 JSON으로 파싱합니다.
   },
    search: async (query: string): Promise<{ code: number; message: string; data: SearchDebateItem[] }> => { // 토론 검색 API
     const url = query
