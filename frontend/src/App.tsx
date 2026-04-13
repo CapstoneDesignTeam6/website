@@ -17,7 +17,6 @@ import { debateApi, userApi } from "./services/api";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
 import { HomeView } from "./components/HomeView";
-import { AboutView } from "./components/AboutView";
 import { SetupView } from "./components/SetupView";
 import { DebateView } from "./components/DebateView";
 import { ResultView } from "./components/ResultView";
@@ -178,7 +177,6 @@ export default function App() {
           >
             <Routes location={location}>
               <Route path="/" element={<HomeView setTopic={setTopic} />} />
-              <Route path="/about" element={<AboutView />} />
               <Route
                 path="/setup"
                 element={
