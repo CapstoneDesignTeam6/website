@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
+import { MOCK_TOPICS } from '../mockData.ts'; // mock 데이터 임포트
 import { debateApi } from '../services/api';
 
 interface SearchViewProps {
@@ -47,7 +48,8 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
       try {
         const response = await debateApi.search(searchQuery);
         // 백엔드 search API는 { code, message, data: [...] } 형태로 반환
-        if (response?.data && Array.isArray(response.data)) {
+        // 백엔드에서 데이터가 있거나, 응답 형식이 예상과 다를 경우 목 데이터 사용
+        if (response?.data && Array.isArray(response.data) && response.data.length > 0) { // 데이터가 있고 배열이며 비어있지 않은 경우
           // SearchDebateItem을 CardDebate 형식으로 변환하여 사용
           const mappedDebates: CardDebate[] = response.data.map(item => ({
             id: item.id,
@@ -59,10 +61,11 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
           }));
           setDebates(mappedDebates);
         } else {
-          console.warn("Unexpected response format for search debates:", response);
-          setDebates([]);
+          // 백엔드에서 데이터가 없거나, 응답 형식이 예상과 다를 경우 목 데이터 사용
+          console.warn("백엔드에서 데이터가 없거나 예상치 못한 응답 형식입니다. 목 데이터를 사용합니다:", response);
+          setDebates(MOCK_TOPICS); // 목 데이터 사용
         }
-      } catch (error) {
+      } catch (error) { // API 호출 실패 시
         console.error("Failed to fetch debates:", error);
       } finally {
         setIsLoading(false);

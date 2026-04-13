@@ -9,6 +9,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Quiz } from '../types';
 import { debateApi } from '../services/api';
+import { MOCK_PRE_DEBATE_QUIZ, MOCK_POST_DEBATE_QUIZ } from '../mockData.ts'; // 목 데이터 임포트 경로 수정
 
 interface QuizViewProps {
   topic: string;
@@ -29,6 +30,9 @@ export const QuizView = ({ topic, type, onComplete }: QuizViewProps) => {
         const data = await debateApi.getQuiz(topic);
         setQuiz(data);
       } catch (error) {
+        // API 호출 실패 시 type에 따라 다른 목 데이터 사용
+        setQuiz(type === 'pre' ? MOCK_PRE_DEBATE_QUIZ : MOCK_POST_DEBATE_QUIZ);
+        
         console.error("Failed to fetch quiz:", error);
       } finally {
         setIsLoading(false);
