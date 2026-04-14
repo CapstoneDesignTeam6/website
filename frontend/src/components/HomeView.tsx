@@ -264,7 +264,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
                     <div className="relative">
                       <div className="aspect-video rounded-2xl overflow-hidden shadow-2xl border border-white/20">
                         <img
-                          src="https://picsum.photos/seed/agora-ai/1200/800"
+                          src="/about_image.jpg"
                           alt="AI Analysis"
                           className="w-full h-full object-cover"
                           referrerPolicy="no-referrer"
