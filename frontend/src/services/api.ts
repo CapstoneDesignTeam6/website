@@ -1,4 +1,4 @@
-import { DebateMessage, UserData, SearchDebateItem } from '../types';
+import { DebateMessage, UserData, SearchDebateItem, DiscussionSessionResponse } from '../types';
 
 // 백엔드 Trending API 응답 항목 타입
 interface TrendingTopicResponse {
@@ -25,7 +25,7 @@ const getHeaders = () => {
 };
 
 export const debateApi = {
-  start: async (topic: string): Promise<DebateMessage> => { // 토론 시작 API
+  start: async (topic: string): Promise<DiscussionSessionResponse> => { // 토론 시작 API
     const res = await fetch('/api/debate/start', {
       method: 'POST',
       headers: getHeaders(),

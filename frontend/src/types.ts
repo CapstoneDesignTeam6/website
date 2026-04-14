@@ -55,3 +55,16 @@ export interface SearchDebateItem {
   createdAt: string; // 생성일시 (ISO 8601 형식)
   updatedAt: string; // 최종 업데이트 일시 (ISO 8601 형식)
 }
+
+// 백엔드 DiscussionSession API 응답 항목 타입
+export interface DiscussionSessionResponse {
+  id: number; // 토론 세션 ID
+  user_id: number; // 사용자 ID
+  title: string; // 토론 제목
+  topic: string; // 토론 주제
+  status: string; // 토론 상태 (예: ongoing, completed)
+  score: number; // 토론 점수
+  exp_earned: number; // 획득 경험치
+  created_at: string; // 생성일시 (ISO 8601 형식)
+  // 백엔드 응답에 따라 다른 필드 추가 가능
+}
