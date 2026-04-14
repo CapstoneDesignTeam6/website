@@ -367,11 +367,11 @@ export const DebateView = ({
           
           <button 
             onClick={() => setIsHelpOpen(!isHelpOpen)}
-            className="w-12 h-12 md:w-14 md:h-14 bg-white rounded-full shadow-2xl border border-gray-100 flex items-center justify-center overflow-hidden hover:scale-110 transition-transform group"
+            className="w-12 h-12 md:w-14 md:h-14 bg-gray-100 border-gray-100 flex items-center justify-center overflow-hidden hover:scale-110 transition-transform group"
           >
             {/* 아이콘에 이미지 삽입 */}
             <img 
-              src="../assets/logo.png" 
+              src="/help_icon.png" 
               alt="Help Icon" 
               className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
               referrerPolicy="no-referrer"
