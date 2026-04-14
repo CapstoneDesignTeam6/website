@@ -444,7 +444,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
             description: "AI 에이전트가 토론 참여자들의 논리력, 근거 활용 등을 분석하여 객관적인 평가와 피드백을 제공합니다.",
           },{
             icon: "📋",
-            title: "최종 리포트 제공",
+            title: "결과 리포트 제공",
             description: "토론 종료 후, AI 분석 결과가 담긴 상세 리포트를 제공하여 이해도를 높입니다. 샘플 리포트를 다운로드하여 확인해보세요.",
             hasDownloadButton: true, // 다운로드 버튼이 필요한 항목임을 표시
           },
