@@ -57,6 +57,14 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
   const [cardDebates, setCardDebates] = useState<CardDebate[]>([]);
   const [currentSlide, setCurrentSlide] = useState(0);
 
+  // 샘플 PDF 다운로드 핸들러
+  const handleDownloadSamplePdf = () => {
+    const pdfUrl = '/sample_report.pdf'; // PDF 파일 경로(public 폴더)
+    const link = document.createElement('a'); // <a> 태그 생성
+    link.href = pdfUrl; // 링크 URL 설정
+    link.download = 'Agora_Sample_Report.pdf'; // 다운로드될 파일 이름 설정
+    link.click(); // 클릭 이벤트 발생시켜 다운로드 시작
+  };
   useEffect(() => {
     // 슬라이더 색상 배열 (컴포넌트 내에서 한 번만 정의)
     const slideColors = [
@@ -319,34 +327,34 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
       <div className="grid md:grid-cols-3 gap-6 md:gap-12 mb-16 md:mb-32">
         {[
           {
-            icon: "🗞️",
+            icon: "📰",
             title: "뉴스 기반 토론, 정보에서 이해로",
-            desc: "Agora의 모든 토론은 실제 뉴스에서 시작됩니다. 단순히 기사를 읽는 것이 아니라 맥락을 입체적으로 이해합니다.",
+            desc: "Agora의 모든 토론은 실제 뉴스에서 시작됩니다. 단순히 기사를 읽는 것이 아니라 주제를 입체적으로 이해할 수 있게 도와줍니다.",
           },
           {
             icon: "🤖",
             title: "AI 에이전트 토론, 살아있는 다양성",
-            desc: "다양한 입장을 대변하는 AI 에이전트들이 논리적인 토론을 펼칠니다. 편향되지 않은 균형 잡힌 시각을 제공합니다.",
+            desc: "다양한 입장을 대변하는 AI 에이전트들이 논리적인 토론을 펼칩니다. 편향되지 않은 균형 잡힌 시각을 제공합니다.",
           },
           {
-            icon: "💬",
+            icon: "🗣️",
             title: "직접 참여, 생각이 깊어지는 경험",
-            desc: "AI 에이전트와 직접 토론하며 자신의 논리를 다듬고 사고의 확장을 경험해보세요.",
+            desc: "토론에 참여하며 자신의 논리를 다듬고 사고의 확장을 경험해보세요.",
           },
           {
-            icon: "🗞️",
-            title: "최종 리포트 제공",
-            desc: "Agora의 모든 토론은 실제 뉴스에서 시작됩니다. 단순히 기사를 읽는 것이 아니라 맥락을 입체적으로 이해합니다.",
+            icon: "🪄",
+            title: "토론 보조 에이전트",
+            desc: "토론 중 막히는 부분이 있거나 도움이 필요할 때, 보조 에이전트가 논리적인 근거나 반박 전략을 제시하여 토론을 풍성하게 돕습니다.",
           },
           {
-            icon: "🗞️",
+            icon: "⚖️",
             title: "자동 판정 시스템",
-            desc: "Agora의 모든 토론은 실제 뉴스에서 시작됩니다. 단순히 기사를 읽는 것이 아니라 맥락을 입체적으로 이해합니다.",
-          },
-          {
-            icon: "🗞️",
-            title: "진행률 시각화",
-            desc: "Agora의 모든 토론은 실제 뉴스에서 시작됩니다. 단순히 기사를 읽는 것이 아니라 맥락을 입체적으로 이해합니다.",
+            desc: "AI 에이전트가 토론 참여자들의 논리력, 근거 활용 등을 분석하여 객관적인 평가와 피드백을 제공합니다.",
+          },{
+            icon: "📋",
+            title: "최종 리포트 제공",
+            desc: "토론 종료 후, AI 분석 결과가 담긴 상세 리포트를 제공하여 이해도를 높입니다. 샘플 리포트를 다운로드하여 확인해보세요.",
+            hasDownloadButton: true, // 다운로드 버튼이 필요한 항목임을 표시
           },
         ].map((item, i) => (
           <div
@@ -360,8 +368,17 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
             <p className="text-xs md:text-sm text-outline leading-relaxed">
               {item.desc}
             </p>
+            {item.hasDownloadButton && ( // hasDownloadButton이 true일 때만 버튼 렌더링
+              <button
+                onClick={handleDownloadSamplePdf}
+                className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors text-sm"
+              >
+                <Download size={16} /> 샘플 리포트 PDF 다운로드
+              </button>
+            )}
           </div>
-        ))}
+        ))
+      }
       </div>
       {/*
       <section className="bg-surface-container rounded-3xl md:rounded-[2.5rem] p-8 md:p-16">
