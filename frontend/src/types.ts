@@ -1,5 +1,5 @@
 export interface DebateMessage {
-  id?: number; // 백엔드 Message 모델의 ID (선택적)
+  id?: number; // 백엔드 Message 모델의 ID
   discussion_id?: number; // 백엔드 Message 모델의 session_id (선택적)
   role: 'agent' | 'user' | 'moderator';
   agentName?: string; // 에이전트 이름 (프론트엔드 표시용, 선택적)
