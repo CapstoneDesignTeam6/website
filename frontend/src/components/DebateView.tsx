@@ -43,7 +43,7 @@ export const DebateView = ({
   const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
   const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
   const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
-    { sender: 'bot', text: '안녕하세요! 토론 진행 중 궁금한 점이나 도움이 필요하시면 언제든 물어보세요. 논리적인 근거 제시나 반박 전략에 대해 조언해 드릴 수 있습니다.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
+    { sender: 'bot', text: '안녕하세요! 토론 진행 중 도움이 필요하시면 언제든 물어보세요. 주장이나 반박 작성을 도와드리겠습니다.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
   ]);
   const [isHintGenerating, setIsHintGenerating] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
