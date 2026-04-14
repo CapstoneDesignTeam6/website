@@ -7,23 +7,12 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_TOPICS } from '../mockData.ts'; // mock 데이터 임포트
+import { MOCK_TOPICS } from '../mockData'; // mock 데이터 임포트
 import { debateApi } from '../services/api';
+import { SearchDebateItem } from '../types'; // SearchDebateItem 타입 임포트
 
 interface SearchViewProps {
   setTopic: (t: string) => void;
-}
-
-// 백엔드 Search API 응답 항목 타입
-interface SearchDebateItem {
-  id: number;
-  topic: string; // 백엔드에서 topic 사용
-  stance: string;
-  author: string;
-  viewCount: number; // 백엔드에서 viewCount 사용
-  messageCount: number;
-  createdAt: string;
-  updatedAt: string;
 }
 
 // 카드 섹션에 사용될 데이터 타입 정의 (HomeView와 동일하게)

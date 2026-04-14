@@ -1,25 +1,13 @@
-import { DebateMessage } from '../types';
+import { DebateMessage, UserData, SearchDebateItem } from '../types';
 
 // 백엔드 Trending API 응답 항목 타입
 interface TrendingTopicResponse {
   id: number;
   category: string;
   isHot: boolean;
-  title: string;
-  description: string;
-  participants: number;
-}
-
-// 백엔드 Search API 응답 항목 타입
-interface SearchDebateItem {
-  id: number;
-  topic: string;
-  stance: string;
-  author: string;
-  viewCount: number;
-  messageCount: number;
-  createdAt: string;
-  updatedAt: string;
+  title: string; // 토론 주제 제목
+  description: string; // 토론 주제 설명
+  participants: number; // 참여자 수
 }
 
 // 로컬 스토리지에 저장되는 인증 토큰 키
@@ -37,15 +25,20 @@ const getHeaders = () => {
 };
 
 export const debateApi = {
-  start: async (topic: string) => { // 토론 시작 API
+  start: async (topic: string): Promise<DebateMessage> => { // 토론 시작 API
     const res = await fetch('/api/debate/start', {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ topic }),
     });
-    return res.json();
-  },
-  sendMessage: async (topic: string, message: string, history: DebateMessage[]) => { // 메시지 전송 API
+    if (!res.ok) { // API 응답이 성공적이지 않을 경우 (예: 500 Internal Server Error)
+      // JSON 파싱을 시도하기 전에 오류를 처리합니다.
+      const errorText = await res.text(); // 오류 메시지를 텍스트로 읽어옵니다.
+      throw new Error(`Failed to start debate: ${res.status} ${res.statusText} - ${errorText}`);
+    }
+    return res.json(); // 성공적인 응답일 경우 JSON으로 파싱합니다.
+  }, // 메시지 전송 API
+  sendMessage: async (topic: string, message: string, history: DebateMessage[]): Promise<{ userSide: string; aiResponse: DebateMessage }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
@@ -73,7 +66,7 @@ export const debateApi = {
     }
     return res.json(); // 성공적인 응답일 경우 JSON으로 파싱합니다.
   },
-   search: async (query: string): Promise<{ code: number; message: string; data: SearchDebateItem[] }> => { // 토론 검색 API
+  search: async (query: string): Promise<{ code: number; message: string; data: SearchDebateItem[] }> => { // 토론 검색 API
     const url = query
       ? `/api/debates/search?q=${encodeURIComponent(query)}` 
       : '/api/debates/search';
@@ -107,7 +100,7 @@ export const debateApi = {
 };
 
 export const userApi = {
-  login: async (email: string, password: string) => { // 로그인 API
+  login: async (email: string, password: string): Promise<{ access_token: string; token_type: string; user: UserData }> => { // 로그인 API
     const res = await fetch('/api/user/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -120,13 +113,13 @@ export const userApi = {
     const data = await res.json();
     if (data.access_token) {
       localStorage.setItem(TOKEN_KEY, data.access_token);
-    }
-    if (data.user) {
-      data.user.nickname = data.user.username;
-    }
-    return data;
+      // 백엔드에서 username을 nickname으로 사용하도록 처리
+      if (data.user && !data.user.nickname) {
+        data.user.nickname = data.user.username;
+      }
+    }    return data;
   },
-  signup: async (email: string, password: string, username: string) => { // 회원가입 API
+  signup: async (email: string, password: string, username: string): Promise<{ access_token: string; token_type: string; user: UserData }> => { // 회원가입 API
     const res = await fetch('/api/user/signup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -139,9 +132,9 @@ export const userApi = {
     const data = await res.json();
     if (data.access_token) {
       localStorage.setItem(TOKEN_KEY, data.access_token);
-    }
-    if (data.user) {
-      data.user.nickname = data.user.username;
+      if (data.user && !data.user.nickname) {
+        data.user.nickname = data.user.username;
+      }
     }
     return data;
   },
@@ -151,7 +144,7 @@ export const userApi = {
   getToken: () => { // 토큰 가져오기
     return localStorage.getItem(TOKEN_KEY);
   },
-  getCurrentUser: async () => {
+  getCurrentUser: async (): Promise<UserData> => {
     const res = await fetch('/api/auth/me', { // 백엔드 @router.get("/me") 경로
       method: 'GET',
       headers: getHeaders(), // Authorization 헤더가 포함된 공통 헤더 사용
