@@ -1,4 +1,13 @@
-import { DebateMessage, UserData, SearchDebateItem, DiscussionSessionResponse } from '../types';
+import { DebateMessage, UserData, SearchDebateItem } from '../types';
+
+// 관련 자료 항목 타입 (백엔드 RelatedMaterialSchema와 일치)
+interface RelatedMaterial {
+  category: string; // 자료의 카테고리 (예: 경제, 사회, 기술)
+  color: string; // 프론트엔드에서 사용할 색상 클래스 (예: text-blue-600)
+  title: string; // 자료의 제목
+  description: string; // 자료의 상세 설명
+  source: string; // 자료의 출처
+}
 
 // 백엔드 Trending API 응답 항목 타입
 interface TrendingTopicResponse {
@@ -25,7 +34,7 @@ const getHeaders = () => {
 };
 
 export const debateApi = {
-  start: async (topic: string): Promise<DiscussionSessionResponse> => { // 토론 시작 API
+  start: async (topic: string): Promise<DebateMessage> => { // 토론 시작 API (DebateMessage를 반환하도록 타입 수정)
     const res = await fetch('/api/debate/start', {
       method: 'POST',
       headers: getHeaders(),
@@ -97,6 +106,18 @@ export const debateApi = {
     });
     return res.json();
   },
+  getRelatedMaterials: async (topic: string): Promise<RelatedMaterial[]> => { // 관련 자료 가져오기 API
+    const res = await fetch(`/api/debates/related-materials?topic=${encodeURIComponent(topic)}`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) {
+      // 서버 응답이 성공적이지 않을 경우 오류 처리
+      const errorText = await res.text();
+      throw new Error(`Failed to fetch related materials: ${res.status} ${res.statusText} - ${errorText}`);
+    }
+    return res.json(); // 성공적인 응답일 경우 JSON으로 파싱
+  },
+
 };
 
 export const userApi = {
