@@ -1,4 +1,6 @@
-// frontend/src/mocks/mockData.ts
+// frontend/src/mockData.ts
+import { DebateMessage } from './types'; // DebateMessage 타입 임포트
+
 // 목(mock) 관련 자료 데이터
 export const MOCK_RELATED_MATERIALS = [
   { 
@@ -80,4 +82,51 @@ export const MOCK_TOPICS = [
     isHot: true,
     participants: 210
   }
+];
+
+// 목(mock) 토론 ID
+export const MOCK_DISCUSSION_ID = 999; // 임시 토론 ID
+
+// 목(mock) 토론 메시지 데이터 (토론 시작 실패 시 사용)
+export const MOCK_DEBATE_MESSAGES: DebateMessage[] = [
+  {
+    id: 1,
+    discussion_id: MOCK_DISCUSSION_ID,
+    role: 'user',
+    content: '주 4일 근무제 도입에 찬성합니다. 근로자의 삶의 질 향상과 생산성 증대에 기여할 것입니다.',
+    timestamp: '10:00',
+    agentName: '나 (사용자)',
+    side: 'pro',
+    round: 1,
+  },
+  {
+    id: 2,
+    discussion_id: MOCK_DISCUSSION_ID,
+    role: 'agent',
+    content: '주 4일 근무제 도입은 기업의 운영 비용 증가와 서비스 품질 저하를 초래할 수 있습니다. 특히 특정 산업에서는 인력 부족 문제가 심화될 수 있습니다.',
+    timestamp: '10:02',
+    agentName: '논리적 비판가',
+    side: 'con',
+    round: 1,
+  },
+  {
+    id: 3,
+    discussion_id: MOCK_DISCUSSION_ID,
+    role: 'user',
+    content: '하지만 근로자의 만족도가 높아지면 이직률이 감소하고, 이는 장기적으로 기업의 생산성 향상으로 이어질 수 있습니다.',
+    timestamp: '10:05',
+    agentName: '나 (사용자)',
+    side: 'pro',
+    round: 2,
+  },
+  {
+    id: 4,
+    discussion_id: MOCK_DISCUSSION_ID,
+    role: 'agent',
+    content: '새로운 관점에서 접근한다면, 주 4일 근무제를 전면 도입하기보다 유연근무제나 선택적 근로시간제를 확대하여 기업과 근로자 모두에게 이점을 줄 수 있는 방안을 모색하는 것이 어떨까요?',
+    timestamp: '10:07',
+    agentName: '창의적 대안제시자',
+    side: 'neutral',
+    round: 2,
+  },
 ];
