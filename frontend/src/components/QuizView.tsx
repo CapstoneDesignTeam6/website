@@ -8,14 +8,14 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion'; // motion/react 대신 framer-motion 사용
-import { Quiz } from '../types';
+import { Quiz, DebateMessage } from '../types';
 import { debateApi } from '../services/api';
 import { MOCK_PRE_DEBATE_QUIZ, MOCK_POST_DEBATE_QUIZ, MOCK_DISCUSSION_ID, MOCK_DEBATE_MESSAGES } from '../mockData.ts'; // 목 데이터 임포트
 
 interface QuizViewProps {
   topic: string;
   type: 'pre' | 'post';
-  onComplete: () => void;
+  onComplete: (initialMessages?: DebateMessage[], discussionId?: number) => void; // initialMessages와 discussionId를 인자로 받도록 수정
 }
 
 export const QuizView = ({ topic, type, onComplete }: QuizViewProps) => {
@@ -63,7 +63,7 @@ export const QuizView = ({ topic, type, onComplete }: QuizViewProps) => {
       <div className="text-center py-12">
         <p className="text-outline mb-6">퀴즈를 찾을 수 없습니다.</p>
         <button 
-          onClick={onComplete}
+          onClick={() => onComplete()}
           className="px-8 py-3 bg-primary text-white font-bold rounded-xl"
         >
           건너뛰기
@@ -172,18 +172,18 @@ export const QuizView = ({ topic, type, onComplete }: QuizViewProps) => {
                   setIsStartingDebate(true); // 토론 시작 로딩 상태 활성화
                   try {
                     const response = await debateApi.start(quiz.topic); // 백엔드 API 호출하여 토론 시작
-                    if (response && response.id) {
-                      // 토론 시작 성공 시 DebateView로 이동 (discussionId와 topic을 state로 전달)
-                      navigate(`/debate/${response.id}`, { state: { topic: quiz.topic, discussionId: response.id } });
-                    } else {
-                      // 백엔드에서 유효한 discussionId를 받지 못한 경우 mock 데이터 사용
-                      console.warn("백엔드에서 유효한 discussionId를 받지 못했습니다. Mock 데이터로 토론을 시작합니다.");
-                      navigate(`/debate/${MOCK_DISCUSSION_ID}`, { state: { topic: quiz.topic, discussionId: MOCK_DISCUSSION_ID, initialMessages: MOCK_DEBATE_MESSAGES } });
-                    }
+                    // 백엔드에서 discussionId를 직접 반환하지 않으므로,
+                    // response는 DebateMessage 타입이며, id 필드가 없습니다.
+                    // 따라서 항상 목 데이터 경로를 타거나, App.tsx에서 처리하도록 변경합니다.
+                    // 여기서는 onComplete를 통해 App.tsx로 응답 메시지를 전달합니다.
+                    // 백엔드에서 discussionId를 반환하지 않으므로, 임시로 MOCK_DISCUSSION_ID를 사용합니다.
+                    onComplete([response], MOCK_DISCUSSION_ID); // 백엔드 응답을 메시지 배열로 전달
+
                   } catch (error) {
                     // API 호출 실패 시 mock 데이터 사용
                     console.error("토론 시작 API 호출 실패. Mock 데이터로 토론을 시작합니다:", error);
-                    navigate(`/debate/${MOCK_DISCUSSION_ID}`, { state: { topic: quiz.topic, discussionId: MOCK_DISCUSSION_ID, initialMessages: MOCK_DEBATE_MESSAGES } });
+                    // 목 메시지 배열과 목 discussionId 전달
+                    onComplete(MOCK_DEBATE_MESSAGES, MOCK_DISCUSSION_ID);
                   } finally {
                     setIsStartingDebate(false); // 로딩 상태 비활성화
                   }
