@@ -6,10 +6,11 @@ import {
   HelpCircle,
   Loader2
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion'; // motion/react 대신 framer-motion 사용
 import { Quiz } from '../types';
 import { debateApi } from '../services/api';
-import { MOCK_PRE_DEBATE_QUIZ, MOCK_POST_DEBATE_QUIZ } from '../mockData.ts'; // 목 데이터 임포트 경로 수정
+import { MOCK_PRE_DEBATE_QUIZ, MOCK_POST_DEBATE_QUIZ, MOCK_DISCUSSION_ID, MOCK_DEBATE_MESSAGES } from '../mockData.ts'; // 목 데이터 임포트
 
 interface QuizViewProps {
   topic: string;
@@ -20,9 +21,11 @@ interface QuizViewProps {
 export const QuizView = ({ topic, type, onComplete }: QuizViewProps) => {
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitted, setIsSubmitted] = useState(false); // 퀴즈 제출 여부
+  const [isLoading, setIsLoading] = useState(true); // 퀴즈 로딩 상태
+  const [isStartingDebate, setIsStartingDebate] = useState(false); // 토론 시작 로딩 상태
 
+  const navigate = useNavigate(); // 페이지 이동을 위한 useNavigate 훅
   useEffect(() => {
     const fetchQuiz = async () => {
       setIsLoading(true);
@@ -155,18 +158,52 @@ export const QuizView = ({ topic, type, onComplete }: QuizViewProps) => {
         <div className="flex justify-center">
           {!isSubmitted ? (
             <button
-              onClick={handleSubmit}
-              disabled={selectedOption === null}
-              className="px-12 py-4 bg-primary text-white font-bold rounded-full disabled:opacity-50 transition-all"
+              onClick={handleSubmit} // 퀴즈 제출 핸들러
+              disabled={selectedOption === null} // 옵션 선택 전에는 비활성화
+              className="px-12 py-4 bg-primary text-white font-bold rounded-full disabled:opacity-50 transition-all" // 버튼 스타일
             >
               정답 확인
             </button>
           ) : (
+            // 퀴즈 제출 후 '토론장으로 이동' 또는 '최종 결과 보기' 버튼
             <button
-              onClick={onComplete}
+              onClick={async () => { // 비동기 함수로 변경
+                if (type === 'pre') { // 토론 전 퀴즈인 경우
+                  setIsStartingDebate(true); // 토론 시작 로딩 상태 활성화
+                  try {
+                    const response = await debateApi.start(quiz.topic); // 백엔드 API 호출하여 토론 시작
+                    if (response && response.id) {
+                      // 토론 시작 성공 시 DebateView로 이동 (discussionId와 topic을 state로 전달)
+                      navigate(`/debate/${response.id}`, { state: { topic: quiz.topic, discussionId: response.id } });
+                    } else {
+                      // 백엔드에서 유효한 discussionId를 받지 못한 경우 mock 데이터 사용
+                      console.warn("백엔드에서 유효한 discussionId를 받지 못했습니다. Mock 데이터로 토론을 시작합니다.");
+                      navigate(`/debate/${MOCK_DISCUSSION_ID}`, { state: { topic: quiz.topic, discussionId: MOCK_DISCUSSION_ID, initialMessages: MOCK_DEBATE_MESSAGES } });
+                    }
+                  } catch (error) {
+                    // API 호출 실패 시 mock 데이터 사용
+                    console.error("토론 시작 API 호출 실패. Mock 데이터로 토론을 시작합니다:", error);
+                    navigate(`/debate/${MOCK_DISCUSSION_ID}`, { state: { topic: quiz.topic, discussionId: MOCK_DISCUSSION_ID, initialMessages: MOCK_DEBATE_MESSAGES } });
+                  } finally {
+                    setIsStartingDebate(false); // 로딩 상태 비활성화
+                  }
+                } else {
+                  // 'post' 타입 퀴즈 완료 시에는 기존 onComplete 호출 (결과 페이지로 이동 등)
+                  onComplete();
+                }
+              }}
+              disabled={isStartingDebate} // 로딩 중일 때 버튼 비활성화
               className="px-12 py-4 bg-primary text-white font-bold rounded-full flex items-center gap-2 hover:gap-3 transition-all"
             >
-              {type === 'pre' ? '토론장으로 이동' : '최종 결과 보기'} <ArrowRight size={20} />
+              {isStartingDebate ? ( // 로딩 중일 때 텍스트 변경
+                <>
+                  <Loader2 size={20} className="animate-spin" /> 토론 준비 중...
+                </>
+              ) : (
+                <>
+                  {type === 'pre' ? '토론장으로 이동' : '최종 결과 보기'} <ArrowRight size={20} />
+                </>
+              )}
             </button>
           )}
         </div>
