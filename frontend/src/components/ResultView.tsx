@@ -82,49 +82,13 @@ export const ResultView = ({ topic, result }: ResultViewProps) => {
   };
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-8 py-8 md:py-12">
-      <section className="bg-white rounded-3xl md:rounded-4xl p-6 md:p-12 editorial-shadow mb-8 md:mb-12 relative overflow-hidden card-hover">
-        <div className="absolute top-0 right-0 p-4 md:p-6">
-          <span className="px-3 md:px-4 py-1 md:py-1.5 bg-primary-fixed text-primary text-[9px] md:text-[10px] font-black uppercase tracking-widest rounded-full">
-            Final Verdict
-          </span>
-        </div>
-        <div className="max-w-3xl">
-          <h1 className="text-2xl md:text-4xl font-black font-headline tracking-tight mb-4 md:mb-6">
-            {topic}
-          </h1>
-          <p className="text-base md:text-lg text-outline mb-8 md:mb-10 leading-relaxed">
-            AI 에이전트가 도출한 최종 결론입니다.
-          </p>
-          <div className="flex flex-col md:flex-row items-start md:items-center gap-6 md:gap-12">
-            <div className="w-full flex-1">
-              <div className="flex justify-between mb-2 md:mb-3 text-xs md:text-sm font-bold">
-                <span className="text-primary">찬성 68%</span>
-                <span className="text-secondary">반대 32%</span>
-              </div>
-              <div className="h-3 md:h-4 w-full bg-gray-100 rounded-full overflow-hidden flex">
-                <div className="h-full bg-primary" style={{ width: "68%" }} />
-                <div className="h-full bg-secondary" style={{ width: "32%" }} />
-              </div>
-            </div>
-            <div className="bg-gray-50 p-4 md:p-6 rounded-2xl border border-gray-100 text-center w-full md:w-auto">
-              <span className="text-[9px] md:text-[10px] text-outline font-bold uppercase block mb-1">
-                Conflict Index
-              </span>
-              <span className="text-2xl md:text-3xl font-black text-orange-600">
-                4.2
-              </span>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* PDF로 변환할 리포트 섹션을 ref로 감싸기 */}
       <div ref={reportRef}>
         <section className="bg-white p-8 md:p-16 editorial-shadow rounded-2xl border-t-8 border-primary card-hover">
           <div className="flex flex-col md:flex-row justify-between items-start border-b border-gray-100 pb-8 md:pb-10 mb-8 md:mb-12 gap-4">
             <div>
               <h2 className="text-xl md:text-2xl font-black font-headline mb-2">
-                토론 분석 리포트
+                토론 결과 리포트
               </h2>
               <p className="text-[10px] md:text-xs text-outline">
                 Agora Editorial Analysis #{new Date().getFullYear()}-
