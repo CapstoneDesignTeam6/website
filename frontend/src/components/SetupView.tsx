@@ -33,7 +33,7 @@ export const SetupView = ({
             <div className="relative">
               <textarea 
                 className="w-full bg-surface-container p-4 md:p-6 rounded-xl border-none focus:ring-0 outline-none min-h-30 md:min-h-40 resize-none text-sm md:text-base"
-                placeholder="예: 인공지능이 예술의 창의성에 미치는 영향에 대해 토론하고 싶습니다."
+                placeholder="예: 주 4일 근무제, 생산성 향상인가 효율 저하인가?"
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
               />
