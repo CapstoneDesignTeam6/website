@@ -9,11 +9,15 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
-  User
-} from 'lucide-react';
+  User,
+  RefreshCw, // 새 토론 시작 아이콘
+  Power, // 토론 종료 아이콘
+} from 'lucide-react'; // lucide-react 아이콘 임포트
 import { motion, AnimatePresence } from 'motion/react';
+import { DebateMessage } from '../types'; // DebateMessage 타입 임포트
 import { useNavigate } from 'react-router-dom';
-import { DebateMessage } from '../types';
+import { debateApi } from '../services/api'; // debateApi 임포트
+import { MOCK_RELATED_MATERIALS } from '../mockData.ts'; // 목 관련 자료 임포트
 
 interface DebateViewProps {
   topic: string;
@@ -38,12 +42,13 @@ export const DebateView = ({
   progress = 25,
   discussionId, // Destructure the new prop
 }: DebateViewProps) => {
-  const navigate = useNavigate();
   const [inputText, setInputText] = useState('');
-  const [isLeftSidebarOpen, setIsLeftSidebarOpen] = useState(true);
-  const [isRightSidebarOpen, setIsRightSidebarOpen] = useState(true);
+  // 관련 자료 사이드바 상태 (이전 isLeftSidebarOpen -> isRelatedMaterialsSidebarOpen)
+  const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
+  const [relatedMaterials, setRelatedMaterials] = useState<any[]>([]); // 관련 자료 상태
+  const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
   const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
-    { sender: 'bot', text: '안녕하세요! 토론 진행 중 도움이 필요하시면 언제든 물어보세요. 주장이나 반박 작성을 도와드리겠습니다.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
+    { sender: 'bot', text: '안녕하세요! 토론 진행 중 도움이 필요하시면 언제든 물어보세요. 반박 작성을 도와드리겠습니다.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
   ]);
   const [isHintGenerating, setIsHintGenerating] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -51,6 +56,11 @@ export const DebateView = ({
   const [isFirstInput, setIsFirstInput] = useState(true);
   const [placeholder, setPlaceholder] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const navigate = useNavigate();
+  const navigateTo = (path: string) => {
+    navigate(path);
+  };
 
   const examples = [
     `"${topic}"에 찬성합니다. 왜냐하면...`,
@@ -68,7 +78,25 @@ export const DebateView = ({
     }
   }, [isFirstInput, topic]);
 
+  // 관련 자료를 백엔드에서 불러오는 useEffect
   useEffect(() => {
+    const fetchRelatedMaterials = async () => {
+      setIsLoadingRelatedMaterials(true); // 로딩 시작
+      try {
+        const data = await debateApi.getRelatedMaterials(topic); // API 호출
+        setRelatedMaterials(data); // 데이터 설정
+      } catch (error) {
+        console.error("Failed to fetch related materials:", error);
+        setRelatedMaterials(MOCK_RELATED_MATERIALS); // API 호출 실패 시 목 데이터 사용
+      } finally {
+        setIsLoadingRelatedMaterials(false); // 로딩 종료
+      }
+    };
+    fetchRelatedMaterials();
+  }, [topic]); // 토론 주제가 변경될 때마다 다시 불러옴
+
+  useEffect(() => {
+    console.log("DebateView received messages:", messages); // 디버깅용 로그 추가
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
@@ -141,73 +169,16 @@ export const DebateView = ({
 
   return (
     <div className="flex h-[calc(100vh-72px)] overflow-hidden relative">
-      {/* Left Sidebar: Related Materials (Formerly News) */}
-      <motion.aside 
+      {/* Left Sidebar (비어있음 - 이전 관련 자료 사이드바는 우측으로 이동) */}
+      {/* <motion.aside
         initial={false}
-        animate={{ width: isLeftSidebarOpen ? 384 : 0, opacity: isLeftSidebarOpen ? 1 : 0 }}
+        animate={{ width: 0, opacity: 0 }} // 항상 닫혀있음
         className="bg-white flex flex-col border-r border-gray-200 overflow-hidden relative md:flex"
       >
-        <div className="p-8 flex flex-col h-full w-96 overflow-y-auto custom-scrollbar">
-          <div className="flex justify-between items-center mb-10">
-            <div className="flex items-center gap-2">
-              <FileText size={20} className="text-secondary" />
-              <h2 className="text-base font-black font-headline">관련 자료</h2>
-            </div>
-            <span className="text-[10px] font-bold text-outline uppercase tracking-widest">Latest 3</span>
-          </div>
-
-          <div className="space-y-10">
-            {[
-              { 
-                category: "TECH TRENDS", 
-                color: "text-blue-600",
-                title: "UAM 상용화, 2025년 서울 도심 첫 비행 예정", 
-                desc: "국토교통부는 K-UAM 실증사업의 일환으로 내년 중 서울 도심 내에서 소음 및 안전성 테스트를 완료할 것이...",
-                source: "NEWS.AI"
-              },
-              { 
-                category: "ENVIRONMENT", 
-                color: "text-emerald-600",
-                title: "전기 추진 시스템, 기존 헬기 대비 70% 소음 감소", 
-                desc: "항공 음향 전문가 그룹에 따르면 분산 전기 추진(DEP) 기술을 적용한 기체는 도심 일상 소음 수준으로 비행이...",
-                source: "GLOBAL TECH"
-              },
-              { 
-                category: "SOCIETY", 
-                color: "text-orange-600",
-                title: "지상 교통 체계와의 통합, 넘어야 할 거대한 산", 
-                desc: "UAM이 성공하려면 버티포트(Vertiport)와 기존 대중교통 간의 원활한 환승 시스템 구축이 필수적이나 초기 투...",
-                source: "URBAN ANALYTICS"
-              }
-            ].map((news, i) => (
-              <article key={i} className="bg-white rounded-2xl border border-gray-100 p-5 card-hover">
-                <div className="flex gap-4 mb-4">
-                  <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-                    <img src={`https://picsum.photos/seed/uam-${i}/100/100`} alt="News" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  </div>
-                  <div>
-                    <span className={`text-[10px] font-bold ${news.color} mb-1 block`}>{news.category}</span>
-                    <h3 className="text-sm font-bold leading-tight line-clamp-2">{news.title}</h3>
-                  </div>
-                </div>
-                <p className="text-xs text-outline leading-relaxed line-clamp-3 mb-6">{news.desc}</p>
-                <div className="flex justify-between items-center pt-4 border-t border-gray-50">
-                  <span className="text-[10px] font-bold text-outline uppercase">Source: {news.source}</span>
-                  <button className="text-[10px] font-black text-on-surface uppercase tracking-widest hover:text-primary transition-colors">View Evidence</button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </div>
-      </motion.aside>
+      </motion.aside> */}
 
       {/* Left Sidebar Toggle Button */}
-      <button 
-        onClick={() => setIsLeftSidebarOpen(!isLeftSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isLeftSidebarOpen ? 'left-92' : 'left-4'}`}
-      >
-        {isLeftSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-      </button>
+      {/* 이전 좌측 사이드바 토글 버튼은 우측 사이드바 토글 버튼으로 변경됨 */}
 
       {/* Center: Chat */}
       <main className="flex-1 flex flex-col bg-surface overflow-hidden relative">
@@ -219,7 +190,7 @@ export const DebateView = ({
                 <h2 className="text-lg md:text-xl font-black font-headline line-clamp-1">{topic}</h2>
                 <div className="flex items-center gap-3 mt-2">
                   <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div 
+                    <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: `${progress}%` }}
                       className="h-full bg-primary"
@@ -230,9 +201,16 @@ export const DebateView = ({
               </div>
               <div className="flex items-center gap-4 shrink-0">
                 <div className="px-4 py-2 bg-gray-50 rounded-xl border border-gray-100">
-                  <span className="text-[10px] font-bold text-outline uppercase block mb-0.5">Current Round</span>
-                  <span className="text-sm font-black text-on-surface">{currentRound} / {totalRounds}</span>
+                  <span className="text-[10px] font-bold text-outline uppercase block mb-0.5">현재 라운드</span>
+                  <span className="text-sm font-black text-on-surface ">{currentRound} / {totalRounds}</span>
                 </div>
+                {/* 새 토론 시작 및 토론 종료 버튼 */}
+                <button onClick={() => navigateTo('/setup')} className="px-3 py-1.5 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                  <RefreshCw size={14} /> 새 토론 시작
+                </button>
+                <button onClick={onFinish} className="px-3 py-1.5 bg-secondary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                  <Power size={14} /> 토론 종료
+                </button>
               </div>
             </div>
           </div>
@@ -267,7 +245,7 @@ export const DebateView = ({
                   <div className={`flex flex-col gap-1 md:gap-1.5 max-w-[85%] md:max-w-[70%] ${msg.role === 'user' ? 'items-end' : ''}`}>
                     <div className="flex items-center gap-2 px-1">
                       <span className="text-[10px] md:text-xs font-bold text-on-surface">
-                        {msg.role === 'user' ? '나 (사용자)' : msg.agentName || 'AI 모더레이터'}
+                        {msg.role === 'user' ? '나 (사용자)' : msg.agentName || 'AI 에이전트'}
                       </span>
                       <span className="text-[9px] md:text-[10px] text-outline">{msg.timestamp || '14:02'}</span>
                     </div>
@@ -300,7 +278,7 @@ export const DebateView = ({
         </div>
 
         <div className="p-4 md:p-8 bg-transparent">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-3xl mx-auto">
             {isFirstInput && (
               <div className="mb-3 px-4">
                 <span className="text-xs font-bold text-primary flex items-center gap-2 animate-bounce">
@@ -333,7 +311,7 @@ export const DebateView = ({
         </div>
 
         {/* Floating Help Button & Chatbot Popup */}
-        <div className="absolute bottom-6 right-6 z-60 flex flex-col items-end gap-4">
+        <div className="absolute bottom-12 left-6 z-60 flex flex-col items-start gap-4"> {/* 챗봇 전체를 왼쪽 하단으로 이동하고 입력창과 겹치지 않도록 높이 조정 */}
           <AnimatePresence>
             {isHelpOpen && (
               <motion.div
@@ -350,7 +328,7 @@ export const DebateView = ({
                     <span className="font-bold text-sm">도움말 챗봇</span>
                   </div>
                   <button onClick={() => setIsHelpOpen(false)} className="hover:bg-white/10 p-1 rounded-lg transition-colors">
-                    <ChevronRight size={20} className="rotate-90" />
+                    <ChevronLeft size={20} /> {/* 닫기 아이콘 방향 변경 (좌측으로) */}
                   </button>
                 </div>
                 <div className="p-4 h-48 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col space-y-2 custom-scrollbar">
@@ -402,86 +380,64 @@ export const DebateView = ({
         </div>
       </main>
 
-      {/* Right Sidebar Toggle Button */}
-      <button 
-        onClick={() => setIsRightSidebarOpen(!isRightSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isRightSidebarOpen ? 'right-76' : 'right-4'}`}
-      >
-        {isRightSidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
-      </button>
-
-      {/* Right Sidebar: Stats (Currently Commented Out) */}
+      {/* Right Sidebar: Related Materials (이전 Left Sidebar) */}
       <motion.aside 
         initial={false}
-        animate={{ width: isRightSidebarOpen ? 320 : 0, opacity: isRightSidebarOpen ? 1 : 0 }}
-        className="bg-surface-container flex flex-col border-l border-gray-200 overflow-hidden relative md:flex"
+        // isRelatedMaterialsSidebarOpen 상태에 따라 너비 애니메이션
+        animate={{ width: isRelatedMaterialsSidebarOpen ? 384 : 0, opacity: isRelatedMaterialsSidebarOpen ? 1 : 0 }}
+        className="bg-white flex flex-col border-l border-gray-200 overflow-hidden relative md:flex order-last" // order-last로 우측 정렬
       >
-        <div className="p-6 flex flex-col h-full w-80">
+        <div className="p-8 flex flex-col h-full w-96 overflow-y-auto custom-scrollbar">
           <div className="mb-10">
-            <h2 className="text-xl font-black font-headline mb-1 line-clamp-2">{topic}</h2>
-            <p className="text-xs text-outline font-medium">실시간 분석 중</p>
-          </div>
-          
-          {/* 대립 지표 (주석 처리)
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 mb-6 card-hover">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-sm font-bold">대립 지표</h3>
-              <span className="text-xs text-outline font-medium">{neutralValue}</span>
-            </div>
-            <div className="h-2 w-full bg-gray-100 rounded-full relative overflow-hidden flex">
-              <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gray-400 z-10" />
-              <div className="h-full bg-primary transition-all duration-500" style={{ width: `${proPercent}%` }} />
-              <div className="h-full bg-secondary transition-all duration-500" style={{ width: `${conPercent}%` }} />
-            </div>
-            <div className="flex justify-between mt-2 text-[10px] font-bold text-outline uppercase tracking-widest">
-              <span className={proPercent > 50 ? 'text-primary' : ''}>Pro</span>
-              <span className={conPercent > 50 ? 'text-secondary' : ''}>Con</span>
+            <div className="flex items-center gap-2">
+              <FileText size={20} className="text-secondary" />
+              <h2 className="text-base font-black font-headline">관련 자료</h2>
             </div>
           </div>
-          */}
 
-          {/* 토론 흐름 (주석 처리)
-          <div className="bg-white p-6 rounded-2xl border border-gray-100 mb-8 card-hover">
-            <h3 className="text-sm font-bold mb-6">토론 흐름</h3>
-            <div className="h-24 flex items-center justify-center relative">
-              <svg className="w-full h-full overflow-visible">
-                <path 
-                  d="M 0 40 Q 40 35, 80 42 T 160 40 T 240 42" 
-                  fill="none" 
-                  stroke="#d1d5db" 
-                  strokeWidth="2" 
-                />
-              </svg>
-              <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[8px] font-bold text-outline uppercase tracking-tighter">
-                <span>Round 1</span>
-                <span>Round 4</span>
-              </div>
+          {isLoadingRelatedMaterials ? ( // 관련 자료 로딩 중일 때
+            <div className="flex flex-col items-center justify-center h-full">
+              <Loader2 size={32} className="animate-spin text-primary mb-4" />
+              <p className="text-outline">관련 자료를 불러오는 중입니다...</p>
             </div>
-          </div>
-          */}
-
-          <nav className="flex-1 space-y-1">
-            {[
-              { icon: <BarChart3 size={18} />, label: "분석", active: true },
-              { icon: <MessageSquare size={18} />, label: "토론 흐름" },
-              { icon: <FileText size={18} />, label: "뉴스 근거" },
-              { icon: <Settings size={18} />, label: "설정" }
-            ].map((item, i) => (
-              <button key={i} className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl transition-colors font-bold text-sm ${item.active ? 'bg-white text-primary shadow-sm' : 'text-outline hover:bg-white/50'}`}>
-                {item.icon}
-                {item.label}
-              </button>
-            ))}
-          </nav>
-
-          <button onClick={() => navigate('/setup')} className="w-full py-4 bg-primary text-white rounded-xl font-bold text-sm transition-all mt-6">
-            새 토론 시작
-          </button>
-          <button onClick={onFinish} className="w-full py-4 bg-secondary text-white rounded-xl font-bold text-sm transition-all mt-2">
-            토론 종료 및 분석
-          </button>
+          ) : relatedMaterials.length > 0 ? ( // 관련 자료가 있을 때
+            <div className="space-y-10">
+              {relatedMaterials.map((material, i) => ( // relatedMaterials 상태 사용
+                <article key={i} className="bg-white rounded-2xl border border-gray-100 p-5 card-hover">
+                  <div className="flex gap-4 mb-4">
+                    <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden shrink-0">
+                      {/* 이미지는 목업용으로 임시 사용 */}
+                      <img src={`https://picsum.photos/seed/uam-${i}/100/100`} alt="News" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    </div>
+                    <div>
+                      <span className={`text-[10px] font-bold ${material.color} mb-1 block`}>{material.category}</span>
+                      <h3 className="text-sm font-bold leading-tight line-clamp-2">{material.title}</h3>
+                    </div>
+                  </div>
+                  <p className="text-xs text-outline leading-relaxed line-clamp-3 mb-6">{material.description}</p> {/* material.description 사용 */}
+                  <div className="flex justify-between items-center pt-4 border-t border-gray-50">
+                    <span className="text-[10px] font-bold text-outline uppercase">Source: {material.source}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : ( // 관련 자료가 없을 때
+            <div className="text-center py-12 text-outline">
+              <p>관련 자료를 찾을 수 없습니다.</p>
+            </div>
+          )}
         </div>
       </motion.aside>
+       {/* 관련 자료 사이드바 토글 버튼 (좌측에서 우측으로 이동) */}
+<button
+        
+        onClick={() => setIsRelatedMaterialsSidebarOpen(!isRelatedMaterialsSidebarOpen)}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isRelatedMaterialsSidebarOpen ? 'right-92' : 'right-4'}`} // 위치 조정
+      >
+        {isRelatedMaterialsSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />} {/* 아이콘 방향 변경 */}
+      </button>
+
+      <div className="h-24" />
     </div>
   );
 };
