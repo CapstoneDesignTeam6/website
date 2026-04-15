@@ -402,21 +402,27 @@ export const DebateView = ({
             </div>
           ) : relatedMaterials.length > 0 ? ( // 관련 자료가 있을 때
             <div className="space-y-10">
-              {relatedMaterials.map((material, i) => ( // relatedMaterials 상태 사용
+              {relatedMaterials.map((material, i) => (
                 <article key={i} className="bg-white rounded-2xl border border-gray-100 p-5 card-hover">
-                  <div className="flex gap-4 mb-4">
-                    <div className="w-16 h-16 bg-gray-100 rounded-xl overflow-hidden shrink-0">
-                      {/* 이미지는 목업용으로 임시 사용 */}
-                      <img src={`https://picsum.photos/seed/uam-${i}/100/100`} alt="News" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </div>
-                    <div>
-                      <span className={`text-[10px] font-bold ${material.color} mb-1 block`}>{material.category}</span>
-                      <h3 className="text-sm font-bold leading-tight line-clamp-2">{material.title}</h3>
-                    </div>
-                  </div>
-                  <p className="text-xs text-outline leading-relaxed line-clamp-3 mb-6">{material.description}</p> {/* material.description 사용 */}
-                  <div className="flex justify-between items-center pt-4 border-t border-gray-50">
-                    <span className="text-[10px] font-bold text-outline uppercase">Source: {material.source}</span>
+                  <span className={`text-[10px] font-bold ${material.color} mb-1 block`}>{material.category}</span>
+                  <h3 className="text-sm font-bold leading-tight mb-2">{material.title}</h3>
+                  {material.description && (
+                    <p className="text-[11px] text-outline leading-relaxed line-clamp-3 mb-3">{material.description}</p>
+                  )}
+                  <div className="flex justify-between items-center pt-3 border-t border-gray-50">
+                    <span className="text-[10px] font-bold text-outline uppercase">출처: {material.source}</span>
+                    {material.url ? (
+                      <a
+                        href={material.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[10px] font-bold text-primary hover:underline"
+                      >
+                        원문 보기 →
+                      </a>
+                    ) : (
+                      <span className="text-[10px] text-gray-300">링크 없음</span>
+                    )}
                   </div>
                 </article>
               ))}

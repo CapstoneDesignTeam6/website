@@ -3,27 +3,46 @@ import { DebateMessage } from './types'; // DebateMessage 타입 임포트
 
 // 목(mock) 관련 자료 데이터
 export const MOCK_RELATED_MATERIALS = [
-  { 
-    category: "경제", 
-    color: "text-blue-600", // 카테고리 색상
-    title: "주 4일 근무제, 생산성 향상과 기업 비용 부담 사이",
-    description: "최근 연구에 따르면 주 4일 근무제 도입 시 근로자 만족도와 생산성이 증가하는 경향을 보였으나, 일부 기업에서는 추가 인력 고용 및 운영 비용 증가에 대한 우려를 표명했습니다.",
-    source: "경제신문" // 뉴스 출처
+  {
+    category: "경제",
+    color: "text-blue-600",
+    title: "주 4일 근무제 도입 기업 90% 지속 결정…직원 69% '번아웃 줄었다'",
+    description: "글로벌 주 4일 근무제 실험에 참여한 기업의 90%가 제도를 지속하기로 결정했으며, 직원의 69%가 번아웃이 줄었다고 응답했습니다. 생산성도 유지되거나 향상된 것으로 나타났습니다.",
+    source: "글로벌이코노믹",
+    url: "https://www.g-enews.com/article/Global-Biz/2025/06/202506011727101754fbbec65dfb_1"
   },
-  { 
-    category: "사회", 
-    color: "text-emerald-600",
-    title: "근로자 삶의 질 향상 기대, 여가 산업 성장 견인",
-    description: "주 4일 근무제는 근로자에게 더 많은 여가 시간을 제공하여 개인의 삶의 질을 높이고, 이는 여행, 문화, 레저 등 여가 관련 산업의 성장을 촉진할 것으로 기대됩니다.",
-    source: "사회연구소" // 뉴스 출처
-  },
-  { 
-    category: "정책", 
+  {
+    category: "정책",
     color: "text-orange-600",
-    title: "정부, 주 4일 근무제 시범 사업 확대 검토",
-    description: "정부는 주 4일 근무제의 사회적 파급 효과를 면밀히 분석하기 위해 공공 부문 및 민간 기업을 대상으로 한 시범 사업을 확대하는 방안을 검토 중이며, 법적, 제도적 기반 마련에 나설 예정입니다.",
-    source: "정책브리핑" // 뉴스 출처
-  }
+    title: "지속가능한 사회로의 전환…'주 4.5일제'가 여는 미래",
+    description: "정부는 주 4.5일제를 국정과제로 채택하고 시범사업을 시행할 예정입니다. 근로시간 단축이 지속가능한 사회로의 전환에 기여할 수 있는지 다각도로 검토 중입니다.",
+    source: "정책브리핑",
+    url: "https://www.korea.kr/news/policyNewsView.do?newsId=148956270"
+  },
+  {
+    category: "기술",
+    color: "text-purple-600",
+    title: "주 4일 근무제 성공의 비밀 'AI와 자동화'",
+    description: "주 4일 근무제를 성공적으로 도입한 기업들의 공통점은 AI와 자동화 기술 활용이었습니다. 반복 업무를 자동화해 근무 시간은 줄이면서도 생산성을 유지할 수 있었습니다.",
+    source: "CIO",
+    url: "https://www.cio.com/article/3537623/%EC%A3%BC-4%EC%9D%BC-%EA%B7%BC%EB%AC%B4%EC%A0%9C-%EC%84%B1%EA%B3%B5%EC%9D%98-%EB%B9%84%EB%B0%80-ai%EC%99%80-%EC%9E%90%EB%8F%99%ED%99%94.html"
+  },
+  {
+    category: "사회",
+    color: "text-emerald-600",
+    title: "주 4.5일제 도입한 중소기업 '생산성 늘었지만 업무 압박은 과제'",
+    description: "주 4.5일 근무제를 도입한 중소기업들은 생산성 향상과 이직률 감소 효과를 보고했지만, 업무 압축으로 인한 피로 누적이라는 새로운 과제도 발생하고 있습니다.",
+    source: "매일노동뉴스",
+    url: "https://www.labortoday.co.kr/news/articleView.html?idxno=232233"
+  },
+  {
+    category: "경제",
+    color: "text-blue-600",
+    title: "주 4일제 도입, 진짜 현실 가능할까? 지금 어디까지 왔는지 정리",
+    description: "국내외 주 4일 근무제 도입 현황 분석입니다. 임금 삭감 없는 근무시간 단축이 실제로 가능한지, 어떤 업종에서 먼저 시도되고 있는지를 살펴봅니다.",
+    source: "Economic News",
+    url: "https://economic-news24.com/%EC%A3%BC-4%EC%9D%BC%EC%A0%9C-%EB%8F%84%EC%9E%85-%EC%A7%84%EC%A7%9C-%ED%98%84%EC%8B%A4-%EA%B0%80%EB%8A%A5%ED%95%A0%EA%B9%8C-%EC%A7%80%EA%B8%88-%EC%96%B4%EB%94%94%EA%B9%8C%EC%A7%80-%EC%99%94%EB%8A%94/"
+  },
 ];
 
 // 목(mock) 토론 전 퀴즈 데이터

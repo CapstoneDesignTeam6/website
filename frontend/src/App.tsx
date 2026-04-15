@@ -121,7 +121,7 @@ export default function App() {
 
     try {
       // 백엔드 API를 통해 메시지 전송
-      const data = await debateApi.sendMessage(topic, text, messages);
+      const data = await debateApi.sendMessage(topic, text, messages, discussionId, currentRound);
 
       // 사용자 메시지 객체 생성
       const userMsg: DebateMessage = {
@@ -179,7 +179,7 @@ export default function App() {
     setDebateResult("분석 중...");
 
     try {
-      const data = await debateApi.analyze(topic, messages);
+      const data = await debateApi.analyze(topic, messages, discussionId);
       setDebateResult(data.result);
     } catch (error) {
       console.error("Failed to analyze debate:", error);

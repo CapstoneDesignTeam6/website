@@ -15,6 +15,15 @@ supabase>=2.9.0
 
 # Utils
 python-dotenv==1.0.0
+openai>=1.30.0
+
+# Scheduler
+apscheduler==3.10.4
+
+# Web scraping
+beautifulsoup4==4.12.3
+lxml==5.2.2
+playwright==1.44.0
 
 # Testing
 pytest==7.4.3

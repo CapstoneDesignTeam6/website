@@ -1,4 +1,5 @@
 import { DebateMessage, UserData, SearchDebateItem } from '../types';
+import { MOCK_RELATED_MATERIALS, MOCK_TOPICS } from '../mockData';
 
 // 관련 자료 항목 타입 (백엔드 RelatedMaterialSchema와 일치)
 interface RelatedMaterial {
@@ -7,6 +8,7 @@ interface RelatedMaterial {
   title: string; // 자료의 제목
   description: string; // 자료의 상세 설명
   source: string; // 자료의 출처
+  url?: string; // 원문 링크 (선택)
 }
 
 // 백엔드 Trending API 응답 항목 타입
@@ -47,42 +49,66 @@ export const debateApi = {
     }
     return res.json(); // 성공적인 응답일 경우 JSON으로 파싱합니다.
   }, // 메시지 전송 API
-  sendMessage: async (topic: string, message: string, history: DebateMessage[]): Promise<{ userSide: string; aiResponse: DebateMessage }> => {
+  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number): Promise<{ userSide: string; aiResponse: DebateMessage }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ topic, message, history }),
+      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, round_number: roundNumber ?? 1 }),
     });
     return res.json();
   },
-  analyze: async (topic: string, messages: DebateMessage[]) => { // 토론 분석 API
+  analyze: async (topic: string, messages: DebateMessage[], discussionId?: number | null) => { // 토론 분석 API
     const res = await fetch('/api/debate/analyze', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ topic, messages }),
+      body: JSON.stringify({ topic, messages, discussion_id: discussionId ?? null }),
     });
     return res.json();
   },
   getTrending: async (): Promise<TrendingTopicResponse[]> => { // 트렌딩 토론 목록 가져오기 API
-    const res = await fetch('/api/debates/trending', {
-      headers: getHeaders(),
-    });
-    if (!res.ok) {
-      // 서버 응답이 성공적이지 않을 경우 (예: 500 Internal Server Error)
-      // JSON 파싱을 시도하기 전에 오류를 처리합니다.
-      const errorText = await res.text(); // 오류 메시지를 텍스트로 읽어옵니다.
-      throw new Error(`Failed to fetch trending debates: ${res.status} ${res.statusText} - ${errorText}`);
-    }
-    return res.json(); // 성공적인 응답일 경우 JSON으로 파싱합니다.
+    let realTopics: TrendingTopicResponse[] = [];
+    try {
+      const res = await fetch('/api/debates/trending', { headers: getHeaders() });
+      if (res.ok) realTopics = await res.json();
+    } catch (_) { /* 실패 시 빈 배열 유지 */ }
+
+    // 주 4일 근무제 mock 주제를 맨 앞에 고정 (HomeView는 상위 2개만 슬라이드로 표시)
+    const mockTopic = MOCK_TOPICS[1]; // id:102, 주 4일 근무제
+    const alreadyExists = realTopics.some(t => t.title === mockTopic.title);
+    return alreadyExists ? realTopics : [mockTopic, ...realTopics];
   },
   search: async (query: string): Promise<{ code: number; message: string; data: SearchDebateItem[] }> => { // 토론 검색 API
-    const url = query
-      ? `/api/debates/search?q=${encodeURIComponent(query)}` 
-      : '/api/debates/search';
-    const res = await fetch(url, {
-      headers: getHeaders(),
-    });
-    return res.json();
+    const mockItem: SearchDebateItem = {
+      id: MOCK_TOPICS[1].id,
+      topic: MOCK_TOPICS[1].title,
+      stance: '',
+      author: 'anonymous',
+      viewCount: MOCK_TOPICS[1].participants,
+      messageCount: 0,
+      createdAt: '',
+      updatedAt: '',
+    };
+
+    let realData: SearchDebateItem[] = [];
+    try {
+      const url = query
+        ? `/api/debates/search?q=${encodeURIComponent(query)}`
+        : '/api/debates/search';
+      const res = await fetch(url, { headers: getHeaders() });
+      if (res.ok) {
+        const json = await res.json();
+        realData = json?.data ?? [];
+      }
+    } catch (_) { /* 실패 시 빈 배열 유지 */ }
+
+    // 검색어가 있을 때: mock 주제가 검색어를 포함하면 결과에 추가
+    const mockMatches = !query || mockItem.topic.includes(query);
+    const alreadyExists = realData.some(d => d.topic === mockItem.topic);
+    const data = (mockMatches && !alreadyExists)
+      ? [mockItem, ...realData]
+      : realData;
+
+    return { code: 200, message: 'Success', data };
   },
   getQuiz: async (topic: string) => {
     const res = await fetch(`/api/debate/quiz?topic=${encodeURIComponent(topic)}`, {
@@ -107,15 +133,18 @@ export const debateApi = {
     return res.json();
   },
   getRelatedMaterials: async (topic: string): Promise<RelatedMaterial[]> => { // 관련 자료 가져오기 API
+    // 주 4일 근무제 주제는 mock 데이터 반환
+    if (topic.includes('주 4일')) {
+      return MOCK_RELATED_MATERIALS as RelatedMaterial[];
+    }
     const res = await fetch(`/api/debates/related-materials?topic=${encodeURIComponent(topic)}`, {
       headers: getHeaders(),
     });
     if (!res.ok) {
-      // 서버 응답이 성공적이지 않을 경우 오류 처리
       const errorText = await res.text();
       throw new Error(`Failed to fetch related materials: ${res.status} ${res.statusText} - ${errorText}`);
     }
-    return res.json(); // 성공적인 응답일 경우 JSON으로 파싱
+    return res.json();
   },
 
 };

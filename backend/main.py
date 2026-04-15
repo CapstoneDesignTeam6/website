@@ -10,6 +10,8 @@ from api import auth, discussion, level
 from api.auth import auth_router
 from database import SessionLocal
 from config import settings
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 import logging
 import time
 import json
@@ -59,6 +61,9 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         """)
         
         return response
+
+# 스케줄러 (매일 12시 뉴스 크롤링)
+scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -110,6 +115,33 @@ async def startup_event():
     finally:
         db.close()
     
+    # 뉴스 크롤링 스케줄러 등록 (매일 오전 12시 = 정오)
+    from services.news import crawl_and_replace_news
+
+    async def scheduled_news_crawl():
+        import asyncio
+        from services.topic import generate_and_save_topics
+
+        logger.info("🗞️ [스케줄러] 뉴스 크롤링 시작...")
+        crawl_result = await crawl_and_replace_news()
+        logger.info(f"🗞️ [스케줄러] 크롤링 결과: {crawl_result}")
+
+        if crawl_result.get("success"):
+            logger.info("💬 [스케줄러] 토론 주제 생성 시작 (7일 경과 여부 확인)...")
+            loop = asyncio.get_event_loop()
+            topic_result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=False))
+            logger.info(f"💬 [스케줄러] 주제 생성 결과: {topic_result}")
+
+    scheduler.add_job(
+        scheduled_news_crawl,
+        trigger=CronTrigger(hour=12, minute=0, timezone="Asia/Seoul"),
+        id="daily_news_crawl",
+        name="매일 12시 뉴스 크롤링",
+        replace_existing=True,
+    )
+    scheduler.start()
+    logger.info("✅ 뉴스 크롤링 스케줄러 등록 완료 (매일 12:00 KST)")
+
     # AI 서버 상태 확인
     logger.info("Checking AI servers...")
     health = AgentService.health_check()
@@ -130,6 +162,7 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """앱 종료 시 정리"""
+    scheduler.shutdown(wait=False)
     logger.info("Shutting down application...")
 
 @app.get("/")
@@ -149,6 +182,52 @@ async def health_check():
         "status": "healthy",
         "version": "1.0.0"
     }
+
+@app.post("/admin/news/crawl")
+async def trigger_news_crawl():
+    """뉴스 크롤링 수동 실행 (관리자용)"""
+    from services.news import crawl_and_replace_news
+    logger.info("🗞️ [수동] 뉴스 크롤링 시작...")
+    result = await crawl_and_replace_news()
+    return result
+
+@app.post("/admin/topics/generate")
+async def trigger_topic_generate(force: bool = False):
+    """
+    토론 주제 생성 수동 실행 (관리자용)
+    - force=true: 7일 미경과여도 강제 재생성
+    - force=false (기본): 7일 지난 경우에만 생성
+    """
+    from services.topic import generate_and_save_topics
+    import asyncio
+    loop = asyncio.get_event_loop()
+    result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=force))
+    return result
+
+@app.post("/admin/news/crawl-and-generate")
+async def trigger_crawl_and_generate(force_topics: bool = False):
+    """
+    뉴스 크롤링 + 토론 주제 생성 한 번에 실행 (관리자용)
+    - force_topics=true: 주제 7일 미경과여도 강제 재생성
+    """
+    from services.news import crawl_and_replace_news
+    from services.topic import generate_and_save_topics
+    import asyncio
+
+    logger.info("🗞️ [수동] 뉴스 크롤링 + 주제 생성 시작...")
+    crawl_result = await crawl_and_replace_news()
+    if not crawl_result.get("success"):
+        return {"crawl": crawl_result, "topics": {"success": False, "message": "크롤링 실패로 주제 생성 건너뜀"}}
+
+    loop = asyncio.get_event_loop()
+    topic_result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=force_topics))
+    return {"crawl": crawl_result, "topics": topic_result}
+
+@app.get("/news")
+async def get_news(limit: int = 50):
+    """저장된 뉴스 목록 조회"""
+    from services.news import get_news_list
+    return get_news_list(limit=limit)
 
 if __name__ == "__main__":
     import uvicorn
