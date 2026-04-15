@@ -133,8 +133,17 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
         const baseSlides = [...initialSlides, ...trendingSlides];
 
         if (baseSlides.length > 1) {
-          // 클론 슬라이드 추가: 마지막 슬라이드를 맨 앞에, 첫 번째 슬라이드를 맨 뒤에 추가하여 무한 루프 효과
-          const clonedSlides = [baseSlides[baseSlides.length - 1], ...baseSlides, baseSlides[0]];
+          // 클론 슬라이드 추가: 무한 루프 효과를 위해 실제 슬라이드의 앞뒤에 클론을 추가
+          // 클론 슬라이드에는 고유한 ID를 부여하여 React key 중복 경고를 방지
+          const firstSlideClone = {
+            ...baseSlides[0],
+            id: `${baseSlides[0].id || 'slide-0'}-clone-end`, // 원본 ID에 접미사 추가 (id가 없을 경우를 대비한 폴백)
+          };
+          const lastSlideClone = {
+            ...baseSlides[baseSlides.length - 1],
+            id: `${baseSlides[baseSlides.length - 1].id || 'slide-last'}-clone-start`, // 원본 ID에 접미사 추가 (id가 없을 경우를 대비한 폴백)
+          };
+          const clonedSlides = [lastSlideClone, ...baseSlides, firstSlideClone];
           setHeroSlides(clonedSlides);
           setCurrentSlide(1); // 실제 첫 번째 슬라이드 (클론 다음)로 시작
         } else {
