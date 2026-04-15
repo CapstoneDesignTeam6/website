@@ -11,7 +11,7 @@ export const Footer = () => (
         <div className="space-y-4">
           <h4 className="font-bold text-xs md:text-sm text-on-surface">고객 지원</h4>
           <ul className="space-y-2 text-xs md:text-sm text-outline">
-            <li><a href="#" className="hover:text-primary">도움말</a></li>
+            <li><a href="#" className="hover:text-primary">자주 묻는 질문</a></li>
             <li><a href="#" className="hover:text-primary">문의하기</a></li>
           </ul>
         </div>
