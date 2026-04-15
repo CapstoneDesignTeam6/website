@@ -63,7 +63,6 @@ export default function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]); // 경로 변경 시 스크롤 상단으로 이동
-      setProgress(0); // 진행률을 0으로 초기화 (아직 완료된 라운드가 없으므로)
 
   const handleStartDebate = async () => {
     if (!topic.trim()) return;
