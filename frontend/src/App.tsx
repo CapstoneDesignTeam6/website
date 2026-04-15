@@ -47,8 +47,6 @@ export default function App() {
       const token = userApi.getToken();
       if (token) {
         try {
-          // 백엔드의 @router.get("/me")를 호출하는 함수가 userApi에 있다고 가정
-          // userApi.getCurrentUser()를 추가하여 실제 데이터를 가져오세요.
           const user = await userApi.getCurrentUser();
           setIsLoggedIn(true);
           setUserData(user);
@@ -65,6 +63,7 @@ export default function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]); // 경로 변경 시 스크롤 상단으로 이동
+      setProgress(0); // 진행률을 0으로 초기화 (아직 완료된 라운드가 없으므로)
 
   const handleStartDebate = async () => {
     if (!topic.trim()) return;
@@ -74,9 +73,10 @@ export default function App() {
   const startActualDebate = async (initialMessages?: DebateMessage[], receivedDiscussionId?: number) => {
     // navigate("/debate"); // discussionId가 설정된 후로 이동
     setMessages([]);
-    setIsGenerating(true);
-    setCurrentRound(1);
-    setProgress(0);
+    setIsGenerating(true); // 메시지 생성 중 상태 활성화
+    setCurrentRound(1); // 토론 시작 시 현재 라운드를 1로 초기화
+    setTotalRounds(4); // 총 라운드 수를 4로 설정 (필요에 따라 변경 가능)
+    setProgress(0); // 진행률을 0으로 초기화 (아직 완료된 라운드가 없으므로)
 
     try {
       // debateApi.start는 이제 discussionId를 반환합니다.
@@ -90,7 +90,7 @@ export default function App() {
       } else {
         // 실제 API 호출을 통해 토론 시작
         const data = await debateApi.start(topic);
-        actualDiscussionId = data.id ?? null; // 백엔드에서 반환하는 discussionId는 'id' 필드에 있습니다.
+        actualDiscussionId = data.id || Date.now(); // 백엔드에서 안 넘어오면 임시 discussionId 생성
         initialAgentMessage = [
           {
             role: "agent",
@@ -98,7 +98,7 @@ export default function App() {
           side: data.side || "pro", 
           content: data.content || `"${topic}"에 대한 토론을 시작합니다.`,
           timestamp: data.timestamp || new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
-          round: data.round || 1,
+          round: 1, // 초기 메시지는 1라운드에 속함
           },
         ];
       }
@@ -132,7 +132,6 @@ export default function App() {
         content: text,
         timestamp: new Date().toLocaleTimeString("ko-KR", {
           hour: "2-digit",
-          minute: "2-digit",
         }),
         round: currentRound,
       };
@@ -147,12 +146,24 @@ export default function App() {
           side: (data.aiResponse.side === 'pro' || data.aiResponse.side === 'con' || data.aiResponse.side === 'neutral') ? data.aiResponse.side : undefined,
           content: data.aiResponse.content,
           timestamp: data.aiResponse.timestamp,
-          round: currentRound, // 현재 라운드 사용
+          round: currentRound,
         },
       ]);
-      // 백엔드 sendMessage 응답에 currentRound, totalRounds, progress가 직접 포함되어 있지 않으므로
-      // 이 부분은 DebateView에서 props로 받은 currentRound, totalRounds, progress를 그대로 사용하거나
-      // 별도의 API 호출을 통해 업데이트해야 합니다. 현재는 상태를 유지합니다.
+
+      // 사용자 메시지와 AI 응답이 모두 완료되면 라운드 진행
+      const completedRound = currentRound; // 방금 완료된 라운드
+      const nextRound = currentRound + 1; // 다음 라운드
+      setCurrentRound(nextRound); // 다음 라운드로 상태 업데이트
+
+      // 진행률 계산 (완료된 라운드 수 / 총 라운드 수)
+      // Math.min(100, ...)을 사용하여 100%를 초과하지 않도록 합니다.
+      const newProgress = Math.min(100, Math.round((completedRound / totalRounds) * 100));
+      setProgress(newProgress);
+
+      // 모든 라운드가 완료되면 토론 종료 처리
+      if (completedRound >= totalRounds) {
+        handleFinishDebate();
+      }
     } catch (error) {
       console.error("Failed to send message:", error);
     } finally {
