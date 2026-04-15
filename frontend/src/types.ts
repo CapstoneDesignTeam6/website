@@ -1,7 +1,7 @@
 export interface DebateMessage {
-  id?: number; // 백엔드 Message 모델의 ID
+  id?: number; // 백엔드 Message 모델의 ID (선택적)
   discussion_id?: number; // 백엔드 Message 모델의 session_id (선택적)
-  role: 'agent' | 'user' | 'moderator';
+  role: 'agent' | 'user';
   agentName?: string; // 에이전트 이름 (프론트엔드 표시용, 선택적)
   side?: 'pro' | 'con' | 'neutral'; // 토론 입장 (프론트엔드 표시용, 선택적)
   content: string;
@@ -9,7 +9,7 @@ export interface DebateMessage {
   round?: number; // 토론 라운드 (프론트엔드 관리용, 선택적)
 }
 
-export type View = 'home' | 'about' | 'setup' | 'debate' | 'result' | 'faq' | 'search' | 'profile' | 'login' | 'signup' | 'pre-quiz' | 'post-quiz';
+export type View = 'home' | 'setup' | 'debate' | 'result' | 'faq' | 'search' | 'profile' | 'login' | 'signup' | 'pre-quiz' | 'post-quiz';
 
 export interface UserData {
   id: number; // 사용자 고유 ID
