@@ -48,7 +48,7 @@ export const DebateView = ({
   const [relatedMaterials, setRelatedMaterials] = useState<any[]>([]); // 관련 자료 상태
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
   const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
-    { sender: 'bot', text: '안녕하세요! 토론 진행 중 도움이 필요하시면 언제든 물어보세요. 반박 작성을 도와드리겠습니다.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
+    { sender: 'bot', text: '안녕하세요! 토론 진행 중 도움이 필요하시면 언제든 물어보세요. 반박 힌트를 알려드리겠습니다.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
   ]);
   const [isHintGenerating, setIsHintGenerating] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -63,10 +63,10 @@ export const DebateView = ({
   };
 
   const examples = [
-    `"${topic}"에 찬성합니다. 왜냐하면...`,
-    `"${topic}"은 필요하다고 생각합니다...`,
-    `"${topic}"은 문제가 있다고 생각합니다...`,
-    `"${topic}"에 반대합니다. 이유는...`
+    `~에 찬성합니다. 왜냐하면...`,
+    `~은 필요하다고 생각합니다...`,
+    `~은 문제가 있다고 생각합니다...`,
+    `~에 반대합니다. 이유는...`
   ];
 
   useEffect(() => {
@@ -325,7 +325,7 @@ export const DebateView = ({
                     <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
                       <Brain size={18} />
                     </div>
-                    <span className="font-bold text-sm">도움말 챗봇</span>
+                    <span className="font-bold text-sm">보조 에이전트</span>
                   </div>
                   <button onClick={() => setIsHelpOpen(false)} className="hover:bg-white/10 p-1 rounded-lg transition-colors">
                     <ChevronLeft size={20} /> {/* 닫기 아이콘 방향 변경 (좌측으로) */}
