@@ -4,44 +4,44 @@ import { DebateMessage, DiscussionSummaryResponse } from './types'; // DebateMes
 // 목(mock) 관련 자료 데이터
 export const MOCK_RELATED_MATERIALS = [
   {
-    category: "경제",
-    color: "text-blue-600",
-    title: "주 4일 근무제 도입 기업 90% 지속 결정…직원 69% '번아웃 줄었다'",
-    description: "글로벌 주 4일 근무제 실험에 참여한 기업의 90%가 제도를 지속하기로 결정했으며, 직원의 69%가 번아웃이 줄었다고 응답했습니다. 생산성도 유지되거나 향상된 것으로 나타났습니다.",
-    source: "글로벌이코노믹",
-    url: "https://www.g-enews.com/article/Global-Biz/2025/06/202506011727101754fbbec65dfb_1"
+    category: "에너지 정책", // 카테고리: 에너지 정책
+    color: "text-orange-600", // 색상: 주황색
+    title: "정부, 원전 비중 확대 정책 추진... 에너지 안보 강화", // 제목: 원전 비중 확대 정책
+    description: "정부가 안정적인 전력 공급과 탄소 중립 목표 달성을 위해 원자력 발전 비중을 확대하는 정책을 추진하고 있습니다. 이는 에너지 자립도를 높이고 국제 에너지 시장 변동성에 대응하기 위한 전략의 일환입니다.", // 설명: 정부의 원전 확대 정책 배경
+    source: "연합뉴스", // 출처: 연합뉴스
+    url: "https://www.yonhapnews.co.kr/mock-nuclear-policy" // 가상 URL
   },
   {
-    category: "정책",
-    color: "text-orange-600",
-    title: "지속가능한 사회로의 전환…'주 4.5일제'가 여는 미래",
-    description: "정부는 주 4.5일제를 국정과제로 채택하고 시범사업을 시행할 예정입니다. 근로시간 단축이 지속가능한 사회로의 전환에 기여할 수 있는지 다각도로 검토 중입니다.",
-    source: "정책브리핑",
-    url: "https://www.korea.kr/news/policyNewsView.do?newsId=148956270"
+    category: "환경", // 카테고리: 환경
+    color: "text-green-600", // 색상: 녹색
+    title: "원자력 발전, 탄소 배출 없는 친환경 에너지인가? 논쟁 가열", // 제목: 원자력 발전의 친환경성 논쟁
+    description: "원자력 발전은 운영 과정에서 온실가스 배출이 거의 없어 기후 변화 대응에 기여할 수 있다는 주장이 있지만, 건설 및 폐기물 처리 과정에서의 환경 영향과 안전 문제에 대한 우려도 큽니다.", // 설명: 원자력 발전의 환경적 장단점
+    source: "환경일보", // 출처: 환경일보
+    url: "https://www.ecomedia.co.kr/mock-nuclear-environment" // 가상 URL
   },
   {
-    category: "기술",
-    color: "text-purple-600",
-    title: "주 4일 근무제 성공의 비밀 'AI와 자동화'",
-    description: "주 4일 근무제를 성공적으로 도입한 기업들의 공통점은 AI와 자동화 기술 활용이었습니다. 반복 업무를 자동화해 근무 시간은 줄이면서도 생산성을 유지할 수 있었습니다.",
-    source: "CIO",
-    url: "https://www.cio.com/article/3537623/%EC%A3%BC-4%EC%9D%BC-%EA%B7%BC%EB%AC%B4%EC%A0%9C-%EC%84%B1%EA%B3%B5%EC%9D%98-%EB%B9%84%EB%B0%80-ai%EC%99%80-%EC%9E%90%EB%8F%99%ED%99%94.html"
+    category: "안전", // 카테고리: 안전
+    color: "text-red-600", // 색상: 빨간색
+    title: "후쿠시마 사고 10년, 원전 안전성 강화와 주민 수용성 과제", // 제목: 후쿠시마 사고 이후 원전 안전성
+    description: "후쿠시마 원전 사고 10주년을 맞아 전 세계적으로 원전 안전 기준이 강화되었지만, 여전히 주민들의 수용성 확보와 사고 발생 시의 위험 관리는 중요한 과제로 남아있습니다.", // 설명: 원전 안전성 및 주민 수용성 문제
+    source: "BBC News", // 출처: BBC News
+    url: "https://www.bbc.com/korean/mock-fukushima-safety" // 가상 URL
   },
   {
-    category: "사회",
-    color: "text-emerald-600",
-    title: "주 4.5일제 도입한 중소기업 '생산성 늘었지만 업무 압박은 과제'",
-    description: "주 4.5일 근무제를 도입한 중소기업들은 생산성 향상과 이직률 감소 효과를 보고했지만, 업무 압축으로 인한 피로 누적이라는 새로운 과제도 발생하고 있습니다.",
-    source: "매일노동뉴스",
-    url: "https://www.labortoday.co.kr/news/articleView.html?idxno=232233"
+    category: "경제", // 카테고리: 경제
+    color: "text-blue-600", // 색상: 파란색
+    title: "원전 건설 비용 및 기간, 재생에너지 대비 경제성 분석", // 제목: 원전의 경제성 분석
+    description: "대규모 초기 투자와 긴 건설 기간이 필요한 원자력 발전이 장기적인 전력 생산 비용 측면에서 재생에너지보다 경제적인지에 대한 심층 분석이 진행되고 있습니다. 금융 비용과 운영 비용이 주요 쟁점입니다.", // 설명: 원전 건설 및 운영 비용 분석
+    source: "한국경제", // 출처: 한국경제
+    url: "https://www.hankyung.com/mock-nuclear-economy" // 가상 URL
   },
   {
-    category: "경제",
-    color: "text-blue-600",
-    title: "주 4일제 도입, 진짜 현실 가능할까? 지금 어디까지 왔는지 정리",
-    description: "국내외 주 4일 근무제 도입 현황 분석입니다. 임금 삭감 없는 근무시간 단축이 실제로 가능한지, 어떤 업종에서 먼저 시도되고 있는지를 살펴봅니다.",
-    source: "Economic News",
-    url: "https://economic-news24.com/%EC%A3%BC-4%EC%9D%BC%EC%A0%9C-%EB%8F%84%EC%9E%85-%EC%A7%84%EC%A7%9C-%ED%98%84%EC%8B%A4-%EA%B0%80%EB%8A%A5%ED%95%A0%EA%B9%8C-%EC%A7%80%EA%B8%88-%EC%96%B4%EB%94%94%EA%B9%8C%EC%A7%80-%EC%99%94%EB%8A%94/"
+    category: "기술", // 카테고리: 기술
+    color: "text-purple-600", // 색상: 보라색
+    title: "차세대 소형모듈원전(SMR), 원전 산업의 새로운 대안으로 부상", // 제목: SMR 기술의 부상
+    description: "안전성과 효율성을 획기적으로 높인 소형모듈원전(SMR) 기술이 개발되면서, 기존 대형 원전의 단점을 보완하고 분산형 전원으로서의 가능성을 제시하며 원자력 발전의 새로운 미래를 열고 있습니다.", // 설명: SMR 기술의 장점 및 미래 전망
+    source: "과학기술정보통신부", // 출처: 과학기술정보통신부
+    url: "https://www.msit.go.kr/mock-smr-tech" // 가상 URL
   },
 ];
 
