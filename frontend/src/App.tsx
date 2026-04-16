@@ -21,7 +21,7 @@ import { SetupView } from "./components/SetupView";
 import { DebateView } from "./components/DebateView";
 import { ResultView } from "./components/ResultView";
 import { FAQView } from "./components/FAQView";
-import { SearchView } from "./components/SearchView";
+import { SearchView } from "./components/SearchView"; // SearchView 임포트
 import { LoginView } from "./components/LoginView";
 import { SignupView } from "./components/SignupView";
 import { ProfileView } from "./components/ProfileView";
@@ -36,7 +36,7 @@ export default function App() {
   const [agentCount, setAgentCount] = useState(1);
   const [messages, setMessages] = useState<DebateMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [debateResult, setDebateResult] = useState("");
+  const [debateResult, setDebateResult] = useState<DiscussionSummaryResponse | string>(""); // debateResult 타입 변경
   const [currentRound, setCurrentRound] = useState(1);
   const [totalRounds, setTotalRounds] = useState(4);
   const [progress, setProgress] = useState(0);
@@ -177,13 +177,13 @@ export default function App() {
 
   const showResult = async () => {
     navigate("/result");
-    setDebateResult("분석 중...");
+    setDebateResult("토론 결과를 분석 중입니다..."); // 로딩 메시지
 
     try {
       const data = await debateApi.analyze(topic, messages, discussionId);
-      setDebateResult(data.result);
+      setDebateResult(data); // DiscussionSummaryResponse 객체를 직접 저장
     } catch (error) {
-      console.error("Failed to analyze debate:", error);
+      console.error("토론 분석에 실패했습니다:", error);
       setDebateResult("결과 분석에 실패했습니다.");
     }
   }; // 결과 표시

@@ -1,11 +1,12 @@
 import { Download, RefreshCw, FileText } from "lucide-react";
 import { useNavigate } from "react-router-dom"; // useNavigate 훅 임포트
 import React, { useRef } from "react"; // useRef 임포트
+import { DiscussionSummaryResponse } from '../types'; // DiscussionSummaryResponse 타입 임포트
 import html2pdf from "html2pdf.js"; // html2pdf.js 임포트
 
 interface ResultViewProps {
   topic: string;
-  result: string;
+  result: DiscussionSummaryResponse | string; // result 타입을 DiscussionSummaryResponse 객체 또는 문자열로 변경
 }
 
 export const ResultView = ({ topic, result }: ResultViewProps) => {
@@ -101,8 +102,27 @@ export const ResultView = ({ topic, result }: ResultViewProps) => {
             </div>
           </div>
 
-          <div className="prose prose-sm max-w-none text-outline leading-relaxed whitespace-pre-wrap">
-            {result || "리포트를 생성하는 중입니다..."}
+          <div className="prose prose-sm max-w-none text-outline leading-relaxed whitespace-pre-wrap"> {/* 줄바꿈이 적용되도록 whitespace-pre-wrap 유지 */}
+            {typeof result === 'object' ? ( // result가 객체(DiscussionSummaryResponse)인 경우 구조화된 내용 표시
+              <>
+                <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">토론 요약</h3>
+                <p className="mb-8">{result.summary}</p>
+
+                <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">주요 쟁점</h3>
+                <p className="mb-8">{result.issues}</p>
+
+                <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">논리 피드백</h3>
+                <p className="mb-8">{result.logic_feedback}</p>
+
+                <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">추가 사례·정보</h3>
+                <p className="mb-8">{result.extra_info}</p>
+
+                <p className="text-base font-bold text-primary">최종 점수: {result.score}점</p>
+                <p className="text-base font-bold text-emerald-600">획득 경험치: {result.exp_earned} EXP</p>
+              </>
+            ) : ( // result가 문자열인 경우 (로딩 메시지 등)
+              result || "리포트를 생성하는 중입니다..."
+            )}
           </div>
         </section>
       </div>

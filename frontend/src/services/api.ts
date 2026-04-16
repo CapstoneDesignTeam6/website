@@ -1,6 +1,6 @@
-import { DebateMessage, UserData, SearchDebateItem } from '../types';
-import { MOCK_RELATED_MATERIALS, MOCK_TOPICS } from '../mockData';
-
+import { DebateMessage, UserData, SearchDebateItem, DiscussionSummaryResponse } from '../types'; // DiscussionSummaryResponse 타입 임포트
+import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY } from '../mockData'; // MOCK_DEBATE_SUMMARY 임포트
+ 
 // 관련 자료 항목 타입 (백엔드 RelatedMaterialSchema와 일치)
 interface RelatedMaterial {
   category: string; // 자료의 카테고리 (예: 경제, 사회, 기술)
@@ -57,13 +57,19 @@ export const debateApi = {
     });
     return res.json();
   },
-  analyze: async (topic: string, messages: DebateMessage[], discussionId?: number | null) => { // 토론 분석 API
-    const res = await fetch('/api/debate/analyze', {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ topic, messages, discussion_id: discussionId ?? null }),
-    });
-    return res.json();
+  analyze: async (topic: string, messages: DebateMessage[], discussionId?: number | null): Promise<DiscussionSummaryResponse> => { // 토론 분석 API 반환 타입 변경
+    try {
+      const res = await fetch('/api/debate/analyze', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ topic, messages, discussion_id: discussionId ?? null }),
+      });
+      if (!res.ok) throw new Error(`API error: ${res.statusText}`);
+      return res.json();
+    } catch (error) {
+      console.error("Failed to analyze debate, using mock data:", error);
+      return MOCK_DEBATE_SUMMARY; // API 호출 실패 시 목 데이터 반환
+    }
   },
   getTrending: async (): Promise<TrendingTopicResponse[]> => { // 트렌딩 토론 목록 가져오기 API
     let realTopics: TrendingTopicResponse[] = [];
