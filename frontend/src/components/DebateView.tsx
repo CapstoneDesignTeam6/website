@@ -7,7 +7,7 @@ import {
   Brain,
   BarChart3,
   Loader2,
-  ChevronLeft,
+  X, // 챗봇 닫기 버튼 아이콘으로 X 추가
   ChevronRight,
   User,
   Minimize, // 전체 화면 축소 아이콘 추가
@@ -54,7 +54,7 @@ export const DebateView = ({
   const [relatedMaterials, setRelatedMaterials] = useState<any[]>([]); // 관련 자료 상태
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
   const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
-    { sender: 'bot', text: '안녕하세요! 토론 진행 중 도움이 필요하시면 언제든 물어보세요. 반박 힌트를 알려드리겠습니다.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
+    { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"라고 입력해보세요.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
   ]);
   const [isHintGenerating, setIsHintGenerating] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -372,8 +372,8 @@ export const DebateView = ({
                     </div>
                     <span className="font-bold text-sm">보조 에이전트</span> {/* 보조 에이전트 제목 */}
                   </div>
-                  <button onClick={() => setIsHelpOpen(false)} className="hover:bg-white/10 p-1 rounded-lg transition-colors">
-                    <ChevronLeft size={20} /> {/* 닫기 아이콘 방향 변경 (좌측으로) */}
+                  <button onClick={() => setIsHelpOpen(false)} className="hover:bg-white/10 p-1 rounded-lg transition-colors"> {/* 챗봇 닫기 버튼 */}
+                    <X size={20} /> {/* 닫기 아이콘을 X로 변경 */}
                   </button>
                 </div>
                 <div className="p-4 h-48 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col space-y-2 custom-scrollbar">
