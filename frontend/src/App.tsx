@@ -40,6 +40,7 @@ export default function App() {
   const [currentRound, setCurrentRound] = useState(1);
   const [totalRounds, setTotalRounds] = useState(4);
   const [progress, setProgress] = useState(0);
+  const [fullScreenMode, setFullScreenMode] = useState(false); // 전체 화면 모드 상태 추가
   const [discussionId, setDiscussionId] = useState<number | null>(null); // discussionId 상태
 
   useEffect(() => {
@@ -188,8 +189,9 @@ export default function App() {
   }; // 결과 표시
 
   return (
-    <div className="min-h-screen flex flex-col font-sans">
-      <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+    <div className={`min-h-screen flex flex-col font-sans ${fullScreenMode ? 'overflow-hidden' : ''}`}>
+      {/* 전체 화면 모드가 아닐 때만 Navbar 렌더링 */}
+      {!fullScreenMode && <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}
 
       <main className="flex-1">
         <AnimatePresence mode="wait">
@@ -244,6 +246,7 @@ export default function App() {
                       totalRounds={totalRounds}
                       progress={progress}
                       discussionId={discussionId} // discussionId 전달
+                      setFullScreenMode={setFullScreenMode} // 전체 화면 모드 설정 함수 전달
                     />
                   ) : (
                     <Navigate to="/setup" replace /> // discussionId가 없으면 설정 페이지로 리다이렉트
@@ -297,8 +300,8 @@ export default function App() {
           </motion.div>
         </AnimatePresence>
       </main>
-
-      {location.pathname !== "/debate" && <Footer />}
+      {/* 전체 화면 모드가 아닐 때만 Footer 렌더링 */}
+      {!fullScreenMode && <Footer />}
     </div>
   );
 }
