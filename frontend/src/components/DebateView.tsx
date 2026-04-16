@@ -293,7 +293,7 @@ export const DebateView = ({
                         : msg.side === 'con'
                           ? 'bg-red-50 border-2 border-red-100 text-secondary'
                           : 'bg-white border-2 border-dashed border-gray-200 text-outline' 
-                    }`}>
+                    } whitespace-pre-wrap`}> {/* 줄바꿈 기호가 적용되도록 whitespace-pre-wrap 추가 */}
                       {msg.content}
                     </div>
                   </div>

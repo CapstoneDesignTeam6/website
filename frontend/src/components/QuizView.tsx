@@ -148,7 +148,7 @@ export const QuizView = ({ topic, type, onComplete }: QuizViewProps) => {
                   {isCorrect ? '정답입니다!' : '아쉽네요, 정답이 아닙니다.'}
                 </span>
               </div>
-              <p className="text-sm text-outline leading-relaxed">
+              <p className="text-sm text-outline leading-relaxed whitespace-pre-wrap">
                 <span className="font-bold text-on-surface">해설:</span> {quiz.explanation}
               </p>
             </motion.div>
