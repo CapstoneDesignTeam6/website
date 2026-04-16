@@ -20,6 +20,7 @@ import { DebateMessage } from '../types'; // DebateMessage 타입 임포트
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api'; // debateApi 임포트
 import { MOCK_RELATED_MATERIALS } from '../mockData.ts'; // 목 관련 자료 임포트
+import { MOCK_REBUTTAL_HINT } from '../mockData.ts'; // 목 반박 힌트 임포트
 
 interface DebateViewProps {
   topic: string;
@@ -145,6 +146,12 @@ export const DebateView = ({
     } else if (userMessage.includes('반박 힌트')) {
       hintEndpoint = `/api/debate/${discussionId}/rebuttal-hint`;
       hintType = '반박';
+      // 목 데이터 사용 (기존 API 호출 주석 처리)
+
+      // 목 데이터 응답 처리
+      setChatbotMessages(prev => [...prev, { sender: 'bot', text: MOCK_REBUTTAL_HINT, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
+      setIsHintGenerating(false);
+      return; // 목 데이터 처리 후 함수 종료
     }
 
     if (hintEndpoint) {
@@ -158,6 +165,16 @@ export const DebateView = ({
           },
           // No body needed as per backend implementation, as the backend fetches discussion history by discussionId
         });
+        // // 기존 API 호출 로직 (주석 처리)
+        // const response = await fetch(hintEndpoint, {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //     // Assuming authentication token is handled globally or not needed for hints
+        //     // 'Authorization': `Bearer ${yourAuthToken}`
+        //   },
+        //   // No body needed as per backend implementation, as the backend fetches discussion history by discussionId
+        // });
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
