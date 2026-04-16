@@ -89,8 +89,10 @@ export const DebateView = ({
     const fetchRelatedMaterials = async () => {
       setIsLoadingRelatedMaterials(true); // 로딩 시작
       try {
-        const data = await debateApi.getRelatedMaterials(topic); // API 호출
-        setRelatedMaterials(data); // 데이터 설정
+        setRelatedMaterials(MOCK_RELATED_MATERIALS); // 관련 자료 목 데이터 사용
+        
+        /* const data = await debateApi.getRelatedMaterials(topic); // API 호출
+        setRelatedMaterials(data); // 데이터 설정 */
       } catch (error) {
         console.error("Failed to fetch related materials:", error);
         setRelatedMaterials(MOCK_RELATED_MATERIALS); // API 호출 실패 시 목 데이터 사용
