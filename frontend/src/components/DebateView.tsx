@@ -204,6 +204,23 @@ export const DebateView = ({
   const conPercent = totalCount > 0 ? 100 - proPercent : 50;
   const neutralValue = totalCount === 0 ? '0.5 Neutral' : proPercent > conPercent ? `Pro dominant (${proPercent}%)` : `Con dominant (${conPercent}%)`;
 
+  // 메시지 내용을 파싱하여 볼드체 태그를 처리하는 함수
+  const renderContentWithHighlights = (content: string) => {
+    // **...** 패턴을 찾아 분리합니다.
+    // 정규식: /(\*\*.*?\*\*)/g
+    const parts = content.split(/(\*\*.*?\*\*)/g);
+    
+    return parts.map((part, index) => {
+      // ** 태그로 시작하고 ** 태그로 끝나는 경우
+      if (part && part.startsWith('**') && part.endsWith('**')) {
+        // 태그를 제거하고 내부 텍스트만 추출합니다.
+        const boldText = part.substring(2, part.length - 2);
+        return <strong key={index} className="font-bold">{boldText}</strong>; // 볼드체 스타일 적용
+      }
+      return <React.Fragment key={index}>{part}</React.Fragment>; // 일반 텍스트는 그대로 반환
+    });
+  };
+
   return (
     <div className={`flex ${isFullScreen ? 'h-screen' : 'h-[calc(100vh-72px)]'} overflow-hidden relative`}>
       {/* Left Sidebar (비어있음 - 이전 관련 자료 사이드바는 우측으로 이동) */}
@@ -290,13 +307,13 @@ export const DebateView = ({
                       <span className="text-[9px] md:text-[10px] text-outline">{msg.timestamp || '14:02'}</span>
                     </div>
                     <div className={`p-4 md:p-6 rounded-2xl text-xs md:text-sm leading-relaxed ${
-                      msg.side === 'pro' 
-                        ? 'bg-blue-50 border-2 border-blue-100 text-primary' 
+                      msg.side === 'pro'
+                        ? 'bg-blue-50 border-2 border-blue-200 text-gray-800'
                         : msg.side === 'con'
-                          ? 'bg-red-50 border-2 border-red-100 text-secondary'
-                          : 'bg-white border-2 border-dashed border-gray-200 text-outline' 
+                          ? 'bg-red-50 border-2 border-red-200 text-gray-800'
+                          : 'bg-white border-2 border-dashed border-gray-200 text-gray-700'
                     } whitespace-pre-wrap`}> {/* 줄바꿈 기호가 적용되도록 whitespace-pre-wrap 추가 */}
-                      {msg.content}
+                      {renderContentWithHighlights(msg.content)} {/* 하이라이트 처리 함수 적용 */}
                     </div>
                   </div>
                 </div>
