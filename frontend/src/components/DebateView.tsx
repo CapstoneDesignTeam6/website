@@ -8,6 +8,7 @@ import {
   BarChart3,
   Loader2,
   X, // 챗봇 닫기 버튼 아이콘으로 X 추가
+  ChevronLeft, 
   ChevronRight,
   User,
   Minimize, // 전체 화면 축소 아이콘 추가
@@ -83,6 +84,16 @@ export const DebateView = ({
       setPlaceholder("의견을 입력해주세요.");
     }
   }, [isFirstInput, topic]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isCurrentlyFullscreen = document.fullscreenElement !== null;
+      setIsFullScreen(isCurrentlyFullscreen);
+      setFullScreenMode(isCurrentlyFullscreen);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
 
   // 관련 자료를 백엔드에서 불러오는 useEffect
   useEffect(() => {
@@ -237,8 +248,8 @@ export const DebateView = ({
       {/* Center: Chat */}
       <main className="flex-1 flex flex-col bg-surface overflow-hidden relative">
         {/* Header with Topic and Progress */}
-        <div className="bg-white border-b border-gray-100 p-2 md:p-3 shadow-sm z-10"> {/* 주제 섹션의 상단 패딩을 더 줄여 높이 감소 */}
-          <div className="max-w-4xl mx-auto py-0 md:py-1"> {/* 주제 섹션의 상하 패딩을 더 줄여 높이 감소 */}
+        <div className="bg-white border-b border-gray-100 p-2 md:p-3 shadow-sm z-10">
+          <div className="max-w-4xl mx-auto py-0">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3"> {/* 요소 간 간격 조정 */}
               <div className="flex-1">
                 <h2 className="text-lg md:text-xl font-black font-headline line-clamp-1">{topic}</h2>
@@ -254,9 +265,9 @@ export const DebateView = ({
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0"> {/* 버튼 간 간격 조정 */}
-                <div className="px-3 py-1 bg-gray-50 rounded-xl border border-gray-100"> {/* 라운드 표시 패딩 조정 */}
+                <div className="px-3 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center"> {/* 라운드 표시 패딩 조정 */}
                   <span className="text-[10px] font-bold text-outline uppercase block mb-0.5">현재 라운드</span>
-                  <span className="text-xs font-black text-on-surface ">{currentRound} / {totalRounds}</span> {/* 텍스트 크기 조정 */}
+                  <span className="text-xs font-black text-on-surface">{currentRound} / {totalRounds}</span> {/* 텍스트 크기 조정 */}
                 </div>
                 {/* 새 토론 시작 및 토론 종료 버튼 패딩 조정 */}
                 <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
@@ -289,7 +300,7 @@ export const DebateView = ({
             return (
               <React.Fragment key={idx}>
                 {showRoundIndicator && (
-                  <div className="flex justify-center my-8">
+                  <div className="flex justify-center mb-8">
                     <span className="px-4 py-1.5 bg-gray-200 text-outline text-[10px] font-bold rounded-full uppercase tracking-widest">
                       라운드 {msg.round}
                     </span>
@@ -334,7 +345,7 @@ export const DebateView = ({
           )}
         </div>
 
-        <div className="pt-2 md:pt-3 pb-6 md:pb-8 bg-transparent"> {/* 입력창 섹션의 상단 패딩은 유지하고 하단 패딩을 늘려 마진 증가 */}
+        <div className="pt-2 md:pt-3 pb-6 md:pb-6 bg-transparent"> {/* 입력창 섹션 */}
           <div className="max-w-3xl mx-auto">
             {isFirstInput && (
               <div className="mb-2 px-4"> {/* 첫 입력 가이드 메시지 마진 조정 */}
@@ -345,7 +356,7 @@ export const DebateView = ({
             )}
             <div className="flex items-center gap-2 md:gap-4 bg-white p-1 md:p-2 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100"> {/* 입력창 컨테이너 패딩 조정 */}
               <input 
-                className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-xs md:text-sm px-2 py-1" /* 입력 필드 상하 패딩 추가 */
+                className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-xs md:text-sm px-4 py-1" /* 입력 필드 상하 패딩 추가 */
                 placeholder={placeholder}
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)} // 입력 필드 높이 조정을 위해 py-2 제거
