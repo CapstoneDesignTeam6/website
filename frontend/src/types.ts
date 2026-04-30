@@ -69,12 +69,15 @@ export interface DiscussionSessionResponse {
   // 백엔드 응답에 따라 다른 필드 추가 가능
 }
 
-// 토론 결과 보고서 요약 타입 (백엔드 DiscussionSummaryResponse와 일치)
+// 토론 결과 보고서 요약 타입
 export interface DiscussionSummaryResponse {
   summary: string; // 토론 요약
   issues: string; // 주요 쟁점
   logic_feedback: string; // 논리 피드백
   extra_info: string; // 추가 정보
-  score: number; // 토론 점수
-  exp_earned: number; // 획득 경험치
+  pre_quiz_correct?: boolean; // 토론 전 퀴즈 정답 여부
+  pre_quiz_explanation?: string; // 토론 전 퀴즈 해설
+  post_quiz_correct?: boolean; // 토론 후 퀴즈 정답 여부
+  post_quiz_explanation?: string; // 토론 후 퀴즈 해설
+  quiz_comparison?: string; // 토론 전후 퀴즈 비교 분석
 }

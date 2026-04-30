@@ -10,7 +10,7 @@ import {
 
 // --- Types & Services ---
 // --- 타입 및 서비스 ---
-import { DebateMessage, UserData } from "./types";
+import { DebateMessage, UserData, DiscussionSummaryResponse } from "./types";
 import { debateApi, userApi } from "./services/api";
 
 // --- Components ---

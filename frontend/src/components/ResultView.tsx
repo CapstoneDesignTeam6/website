@@ -12,7 +12,19 @@ interface ResultViewProps {
 export const ResultView = ({ topic, result }: ResultViewProps) => {
   const navigate = useNavigate();
   const reportRef = useRef<HTMLDivElement>(null); // PDF로 변환할 리포트 섹션에 대한 ref 생성
-  const [isDownloadingPdf, setIsDownloadingPdf] = React.useState(false); // PDF 다운로드 중인지 여부를 나타내는 상태
+  const [isDownloadingPdf, setIsDownloadingPdf] = React.useState(false);
+
+  const renderSummary = (text: string) => {
+    return text.split('\n').map((line, i) => {
+      if (/^\[.*찬성.*\]/.test(line)) {
+        return <p key={i} className="font-bold text-primary">{line}</p>;
+      }
+      if (/^\[.*반대.*\]/.test(line)) {
+        return <p key={i} className="font-bold text-secondary">{line}</p>;
+      }
+      return <p key={i} className="text-black">{line}</p>;
+    });
+  };
 
   // PDF 다운로드 핸들러
   const handleDownloadPdf = async () => {
@@ -102,25 +114,70 @@ export const ResultView = ({ topic, result }: ResultViewProps) => {
             </div>
           </div>
 
-          <div className="prose prose-sm max-w-none text-outline leading-relaxed whitespace-pre-wrap"> {/* 줄바꿈이 적용되도록 whitespace-pre-wrap 유지 */}
-            {typeof result === 'object' ? ( // result가 객체(DiscussionSummaryResponse)인 경우 구조화된 내용 표시
+          <div className="prose prose-sm max-w-none leading-relaxed">
+            {typeof result === 'object' ? (
               <>
                 <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">토론 요약</h3>
-                <p className="mb-8">{result.summary}</p>
+                <div className="mb-8 text-black whitespace-pre-wrap">{renderSummary(result.summary)}</div>
+
+                <hr className="border-gray-300 mb-8" />
 
                 <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">주요 쟁점</h3>
-                <p className="mb-8">{result.issues}</p>
+                <p className="mb-8 text-black whitespace-pre-wrap">{result.issues}</p>
+
+                <hr className="border-gray-300 mb-8" />
 
                 <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">논리 피드백</h3>
-                <p className="mb-8">{result.logic_feedback}</p>
+                <p className="mb-8 text-black whitespace-pre-wrap">{result.logic_feedback}</p>
+
+                {(result.pre_quiz_correct !== undefined || result.post_quiz_correct !== undefined) && (
+                  <>
+                    <hr className="border-gray-300 mb-8" />
+
+                    <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">퀴즈 결과</h3>
+                    <div className="mb-8 space-y-4">
+                      {result.pre_quiz_correct !== undefined && (
+                        <div className="p-4 rounded-xl  ">
+                          <p className="font-bold mb-2">
+                            토론 전 퀴즈&nbsp;
+                            <span className={result.pre_quiz_correct ? "text-primary" : "text-secondary"}>
+                              {result.pre_quiz_correct ? "✅ 정답" : "❌ 오답"}
+                            </span>
+                          </p>
+                          {result.pre_quiz_explanation && (
+                            <p className="text-black whitespace-pre-wrap text-sm">{result.pre_quiz_explanation}</p>
+                          )}
+                        </div>
+                      )}
+                      {result.post_quiz_correct !== undefined && (
+                        <div className="p-4 rounded-xl  ">
+                          <p className="font-bold mb-2">
+                            토론 후 퀴즈&nbsp;
+                            <span className={result.post_quiz_correct ? "text-primary" : "text-secondary"}>
+                              {result.post_quiz_correct ? "✅ 정답" : "❌ 오답"}
+                            </span>
+                          </p>
+                          {result.post_quiz_explanation && (
+                            <p className="text-black whitespace-pre-wrap text-sm">{result.post_quiz_explanation}</p>
+                          )}
+                        </div>
+                      )}
+                      {result.quiz_comparison && (
+                        <div className="p-4 rounded-xl ">
+                          <p className="font-bold mb-2">전후 비교 분석</p>
+                          <p className="text-black whitespace-pre-wrap text-sm">{result.quiz_comparison}</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                <hr className="border-gray-300 mb-8" />
 
                 <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">추가 사례·정보</h3>
-                <p className="mb-8">{result.extra_info}</p>
-
-                <p className="text-base font-bold text-primary">최종 점수: {result.score}점</p>
-                <p className="text-base font-bold text-emerald-600">획득 경험치: {result.exp_earned} EXP</p>
+                <p className="mb-8 text-black whitespace-pre-wrap">{result.extra_info}</p>
               </>
-            ) : ( // result가 문자열인 경우 (로딩 메시지 등)
+            ) : (
               result || "리포트를 생성하는 중입니다..."
             )}
           </div>
