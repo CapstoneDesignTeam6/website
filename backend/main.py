@@ -142,22 +142,17 @@ async def startup_event():
     scheduler.start()
     logger.info("✅ 뉴스 크롤링 스케줄러 등록 완료 (매일 12:00 KST)")
 
-    # AI 서버 상태 확인
-    logger.info("Checking AI servers...")
+    # Redis 연결 상태 확인
+    logger.info("Checking Redis connection...")
     health = AgentService.health_check()
-    
-    if health["discussion_agent"]:
-        logger.info(f"✅ 토론 AI 서버 ({settings.DISCUSSION_AGENT_URL}) 정상")
+
+    if health["redis"]:
+        logger.info("✅ Redis 연결 정상")
     else:
-        logger.warning(f"⚠️ 토론 AI 서버 ({settings.DISCUSSION_AGENT_URL}) 응답 없음")
-    
-    if health["evaluation_agent"]:
-        logger.info(f"✅ 평가 AI 서버 ({settings.EVALUATION_AGENT_URL}) 정상")
-    else:
-        logger.warning(f"⚠️ 평가 AI 서버 ({settings.EVALUATION_AGENT_URL}) 응답 없음")
-    
+        logger.warning("⚠️ Redis 연결 실패. 워커와 통신 불가.")
+
     if not health["all_healthy"]:
-        logger.warning("⚠️ 일부 AI 서버가 응답하지 않습니다. 폴백 응답을 사용합니다.")
+        logger.warning("⚠️ Redis 연결에 문제가 있습니다. 폴백 응답을 사용합니다.")
 
 @app.on_event("shutdown")
 async def shutdown_event():
