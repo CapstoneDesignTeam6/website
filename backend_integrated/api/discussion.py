@@ -15,6 +15,7 @@ from schemas.discussion import (
 from services.discussion_service import DiscussionService
 from services.auth_service import AuthService
 from services.agent_service import AgentService
+from services.content_filter import is_sensitive_topic, is_on_topic
 from agents.discussion_agent import DiscussionAgent
 from database import get_db, get_supabase
 
@@ -70,6 +71,14 @@ async def start_discussion(
     import random
     from datetime import datetime as dt
 
+    # 1) 민감 주제 필터링
+    sensitive, reason = is_sensitive_topic(body.topic)
+    if sensitive:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=reason or "이 주제로는 토론을 시작할 수 없습니다.",
+        )
+
     agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
     agent_name = random.choice(agents)
 
@@ -117,6 +126,23 @@ async def send_message(
     logger = logging.getLogger(__name__)
     agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
     agent_name = random.choice(agents)
+
+    # 1) 토론 무관 발언 컷
+    on_topic, off_reason = is_on_topic(body.topic, body.message)
+    if not on_topic:
+        return {
+            "userSide": "pro",
+            "aiResponse": {
+                "agentName": "진행자",
+                "side": "con",
+                "content": (
+                    f"방금 발언은 '{body.topic}' 주제와 관련이 없어 보입니다. "
+                    f"{off_reason}\n주제에 맞는 의견을 다시 입력해주세요."
+                ),
+                "timestamp": dt.now().strftime("%H:%M"),
+            },
+            "off_topic": True,
+        }
 
     # "agent" → "assistant" 변환 (GPT 형식)
     history = [
