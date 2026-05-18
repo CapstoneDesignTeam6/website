@@ -11,6 +11,9 @@ export interface DebateMessage {
 
 export type View = 'home' | 'setup' | 'debate' | 'result' | 'faq' | 'search' | 'profile' | 'login' | 'signup' | 'pre-quiz' | 'post-quiz';
 
+export type Difficulty = 'easy' | 'normal';
+export type ResponseSpeed = 'fast' | 'slow';
+
 export interface UserData {
   id: number; // 사용자 고유 ID
   username: string; // 사용자 이름 (백엔드 username)

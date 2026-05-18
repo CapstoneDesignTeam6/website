@@ -2,14 +2,15 @@ import {
   FileText,
   Rocket
 } from 'lucide-react';
+import { Difficulty/*, ResponseSpeed*/ } from '../types';
 
 interface SetupViewProps {
   topic: string;
   setTopic: (t: string) => void;
-  difficulty: 'easy' | 'hard';
-  setDifficulty: (d: 'easy' | 'hard') => void;
-  responseSpeed: 'fast' | 'slow';
-  setResponseSpeed: (s: 'fast' | 'slow') => void;
+  difficulty: Difficulty;
+  setDifficulty: (d: Difficulty) => void;
+  // responseSpeed: ResponseSpeed;
+  // setResponseSpeed: (s: ResponseSpeed) => void;
   onStart: () => void;
 }
 
@@ -18,8 +19,8 @@ export const SetupView = ({
   setTopic,
   difficulty,
   setDifficulty,
-  responseSpeed,
-  setResponseSpeed,
+  // responseSpeed,
+  // setResponseSpeed,
   onStart
 }: SetupViewProps) => (
   <div className="max-w-4xl mx-auto px-4 md:px-8 py-12 md:py-20">
@@ -54,24 +55,25 @@ export const SetupView = ({
           <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold text-lg md:text-xl shrink-0">2</div>
           <div className="flex-1">
             <h2 className="text-lg md:text-xl font-bold font-headline mb-4 md:mb-6">난이도 선택</h2>
-            <div className="flex gap-4">
+            <div className="flex gap-4 justify-start">
               <button
-                onClick={() => setDifficulty('easy')}
-                className={`flex-1 py-3 md:py-4 rounded-xl border-2 font-bold text-sm md:text-base transition-all ${difficulty === 'easy' ? 'bg-primary border-primary text-white shadow-lg ring-2 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`}
+                onClick={() => setDifficulty('normal')}
+                className={`py-3 md:py-4 px-8 md:px-12 rounded-xl border-2 font-bold text-sm md:text-base transition-all ${difficulty === 'normal' ? 'bg-primary border-primary text-white shadow-lg ring-2 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`}
               >
-                쉬운 버전
+                일반 버전
               </button>
               <button
-                onClick={() => setDifficulty('hard')}
-                className={`flex-1 py-3 md:py-4 rounded-xl border-2 font-bold text-sm md:text-base transition-all ${difficulty === 'hard' ? 'bg-primary border-primary text-white shadow-lg ring-2 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`}
+                onClick={() => setDifficulty('easy')}
+                className={`py-3 md:py-4 px-8 md:px-12 rounded-xl border-2 font-bold text-sm md:text-base transition-all ${difficulty === 'easy' ? 'bg-primary border-primary text-white shadow-lg ring-2 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`}
               >
-                심화 버전
+                쉬운 버전
               </button>
             </div>
           </div>
         </div>
       </section>
 
+      {/* 답변 모드 선택 (비활성화)
       <section className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 card-hover">
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold text-lg md:text-xl shrink-0">3</div>
@@ -94,6 +96,7 @@ export const SetupView = ({
           </div>
         </div>
       </section>
+      */}
 
       <div className="text-center pt-4 md:pt-8">
         <button

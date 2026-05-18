@@ -1,4 +1,4 @@
-import { DebateMessage, UserData, SearchDebateItem, DiscussionSummaryResponse, UserEvaluationScore } from '../types'; // DiscussionSummaryResponse 타입 임포트
+import { DebateMessage, UserData, SearchDebateItem, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed } from '../types';
 import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE } from '../mockData'; // MOCK_DEBATE_SUMMARY 임포트
  
 // 관련 자료 항목 타입 (백엔드 RelatedMaterialSchema와 일치)
@@ -36,11 +36,11 @@ const getHeaders = () => {
 };
 
 export const debateApi = {
-  start: async (topic: string): Promise<DebateMessage> => { // 토론 시작 API (DebateMessage를 반환하도록 타입 수정)
+  start: async (topic: string, difficulty?: Difficulty, responseSpeed?: ResponseSpeed): Promise<DebateMessage> => {
     const res = await fetch('/api/debate/start', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ topic }),
+      body: JSON.stringify({ topic, difficulty, response_speed: responseSpeed }),
     });
     if (!res.ok) { // API 응답이 성공적이지 않을 경우 (예: 500 Internal Server Error)
       // JSON 파싱을 시도하기 전에 오류를 처리합니다.
@@ -49,11 +49,11 @@ export const debateApi = {
     }
     return res.json(); // 성공적인 응답일 경우 JSON으로 파싱합니다.
   }, // 메시지 전송 API
-  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number): Promise<{ userSide: string; aiResponse: DebateMessage }> => {
+  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number, difficulty?: Difficulty, responseSpeed?: ResponseSpeed): Promise<{ userSide: string; aiResponse: DebateMessage }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, round_number: roundNumber ?? 1 }),
+      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, round_number: roundNumber ?? 1, difficulty, response_speed: responseSpeed }),
     });
     return res.json();
   },
@@ -78,8 +78,8 @@ export const debateApi = {
       if (res.ok) realTopics = await res.json();
     } catch (_) { /* 실패 시 빈 배열 유지 */ }
 
-    // 주 4일 근무제 mock 주제를 맨 앞에 고정 (HomeView는 상위 2개만 슬라이드로 표시)
-    const mockTopic = MOCK_TOPICS[1]; // id:102, 주 4일 근무제
+    // 원자력 mock 주제를 맨 앞에 고정 (HomeView는 상위 2개만 슬라이드로 표시)
+    const mockTopic = MOCK_TOPICS[1]; // id:102, 원자력
     const alreadyExists = realTopics.some(t => t.title === mockTopic.title);
     return alreadyExists ? realTopics : [mockTopic, ...realTopics];
   },

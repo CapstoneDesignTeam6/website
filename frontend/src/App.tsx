@@ -10,7 +10,7 @@ import {
 
 // --- Types & Services ---
 // --- 타입 및 서비스 ---
-import { DebateMessage, UserData, DiscussionSummaryResponse } from "./types";
+import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty/*, ResponseSpeed*/ } from "./types";
 import { debateApi, userApi } from "./services/api";
 
 // --- Components ---
@@ -33,8 +33,8 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [topic, setTopic] = useState("");
-  const [difficulty, setDifficulty] = useState<'easy' | 'hard'>('easy');
-  const [responseSpeed, setResponseSpeed] = useState<'fast' | 'slow'>('fast');
+  const [difficulty, setDifficulty] = useState<Difficulty>('normal');
+  // const [responseSpeed, setResponseSpeed] = useState<ResponseSpeed>('fast');
   const [messages, setMessages] = useState<DebateMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [debateResult, setDebateResult] = useState<DiscussionSummaryResponse | string>(""); // debateResult 타입 변경
@@ -90,7 +90,7 @@ export default function App() {
         initialAgentMessage = initialMessages;
       } else {
         // 실제 API 호출을 통해 토론 시작
-        const data = await debateApi.start(topic);
+        const data = await debateApi.start(topic, difficulty/*, responseSpeed*/);
         actualDiscussionId = data.id || Date.now(); // 백엔드에서 안 넘어오면 임시 discussionId 생성
         initialAgentMessage = [
           {
@@ -123,7 +123,7 @@ export default function App() {
 
     try {
       // 백엔드 API를 통해 메시지 전송
-      const data = await debateApi.sendMessage(topic, text, messages, discussionId, currentRound);
+      const data = await debateApi.sendMessage(topic, text, messages, discussionId, currentRound, difficulty/*, responseSpeed*/);
 
       // 사용자 메시지 객체 생성
       const userMsg: DebateMessage = {
@@ -213,8 +213,8 @@ export default function App() {
                     setTopic={setTopic}
                     difficulty={difficulty}
                     setDifficulty={setDifficulty}
-                    responseSpeed={responseSpeed}
-                    setResponseSpeed={setResponseSpeed}
+                    // responseSpeed={responseSpeed}
+                    // setResponseSpeed={setResponseSpeed}
                     onStart={handleStartDebate}
                   />
                 }
