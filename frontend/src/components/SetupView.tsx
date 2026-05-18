@@ -1,22 +1,26 @@
-import { 
-  FileText, 
-  Rocket 
+import {
+  FileText,
+  Rocket
 } from 'lucide-react';
 
 interface SetupViewProps {
   topic: string;
   setTopic: (t: string) => void;
-  agentCount: number;
-  setAgentCount: (n: number) => void;
+  difficulty: 'easy' | 'hard';
+  setDifficulty: (d: 'easy' | 'hard') => void;
+  responseSpeed: 'fast' | 'slow';
+  setResponseSpeed: (s: 'fast' | 'slow') => void;
   onStart: () => void;
 }
 
-export const SetupView = ({ 
-  topic, 
-  setTopic, 
-  agentCount, 
-  setAgentCount, 
-  onStart 
+export const SetupView = ({
+  topic,
+  setTopic,
+  difficulty,
+  setDifficulty,
+  responseSpeed,
+  setResponseSpeed,
+  onStart
 }: SetupViewProps) => (
   <div className="max-w-4xl mx-auto px-4 md:px-8 py-12 md:py-20">
     <header className="text-center mb-10 md:mb-12">
@@ -31,7 +35,7 @@ export const SetupView = ({
           <div className="flex-1">
             <h2 className="text-lg md:text-xl font-bold font-headline mb-4 md:mb-6">토론 주제를 입력하세요</h2>
             <div className="relative">
-              <textarea 
+              <textarea
                 className="w-full bg-surface-container p-4 md:p-6 rounded-xl border-none focus:ring-0 outline-none min-h-30 md:min-h-40 resize-none text-sm md:text-base"
                 placeholder="예: 주 4일 근무제, 생산성 향상인가 효율 저하인가?"
                 value={topic}
@@ -49,31 +53,53 @@ export const SetupView = ({
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold text-lg md:text-xl shrink-0">2</div>
           <div className="flex-1">
-            <div className="flex justify-between items-center mb-6 md:mb-8">
-              <h2 className="text-lg md:text-xl font-bold font-headline">참여 에이전트 수 선택</h2>
+            <h2 className="text-lg md:text-xl font-bold font-headline mb-4 md:mb-6">난이도 선택</h2>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setDifficulty('easy')}
+                className={`flex-1 py-3 md:py-4 rounded-xl border-2 font-bold text-sm md:text-base transition-all ${difficulty === 'easy' ? 'bg-primary border-primary text-white shadow-lg ring-2 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`}
+              >
+                쉬운 버전
+              </button>
+              <button
+                onClick={() => setDifficulty('hard')}
+                className={`flex-1 py-3 md:py-4 rounded-xl border-2 font-bold text-sm md:text-base transition-all ${difficulty === 'hard' ? 'bg-primary border-primary text-white shadow-lg ring-2 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`}
+              >
+                심화 버전
+              </button>
             </div>
-            <div className="flex items-center justify-center md:justify-start gap-4 md:gap-8">
-              <div className="flex flex-wrap justify-center gap-3 md:gap-4">
-                {[1, 2, 3, 4, 5].map(n => (
-                  <button 
-                    key={n} 
-                    onClick={() => setAgentCount(n)} // 에이전트 수 설정
-                    className={`w-8 h-8 md:w-12 md:h-12 rounded-full border-2 font-bold text-sm md:text-lg transition-all ${agentCount === n ? 'bg-primary border-primary text-white shadow-lg ring-2 md:ring-4 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`} // 선택된 에이전트 수에 따라 스타일 변경
-                  >
-                    {n}
-                  </button>
-                ))}
-              </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white rounded-2xl p-6 md:p-8 border border-gray-100 card-hover">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
+          <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-primary-fixed flex items-center justify-center text-primary font-bold text-lg md:text-xl shrink-0">3</div>
+          <div className="flex-1">
+            <h2 className="text-lg md:text-xl font-bold font-headline mb-4 md:mb-6">답변 모드 선택</h2>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setResponseSpeed('fast')}
+                className={`flex-1 py-3 md:py-4 rounded-xl border-2 font-bold text-sm md:text-base transition-all ${responseSpeed === 'fast' ? 'bg-primary border-primary text-white shadow-lg ring-2 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`}
+              >
+                빠른 답변
+              </button>
+              <button
+                onClick={() => setResponseSpeed('slow')}
+                className={`flex-1 py-3 md:py-4 rounded-xl border-2 font-bold text-sm md:text-base transition-all ${responseSpeed === 'slow' ? 'bg-primary border-primary text-white shadow-lg ring-2 ring-primary-fixed' : 'border-gray-100 text-outline hover:border-primary hover:text-primary'}`}
+              >
+                깊은 답변
+              </button>
             </div>
           </div>
         </div>
       </section>
 
       <div className="text-center pt-4 md:pt-8">
-        <button 
-          onClick={onStart} 
+        <button
+          onClick={onStart}
           disabled={!topic.trim()}
-          className="px-8 md:px-12 py-3 md:py-4 bg-primary text-white font-bold text-lg md:text-xl rounded-full transition-all flex items-center gap-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed" // 토론 시작 버튼
+          className="px-8 md:px-12 py-3 md:py-4 bg-primary text-white font-bold text-lg md:text-xl rounded-full transition-all flex items-center gap-3 mx-auto disabled:opacity-50 disabled:cursor-not-allowed"
         >
           토론 시작하기 <Rocket size={24} />
         </button>

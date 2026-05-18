@@ -33,7 +33,8 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [topic, setTopic] = useState("");
-  const [agentCount, setAgentCount] = useState(1);
+  const [difficulty, setDifficulty] = useState<'easy' | 'hard'>('easy');
+  const [responseSpeed, setResponseSpeed] = useState<'fast' | 'slow'>('fast');
   const [messages, setMessages] = useState<DebateMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [debateResult, setDebateResult] = useState<DiscussionSummaryResponse | string>(""); // debateResult 타입 변경
@@ -210,8 +211,10 @@ export default function App() {
                   <SetupView
                     topic={topic}
                     setTopic={setTopic}
-                    agentCount={agentCount}
-                    setAgentCount={setAgentCount}
+                    difficulty={difficulty}
+                    setDifficulty={setDifficulty}
+                    responseSpeed={responseSpeed}
+                    setResponseSpeed={setResponseSpeed}
                     onStart={handleStartDebate}
                   />
                 }
