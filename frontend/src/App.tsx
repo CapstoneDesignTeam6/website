@@ -255,6 +255,7 @@ export default function App() {
                       discussionId={discussionId}
                       setFullScreenMode={setFullScreenMode}
                       usedMaterialUrls={usedMaterialUrls}
+                      difficulty={difficulty}
                     />
                   ) : (
                     <Navigate to="/setup" replace /> // discussionId가 없으면 설정 페이지로 리다이렉트

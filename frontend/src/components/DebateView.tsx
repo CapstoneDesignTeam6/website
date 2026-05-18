@@ -1,23 +1,25 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { 
-  MessageSquare, 
-  Settings, 
-  Send, 
-  FileText, 
+import {
+  Send,
+  FileText,
   Brain,
   BarChart3,
   Loader2,
-  X, // 챗봇 닫기 버튼 아이콘으로 X 추가
-  ChevronLeft, 
+  X,
+  ChevronLeft,
   ChevronRight,
   User,
-  Minimize, // 전체 화면 축소 아이콘 추가
-  Maximize, // 전체 화면 아이콘 추가
-  RefreshCw, // 새 토론 시작 아이콘
-  Power, // 토론 종료 아이콘
-} from 'lucide-react'; // lucide-react 아이콘 임포트
+  Minimize,
+  Maximize,
+  RefreshCw,
+  Power,
+  Search,
+  Lightbulb,
+  Zap,
+  Bot,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DebateMessage, UserEvaluationScore, RelatedMaterial } from '../types';
+import { DebateMessage, UserEvaluationScore, RelatedMaterial, Difficulty } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api'; // debateApi 임포트
 import { MOCK_REBUTTAL_HINT } from '../mockData.ts'; // 목 반박 힌트 임포트
@@ -33,8 +35,89 @@ interface DebateViewProps {
   progress?: number;
   discussionId: number;
   setFullScreenMode: (isFullScreen: boolean) => void;
-  usedMaterialUrls?: string[]; // AI 주장 생성에 사용된 자료 URL 목록
+  usedMaterialUrls?: string[];
+  difficulty?: Difficulty;
 }
+
+const AGENT_STEPS_NORMAL = [
+  { icon: Bot,    label: '오케스트레이터', desc: '전략 수립 중' },
+  { icon: Search, label: '자료 탐색',      desc: '관련 자료 검색 중' },
+  { icon: Brain,  label: '주장 생성',      desc: '논거 구성 중' },
+];
+
+const AGENT_STEPS_EASY = [
+  { icon: Bot,      label: '오케스트레이터', desc: '전략 수립 중' },
+  { icon: Search,   label: '자료 탐색',      desc: '관련 자료 검색 중' },
+  { icon: Brain,    label: '주장 생성',      desc: '논거 구성 중' },
+  { icon: Lightbulb, label: '쉬운 설명',    desc: '표현 변환 중' },
+];
+
+const AgentThinkingIndicator = ({ isEasy }: { isEasy: boolean }) => {
+  const steps = isEasy ? AGENT_STEPS_EASY : AGENT_STEPS_NORMAL;
+  const [activeStep, setActiveStep] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveStep(prev => (prev + 1) % steps.length);
+    }, 1800);
+    return () => clearInterval(interval);
+  }, [steps.length]);
+
+  return (
+    <div className="flex items-start gap-4">
+      <div className="w-10 h-10 rounded-xl bg-gray-100 flex items-center justify-center text-gray-400 shrink-0">
+        <Zap size={20} className="text-primary animate-pulse" />
+      </div>
+      <div className="flex flex-col gap-3 py-1">
+        <div className="flex items-center gap-1.5">
+          {steps.map((_, i) => (
+            <React.Fragment key={i}>
+              <motion.div
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors ${
+                  i === activeStep
+                    ? 'bg-primary/10 text-primary'
+                    : i < activeStep
+                    ? 'bg-green-50 text-green-600'
+                    : 'bg-gray-100 text-gray-400'
+                }`}
+                animate={i === activeStep ? { scale: [1, 1.04, 1] } : { scale: 1 }}
+                transition={{ duration: 0.6, repeat: i === activeStep ? Infinity : 0, repeatType: 'loop' }}
+              >
+                {React.createElement(steps[i].icon, { size: 13 })}
+                <span>{steps[i].label}</span>
+              </motion.div>
+              {i < steps.length - 1 && (
+                <motion.span
+                  className={`text-[10px] font-bold ${i < activeStep ? 'text-green-400' : 'text-gray-300'}`}
+                  animate={i === activeStep - 1 ? { opacity: [0.4, 1, 0.4] } : {}}
+                  transition={{ duration: 1, repeat: Infinity }}
+                >
+                  →
+                </motion.span>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 px-1">
+          <motion.div
+            className="flex gap-1"
+            initial={false}
+          >
+            {[0, 1, 2].map(i => (
+              <motion.span
+                key={i}
+                className="w-1.5 h-1.5 rounded-full bg-primary"
+                animate={{ opacity: [0.3, 1, 0.3], y: [0, -3, 0] }}
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
+              />
+            ))}
+          </motion.div>
+          <span className="text-[11px] text-outline">{steps[activeStep].desc}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const DebateView = ({
   topic,
@@ -48,6 +131,7 @@ export const DebateView = ({
   progress = 25,
   discussionId,
   usedMaterialUrls,
+  difficulty = 'normal',
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -452,15 +536,7 @@ export const DebateView = ({
           })}
 
           {isGenerating && (
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-gray-200 flex items-center justify-center text-gray-400 shrink-0">
-                <Loader2 size={20} className="animate-spin" />
-              </div>
-              <div className="space-y-2">
-                <div className="h-4 w-24 bg-gray-100 rounded animate-pulse" />
-                <div className="h-20 w-64 bg-gray-100 rounded-2xl animate-pulse" />
-              </div>
-            </div>
+            <AgentThinkingIndicator isEasy={difficulty === 'easy'} />
           )}
         </div>
 
