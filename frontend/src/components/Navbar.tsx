@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { 
-  Bell, 
-  User, 
-  Settings, 
+import {
+  Bell,
+  User,
+  Settings,
   Power,
   Menu,
   X
@@ -10,8 +10,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { userApi } from '../services/api';
-
-const logo = '/src/assets/logo.png';
+import logo from '../assets/logo.png';
 
 interface NavbarProps {
   isLoggedIn: boolean;
