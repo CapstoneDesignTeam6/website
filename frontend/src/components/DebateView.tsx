@@ -613,14 +613,25 @@ export const DebateView = ({
                   <div className="flex justify-between items-center pt-3 border-t border-gray-50">
                     <span className="text-[10px] font-bold text-outline uppercase">출처: {material.source}</span>
                     {material.url ? (
-                      <a
-                        href={material.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[10px] font-bold text-primary hover:underline"
-                      >
-                        원문 보기 →
-                      </a>
+                      material.url.toLowerCase().endsWith('.pdf') ? (
+                        <a
+                          href={material.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-bold text-red-500 hover:underline flex items-center gap-1"
+                        >
+                          <FileText size={11} /> PDF 보기 →
+                        </a>
+                      ) : (
+                        <a
+                          href={material.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-bold text-primary hover:underline"
+                        >
+                          원문 보기 →
+                        </a>
+                      )
                     ) : (
                       <span className="text-[10px] text-gray-300">링크 없음</span>
                     )}
