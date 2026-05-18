@@ -20,7 +20,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { DebateMessage } from '../types'; // DebateMessage 타입 임포트
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api'; // debateApi 임포트
-import { MOCK_RELATED_MATERIALS } from '../mockData.ts'; // 목 관련 자료 임포트
 import { MOCK_REBUTTAL_HINT } from '../mockData.ts'; // 목 반박 힌트 임포트
 
 interface DebateViewProps {
@@ -63,6 +62,7 @@ export const DebateView = ({
   const [isFirstInput, setIsFirstInput] = useState(true);
   const [placeholder, setPlaceholder] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const navigate = useNavigate();
   const navigateTo = (path: string) => {
@@ -77,12 +77,15 @@ export const DebateView = ({
   ];
 
   useEffect(() => {
+    setPlaceholder("Ctrl + Enter를 눌러 의견을 제출해주세요.");
+    /*
     if (isFirstInput) {
       const randomExample = examples[Math.floor(Math.random() * examples.length)];
       setPlaceholder(randomExample);
     } else {
-      setPlaceholder("의견을 입력해주세요.");
+      setPlaceholder("Ctrl + Enter를 눌러 의견을 제출해주세요");
     }
+    */
   }, [isFirstInput, topic]);
 
   useEffect(() => {
@@ -100,11 +103,10 @@ export const DebateView = ({
     const fetchRelatedMaterials = async () => {
       setIsLoadingRelatedMaterials(true); // 로딩 시작
       try {
-        const data = await debateApi.getRelatedMaterials(topic); // API 호출
-        setRelatedMaterials(data); // 데이터 설정 
+        const data = await debateApi.getRelatedMaterials(topic);
+        setRelatedMaterials(data);
       } catch (error) {
         console.error("Failed to fetch related materials:", error);
-        setRelatedMaterials(MOCK_RELATED_MATERIALS); // API 호출 실패 시 목 데이터 사용
       } finally {
         setIsLoadingRelatedMaterials(false); // 로딩 종료
       }
@@ -118,6 +120,15 @@ export const DebateView = ({
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = '2rem';
+    const newHeight = Math.min(el.scrollHeight, 256);
+    el.style.height = `${newHeight}px`;
+    el.style.overflowY = el.scrollHeight > 256 ? 'auto' : 'hidden';
+  }, [inputText]);
 
   const handleSend = () => {
     if (!inputText.trim() || isGenerating) return;
@@ -282,7 +293,7 @@ export const DebateView = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-12 space-y-6 md:space-y-8 custom-scrollbar relative" ref={scrollRef}>
+        <div className="flex-1 overflow-y-auto p-4 md:p-12 pb-32 md:pb-36 space-y-6 md:space-y-8 custom-scrollbar relative" ref={scrollRef}>
           {messages.length === 0 && !isGenerating && (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-40">
               <Brain size={48} className="text-outline" />
@@ -343,32 +354,36 @@ export const DebateView = ({
           )}
         </div>
 
-        <div className="pt-2 md:pt-3 pb-6 md:pb-6 bg-transparent"> {/* 입력창 섹션 */}
+        <div className="absolute bottom-0 left-0 right-0 pt-2 md:pt-3 pb-6 md:pb-6 bg-transparent"> {/* 입력창 섹션 */}
           <div className="max-w-3xl mx-auto">
             {isFirstInput && (
               <div className="mb-2 px-4"> {/* 첫 입력 가이드 메시지 마진 조정 */}
-                <span className="text-xs font-bold text-primary flex items-center gap-2 animate-bounce">
-                  💡 첫 주장에는 입장을 포함해주세요
+                <span className="text-xs font-bold text-primary flex items-center gap-2">
+                  💡 첫 주장에는 찬반 입장을 포함해주세요
                 </span>
               </div>
             )}
-            <div className="flex items-center gap-2 md:gap-4 bg-white p-1 md:p-2 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100"> {/* 입력창 컨테이너 패딩 조정 */}
-              <input 
-                className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-xs md:text-sm px-4 py-1" /* 입력 필드 상하 패딩 추가 */
+            <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 gap-2">
+              <textarea
+                ref={textareaRef}
+                className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-xs md:text-sm resize-none custom-scrollbar"
+                style={{ minHeight: '2rem', maxHeight: '16rem', overflowY: 'hidden', padding: '1rem 0.5rem' }}
                 placeholder={placeholder}
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)} // 입력 필드 높이 조정을 위해 py-2 제거
+                onChange={(e) => {
+                  setInputText(e.target.value);
+                }}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
+                  if (e.key === 'Enter' && e.ctrlKey) {
                     e.preventDefault();
                     handleSend();
                   }
                 }}
               />
-              <button 
+              <button
                 onClick={handleSend}
                 disabled={!inputText.trim() || isGenerating}
-                className="p-1 md:p-2 bg-primary text-white rounded-xl md:rounded-2xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50" /* 전송 버튼 패딩 조정 */
+                className="shrink-0 p-1 md:p-2 bg-primary text-white rounded-xl md:rounded-2xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
               >
                 <Send size={18} className="md:w-5 md:h-5" />
               </button>
@@ -444,7 +459,7 @@ export const DebateView = ({
           > {/* 챗봇 토글 버튼 */}
             {/* 아이콘에 이미지 삽입 */}
             <img 
-              src="/help_icon.png" 
+              src="/help_icon.png"  // public 폴더에 있음
               alt="Help Icon" 
               className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
               referrerPolicy="no-referrer"

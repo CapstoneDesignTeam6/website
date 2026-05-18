@@ -138,19 +138,18 @@ export const debateApi = {
     });
     return res.json();
   },
-  getRelatedMaterials: async (topic: string): Promise<RelatedMaterial[]> => { // 관련 자료 가져오기 API
-    // 주 4일 근무제 주제는 mock 데이터 반환
-    if (topic.includes('주 4일')) {
+  getRelatedMaterials: async (topic: string): Promise<RelatedMaterial[]> => {
+    try {
+      const res = await fetch(`/api/debates/related-materials?topic=${encodeURIComponent(topic)}`, {
+        headers: getHeaders(),
+      });
+      if (!res.ok) throw new Error(`API error: ${res.statusText}`);
+      const data: RelatedMaterial[] = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+      return MOCK_RELATED_MATERIALS as RelatedMaterial[];
+    } catch (_) {
       return MOCK_RELATED_MATERIALS as RelatedMaterial[];
     }
-    const res = await fetch(`/api/debates/related-materials?topic=${encodeURIComponent(topic)}`, {
-      headers: getHeaders(),
-    });
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Failed to fetch related materials: ${res.status} ${res.statusText} - ${errorText}`);
-    }
-    return res.json();
   },
 
 };
