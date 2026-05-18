@@ -17,7 +17,7 @@ import {
   Power, // 토론 종료 아이콘
 } from 'lucide-react'; // lucide-react 아이콘 임포트
 import { motion, AnimatePresence } from 'motion/react';
-import { DebateMessage } from '../types'; // DebateMessage 타입 임포트
+import { DebateMessage, UserEvaluationScore } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api'; // debateApi 임포트
 import { MOCK_REBUTTAL_HINT } from '../mockData.ts'; // 목 반박 힌트 임포트
@@ -48,8 +48,10 @@ export const DebateView = ({
   discussionId, // Destructure the new prop
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
-  const [isFullScreen, setIsFullScreen] = useState(false); // 전체 화면 상태
-  // 관련 자료 사이드바 상태 (이전 isLeftSidebarOpen -> isRelatedMaterialsSidebarOpen)
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isScoreSidebarOpen, setIsScoreSidebarOpen] = useState(true);
+  const [evaluationScore, setEvaluationScore] = useState<UserEvaluationScore | null>(null);
+  const [isLoadingScore, setIsLoadingScore] = useState(false);
   const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
   const [relatedMaterials, setRelatedMaterials] = useState<any[]>([]); // 관련 자료 상태
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
@@ -97,6 +99,21 @@ export const DebateView = ({
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  useEffect(() => {
+    if (messages.length === 0) return;
+    const fetchScore = async () => {
+      setIsLoadingScore(true);
+      try {
+        const score = await debateApi.getUserEvaluation(discussionId);
+        setEvaluationScore(score);
+      } catch (_) {
+      } finally {
+        setIsLoadingScore(false);
+      }
+    };
+    fetchScore();
+  }, [messages.length, discussionId]);
 
   // 관련 자료를 백엔드에서 불러오는 useEffect
   useEffect(() => {
@@ -241,18 +258,99 @@ export const DebateView = ({
     });
   };
 
+  const scoreLabels = [
+    { key: 'specificity' as const,     label: '발언 구체성',  desc: '불확실한 발언의 비율에 따른 점수' },
+    { key: 'understanding' as const,   label: '상황 이해도',  desc: '현재 주제와 관련 있는 주장과 발언을 하는지에 따른 점수' },
+    { key: 'logic' as const,           label: '논리력',       desc: '근거의 품질, 주장의 검증 가능성과 신뢰성, 반례의 고려 유무 등 전반적인 논리력에 따른 점수' },
+    { key: 'informativeness' as const, label: '정보 주도성',  desc: 'AI의 발언 외의 새로운 정보를 추가적으로 언급했는지에 따른 점수' },
+    { key: 'bias' as const,            label: '편향도',       desc: '유리한 통계만 사용하는지, 반례를 무시하는지, 감정적인 선동만을 무기로 하는지에 따른 점수' },
+  ];
+
+  const PentagonChart = ({ score }: { score: UserEvaluationScore }) => {
+    const size = 180;
+    const cx = size / 2;
+    const cy = size / 2;
+    const maxR = 70;
+    const n = 5;
+    const angles = Array.from({ length: n }, (_, i) => (Math.PI * 2 * i) / n - Math.PI / 2);
+    const toXY = (r: number, angle: number) => ({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
+    const values = [score.specificity, score.understanding, score.logic, score.informativeness, 5 - score.bias];
+    const gridLevels = [1, 2, 3, 4, 5];
+    const gridPolygon = (ratio: number) => angles.map(a => { const p = toXY(maxR * ratio, a); return `${p.x},${p.y}`; }).join(' ');
+    const dataPolygon = angles.map((a, i) => { const p = toXY(maxR * (values[i] / 5), a); return `${p.x},${p.y}`; }).join(' ');
+    return (
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {gridLevels.map(lvl => <polygon key={lvl} points={gridPolygon(lvl / 5)} fill="none" stroke="#e5e7eb" strokeWidth="1" />)}
+        {angles.map((a, i) => { const outer = toXY(maxR, a); return <line key={i} x1={cx} y1={cy} x2={outer.x} y2={outer.y} stroke="#e5e7eb" strokeWidth="1" />; })}
+        <polygon points={dataPolygon} fill="rgba(99,102,241,0.2)" stroke="#6366f1" strokeWidth="2" />
+        {angles.map((a, i) => { const p = toXY(maxR * (values[i] / 5), a); return <circle key={i} cx={p.x} cy={p.y} r="4" fill="#6366f1" />; })}
+        {angles.map((a, i) => { const p = toXY(maxR + 18, a); return <text key={i} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" fontSize="9" fontWeight="700" fill="#374151">{scoreLabels[i].label}</text>; })}
+      </svg>
+    );
+  };
+
   return (
     <div className={`flex ${isFullScreen ? 'h-screen' : 'h-[calc(100vh-72px)]'} overflow-hidden relative`}>
-      {/* Left Sidebar (비어있음 - 이전 관련 자료 사이드바는 우측으로 이동) */}
-      {/* <motion.aside
+      {/* Left Sidebar: 실시간 평가 점수 */}
+      <motion.aside
         initial={false}
-        animate={{ width: 0, opacity: 0 }} // 항상 닫혀있음
-        className="bg-white flex flex-col border-r border-gray-200 overflow-hidden relative md:flex"
+        animate={{ width: isScoreSidebarOpen ? 320 : 0, opacity: isScoreSidebarOpen ? 1 : 0 }}
+        className="bg-white flex flex-col border-r border-gray-200 overflow-hidden relative md:flex order-first"
       >
-      </motion.aside> */}
+        <div className="p-6 flex flex-col h-full w-80 overflow-y-auto custom-scrollbar">
+          <div className="mb-6 flex items-center gap-2">
+            <BarChart3 size={20} className="text-primary" />
+            <h2 className="text-base font-black font-headline">실시간 평가 지표</h2>
+          </div>
+          {isLoadingScore ? (
+            <div className="flex flex-col items-center justify-center flex-1">
+              <Loader2 size={28} className="animate-spin text-primary mb-3" />
+              <p className="text-xs text-outline">점수를 계산하는 중...</p>
+            </div>
+          ) : evaluationScore ? (
+            <>
+              <div className="flex justify-center mb-4 pt-6">
+                <PentagonChart score={evaluationScore} />
+              </div>
+              <div className="space-y-3">
+                {scoreLabels.map(({ key, label, desc }) => {
+                  const raw = evaluationScore[key];
+                  const displayValue = key === 'bias' ? 5 - raw : raw;
+                  return (
+                    <div key={key} className="bg-gray-50 rounded-xl p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-bold text-on-surface">{label}</span>
+                        <span className="text-xs font-black text-primary">{displayValue} / 5</span>
+                      </div>
+                      <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-2">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${(displayValue / 5) * 100}%` }}
+                          className="h-full bg-primary rounded-full"
+                        />
+                      </div>
+                      <p className="text-[10px] text-outline leading-relaxed">{desc}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50 space-y-2">
+              <BarChart3 size={36} className="text-outline" />
+              <p className="text-xs text-outline">첫 발언 후 점수가 표시됩니다.</p>
+            </div>
+          )}
+        </div>
+      </motion.aside>
 
       {/* Left Sidebar Toggle Button */}
-      {/* 이전 좌측 사이드바 토글 버튼은 우측 사이드바 토글 버튼으로 변경됨 */}
+      <button
+        onClick={() => setIsScoreSidebarOpen(!isScoreSidebarOpen)}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isScoreSidebarOpen ? 'left-77' : 'left-2'}`}
+      >
+        {isScoreSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+      </button>
 
       {/* Center: Chat */}
       <main className="flex-1 flex flex-col bg-surface overflow-hidden relative">

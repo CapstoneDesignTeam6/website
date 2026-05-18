@@ -1,5 +1,5 @@
 // frontend/src/mockData.ts
-import { DebateMessage, DiscussionSummaryResponse } from './types'; // DebateMessage, DiscussionSummaryResponse 타입 임포트
+import { DebateMessage, DiscussionSummaryResponse, UserEvaluationScore } from './types'; // DebateMessage, DiscussionSummaryResponse 타입 임포트
 
 // 목(mock) 관련 자료 데이터
 export const MOCK_RELATED_MATERIALS = [
@@ -169,6 +169,15 @@ export const MOCK_DEBATE_MESSAGES: DebateMessage[] = [
     round: 1,
   }
 ];
+
+// 목(mock) 사용자 평가 점수 데이터 (백엔드 실패 시 사용)
+export const MOCK_USER_EVALUATION_SCORE: UserEvaluationScore = {
+  specificity: 4,     // 발언 구체성 (0~5)
+  understanding: 3,   // 상황 이해도 (0~5)
+  logic: 3,           // 논리력 (0~5)
+  informativeness: 2, // 정보 주도성 (0~5)
+  bias: 1,            // 편향도 (0~5, 낮을수록 좋음)
+};
 
 // 목(mock) 반박 힌트 데이터
 export const MOCK_REBUTTAL_HINT = `원자력 발전의 전 생애주기 비용과 사회적 위험이 크다는 우려는 이해하지만, 실제 사례를 보면 방사성 폐기물 관리는 이미 체계적인 기술로 대응하고 있어요. 예를 들어 세계원자력협회(World Nuclear Association)에 따르면 원자력 연료 사이클의 모든 단계에서 발생하는 폐기물 비용은 이미 전기 요금에 포함되어 투명하게 관리되고 있고, 캐나다나 핀란드 같은 국가들은 이미 심지층 처분장(DGR) 건설을 위한 구체적인 허가 절차를 밟거나 부지를 선정하며 위험을 통제하고 있어요. 반면 재생에너지의 불안정한 공급을 막기 위해 필요한 배터리(ESS) 생산 과정은 훨씬 더 파괴적이에요. 특허 관련 전문 매체인 PatentPC의 자료를 보면 리튬 이온 배터리를 만드는 과정에서만 매년 5,000만에서 1억 톤에 달하는 이산화탄소가 배출되는데, 이는 배터리를 만들기 위해 리튬, 코발트, 니켈을 캐내는 과정에서 막대한 에너지를 쓰고 환경을 훼손하기 때문이에요. 결국 폐기물 관리를 위해 이미 비용을 지불하며 체계적으로 대응하고 있는 원자력에 비해, 재생에너지의 간헐성을 메우려다 발생하는 배터리 제조 과정의 탄소 배출과 자원 고갈 문제는 생태계에 더 돌이키기 어려운 타격을 주기 때문에 우리는 원자력 발전소를 증설해야 해요. 핀란드나 캐나다의 폐기물 처리 기술 사례와 배터리 제조 시 발생하는 연간 최대 1억 톤의 탄소 배출 수치를 근거로, 상대방이 주장하는 원자력의 환경 비용보다 재생에너지 보완을 위한 에너지 저장 장치가 초래할 환경 파괴가 더 크다는 점을 짚으며 논리를 펼쳐보는 건 어떨까요?`;

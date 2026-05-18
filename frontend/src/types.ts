@@ -69,6 +69,15 @@ export interface DiscussionSessionResponse {
   // 백엔드 응답에 따라 다른 필드 추가 가능
 }
 
+// 실시간 사용자 평가 점수 타입
+export interface UserEvaluationScore {
+  specificity: number;     // 발언 구체성 (0~5)
+  understanding: number;   // 상황 이해도 (0~5)
+  logic: number;           // 논리력 (0~5)
+  informativeness: number; // 정보 주도성 (0~5)
+  bias: number;            // 편향도 (0~5, 낮을수록 좋음 → UI에서 반전)
+}
+
 // 토론 결과 보고서 요약 타입
 export interface DiscussionSummaryResponse {
   summary: string; // 토론 요약
