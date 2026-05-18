@@ -72,6 +72,17 @@ export interface DiscussionSessionResponse {
   // 백엔드 응답에 따라 다른 필드 추가 가능
 }
 
+// 관련 자료 항목 타입
+export interface RelatedMaterial {
+  category: string;
+  color: string;
+  title: string;
+  description: string;
+  source: string;
+  url?: string;
+  used?: boolean; // 주장 생성에 사용된 자료 여부
+}
+
 // 실시간 사용자 평가 점수 타입
 export interface UserEvaluationScore {
   specificity: number;     // 발언 구체성 (0~5)

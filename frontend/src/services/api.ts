@@ -1,15 +1,5 @@
-import { DebateMessage, UserData, SearchDebateItem, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed } from '../types';
+import { DebateMessage, UserData, SearchDebateItem, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed, RelatedMaterial } from '../types';
 import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE } from '../mockData'; // MOCK_DEBATE_SUMMARY 임포트
- 
-// 관련 자료 항목 타입 (백엔드 RelatedMaterialSchema와 일치)
-interface RelatedMaterial {
-  category: string; // 자료의 카테고리 (예: 경제, 사회, 기술)
-  color: string; // 프론트엔드에서 사용할 색상 클래스 (예: text-blue-600)
-  title: string; // 자료의 제목
-  description: string; // 자료의 상세 설명
-  source: string; // 자료의 출처
-  url?: string; // 원문 링크 (선택)
-}
 
 // 백엔드 Trending API 응답 항목 타입
 interface TrendingTopicResponse {
@@ -49,7 +39,7 @@ export const debateApi = {
     }
     return res.json(); // 성공적인 응답일 경우 JSON으로 파싱합니다.
   }, // 메시지 전송 API
-  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number, difficulty?: Difficulty, responseSpeed?: ResponseSpeed): Promise<{ userSide: string; aiResponse: DebateMessage }> => {
+  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number, difficulty?: Difficulty, responseSpeed?: ResponseSpeed): Promise<{ userSide: string; aiResponse: DebateMessage; used_material_urls?: string[] }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),

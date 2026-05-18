@@ -17,7 +17,7 @@ import {
   Power, // 토론 종료 아이콘
 } from 'lucide-react'; // lucide-react 아이콘 임포트
 import { motion, AnimatePresence } from 'motion/react';
-import { DebateMessage, UserEvaluationScore } from '../types';
+import { DebateMessage, UserEvaluationScore, RelatedMaterial } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api'; // debateApi 임포트
 import { MOCK_REBUTTAL_HINT } from '../mockData.ts'; // 목 반박 힌트 임포트
@@ -32,20 +32,22 @@ interface DebateViewProps {
   totalRounds?: number;
   progress?: number;
   discussionId: number;
-  setFullScreenMode: (isFullScreen: boolean) => void; // 전체 화면 모드 설정 함수 추가
+  setFullScreenMode: (isFullScreen: boolean) => void;
+  usedMaterialUrls?: string[]; // AI 주장 생성에 사용된 자료 URL 목록
 }
 
-export const DebateView = ({ 
-  topic, 
-  messages, 
-  setFullScreenMode, // prop으로 전달받음
-  onSendMessage, 
+export const DebateView = ({
+  topic,
+  messages,
+  setFullScreenMode,
+  onSendMessage,
   isGenerating,
   onFinish,
   currentRound = 1,
   totalRounds = 4,
   progress = 25,
-  discussionId, // Destructure the new prop
+  discussionId,
+  usedMaterialUrls,
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -53,7 +55,7 @@ export const DebateView = ({
   const [evaluationScore, setEvaluationScore] = useState<UserEvaluationScore | null>(null);
   const [isLoadingScore, setIsLoadingScore] = useState(false);
   const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
-  const [relatedMaterials, setRelatedMaterials] = useState<any[]>([]); // 관련 자료 상태
+  const [relatedMaterials, setRelatedMaterials] = useState<RelatedMaterial[]>([]); // 관련 자료 상태
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
   const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
     { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"라고 입력해보세요.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
@@ -130,6 +132,16 @@ export const DebateView = ({
     };
     fetchRelatedMaterials();
   }, [topic]); // 토론 주제가 변경될 때마다 다시 불러옴
+
+  // 사용된 자료 URL이 바뀌면 해당 자료를 위로 재배치
+  useEffect(() => {
+    if (!usedMaterialUrls || usedMaterialUrls.length === 0) return;
+    setRelatedMaterials(prev => {
+      const used = prev.filter(m => m.url && usedMaterialUrls.includes(m.url)).map(m => ({ ...m, used: true }));
+      const unused = prev.filter(m => !m.url || !usedMaterialUrls.includes(m.url)).map(m => ({ ...m, used: false }));
+      return [...used, ...unused];
+    });
+  }, [usedMaterialUrls]);
 
   useEffect(() => {
     console.log("DebateView received messages:", messages); // 디버깅용 로그 추가
@@ -589,9 +601,12 @@ export const DebateView = ({
           ) : relatedMaterials.length > 0 ? ( // 관련 자료가 있을 때
             <div className="space-y-10">
               {relatedMaterials.map((material, i) => (
-                <article key={i} className="bg-white rounded-2xl border border-gray-100 p-5 card-hover">
-                  <span className={`text-[10px] font-bold ${material.color} mb-1 block`}>{material.category}</span>
-                  <h3 className="text-sm font-bold leading-tight mb-2">{material.title}</h3> {/* 자료 제목 */}
+                <article key={i} className={`bg-white rounded-2xl border p-5 card-hover ${material.used ? 'border-primary/40 ring-1 ring-primary/20' : 'border-gray-100'}`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className={`text-[10px] font-bold ${material.color}`}>{material.category}</span>
+                    {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">주장에 사용됨</span>}
+                  </div>
+                  <h3 className="text-sm font-bold leading-tight mb-2">{material.title}</h3>
                   {material.description && (
                     <p className="text-[11px] text-outline leading-relaxed line-clamp-3 mb-3">{material.description}</p>
                   )}

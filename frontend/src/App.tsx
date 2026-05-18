@@ -43,6 +43,7 @@ export default function App() {
   const [progress, setProgress] = useState(0);
   const [fullScreenMode, setFullScreenMode] = useState(false); // 전체 화면 모드 상태 추가
   const [discussionId, setDiscussionId] = useState<number | null>(null); // discussionId 상태
+  const [usedMaterialUrls, setUsedMaterialUrls] = useState<string[]>([]); // AI 주장에 사용된 자료 URL
 
   useEffect(() => {
     const initAuth = async () => {
@@ -124,6 +125,9 @@ export default function App() {
     try {
       // 백엔드 API를 통해 메시지 전송
       const data = await debateApi.sendMessage(topic, text, messages, discussionId, currentRound, difficulty/*, responseSpeed*/);
+      if (data.used_material_urls && data.used_material_urls.length > 0) {
+        setUsedMaterialUrls(data.used_material_urls);
+      }
 
       // 사용자 메시지 객체 생성
       const userMsg: DebateMessage = {
@@ -248,8 +252,9 @@ export default function App() {
                       currentRound={currentRound}
                       totalRounds={totalRounds}
                       progress={progress}
-                      discussionId={discussionId} // discussionId 전달
-                      setFullScreenMode={setFullScreenMode} // 전체 화면 모드 설정 함수 전달
+                      discussionId={discussionId}
+                      setFullScreenMode={setFullScreenMode}
+                      usedMaterialUrls={usedMaterialUrls}
                     />
                   ) : (
                     <Navigate to="/setup" replace /> // discussionId가 없으면 설정 페이지로 리다이렉트
