@@ -56,18 +56,6 @@ export interface DebateMessage {
   round?: number;
 }
 
-export interface DiscussionSessionResponse { 
-  // 토론 세션 메타데이터
-  id: number;
-  user_id: number;
-  title: string;
-  topic: string;
-  status: string;
-  score: number;
-  exp_earned: number;
-  created_at: string;
-}
-
 export type AgentStepType = 'orchestrator' | 'search' | 'generate' | 'simplify';
 export type AgentStepStatus = 'pending' | 'running' | 'done';
 
