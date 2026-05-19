@@ -171,23 +171,24 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 pt-0 pb-6 md:pb-10 overflow-x-hidden">
-      {/* 전체 컨테이너 패딩 조정 */}
-      <div className="relative mb-6 md:mb-12 min-h-125 flex items-center w-full"> {/* 배너 높이 조정 및 내용 수직 중앙 정렬 */}
+    <div className="max-w-7xl mx-auto px-4 md:px-8 pt-8 pb-6 md:pb-10 overflow-x-hidden">
+      {/* 전체 컨테이너*/}
+      <div className="relative mb-6 md:mb-12 w-full"> {/* 배너*/}
+        <div className="relative w-full overflow-hidden">
         <motion.div
-          className="flex cursor-grab active:cursor-grabbing w-full" // motion.div가 부모의 전체 너비를 차지하도록 w-full 추가
-          animate={{ x: `-${currentSlide * 100}%` }} // 슬라이드 애니메이션
-          transition={isAnimating ? { type: "spring", damping: 25, stiffness: 120 } : { duration: 0 }} // 애니메이션 중일 때만 spring, 아니면 즉시 이동
+          className="flex cursor-grab active:cursor-grabbing w-full"
+          animate={{ x: `-${currentSlide * 100}%` }}
+          transition={isAnimating ? { type: "spring", damping: 25, stiffness: 120 } : { duration: 0 }}
           drag="x"
           dragConstraints={{ left: 0, right: 0 }}
           onDragEnd={handleDragEnd}
-          onAnimationComplete={handleAnimationComplete} // 애니메이션 완료 시 호출
+          onAnimationComplete={handleAnimationComplete}
         >
           {heroSlides.length > 0 ? (
             heroSlides.map((slide, i) => (
               <div // 슬라이드 패딩 조정 및 배경 그라데이션 클래스 수정, 내용 중앙 정렬
                 key={slide.id || i} // id가 있으면 id 사용, 없으면 index 사용
-                className={`relative bg-linear-to-br ${slide.color} rounded-3xl md:rounded-[2.5rem] p-4 md:p-8 w-full shrink-0 overflow-hidden`}
+                className={`relative bg-linear-to-br ${slide.color} rounded-3xl md:rounded-[2.5rem] p-4 pb-12 sm:pb-14 md:p-8 md:pb-16 w-full shrink-0 overflow-hidden`}
               >
                 {slide.isAboutAgora ? ( // About Agora 슬라이드 내용
                   <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center relative z-10">
@@ -334,59 +335,37 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
             </div>
           )}
         </motion.div>
-      </div>
 
-      {/* 슬라이드 인디케이터 (배너 안으로 이동) */}
-      {heroSlides.length > 3 && ( // 실제 슬라이드 개수 (클론 제외)가 1개 초과일 때만 인디케이터 표시 (클론 포함 3개 이상)
-        <div className="absolute bottom-6 left-0 right-0 z-10 flex justify-center gap-3">
-          {heroSlides.slice(1, heroSlides.length - 1).map((_, i) => { 
-            // 실제 슬라이드 개수 (클론 제외)
-            const actualSlideCount = heroSlides.length - 2;
-            // 현재 활성화되어야 할 인디케이터의 실제 슬라이드 인덱스 계산
-            let activeIndicatorIndex = -1;
-            if (currentSlide >= 1 && currentSlide <= actualSlideCount) {
-              activeIndicatorIndex = currentSlide - 1;
-            } else if (currentSlide === 0) { // 첫 번째 클론 슬라이드 (실제 마지막 슬라이드)
-              activeIndicatorIndex = actualSlideCount - 1;
-            } else if (currentSlide === heroSlides.length - 1) { // 마지막 클론 슬라이드 (실제 첫 번째 슬라이드)
-              activeIndicatorIndex = 0;
-            }
-
-            return (
-            <button
-              key={heroSlides[i + 1].id || i + 1} // 실제 슬라이드의 id 또는 인덱스 사용
-              onClick={() => {
-                if (isAnimating) return; // 애니메이션 중이면 클릭 무시
-                setIsAnimating(true); // 애니메이션 시작
-                setCurrentSlide(i + 1); // 실제 슬라이드 인덱스로 이동
-              }}
-              className={`h-2 rounded-full transition-all duration-300 ${i === activeIndicatorIndex ? "w-4 bg-primary" : "w-2 bg-gray-300"}`}
-              aria-label={`Go to slide ${i + 1}`} // 접근성을 위한 라벨
-            />
-            );
+        {/* 슬라이드 인디케이터 */}
+        {heroSlides.length > 3 && (
+          <div className="absolute bottom-4 sm:bottom-5 md:bottom-5 left-0 right-0 z-10 flex justify-center gap-3">
+            {heroSlides.slice(1, heroSlides.length - 1).map((_, i) => {
+              const actualSlideCount = heroSlides.length - 2;
+              let activeIndicatorIndex = -1;
+              if (currentSlide >= 1 && currentSlide <= actualSlideCount) {
+                activeIndicatorIndex = currentSlide - 1;
+              } else if (currentSlide === 0) {
+                activeIndicatorIndex = actualSlideCount - 1;
+              } else if (currentSlide === heroSlides.length - 1) {
+                activeIndicatorIndex = 0;
+              }
+              return (
+                <button
+                  key={heroSlides[i + 1].id || i + 1}
+                  onClick={() => {
+                    if (isAnimating) return;
+                    setIsAnimating(true);
+                    setCurrentSlide(i + 1);
+                  }}
+                  className={`h-2 rounded-full transition-all duration-300 ${i === activeIndicatorIndex ? "w-4 bg-primary" : "w-2 bg-gray-300"}`}
+                  aria-label={`Go to slide ${i + 1}`}
+                />
+              );
             })}
+          </div>
+        )}
         </div>
-      )}
-
-      {/* 이전/다음 슬라이드 버튼 */}
-      {heroSlides.length > 3 && ( // 실제 슬라이드 개수 (클론 제외)가 1개 초과일 때만 버튼 표시 (클론 포함 3개 이상)
-        <>
-          <button
-            onClick={goToPrevSlide}
-            className="absolute top-1/2 -translate-y-1/2 left-4 md:left-8 z-10 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:scale-105 transition-transform hidden md:block" // 모바일에서는 숨김
-            aria-label="Previous slide"
-          >
-            <ChevronLeft size={24} />
-          </button>
-          <button
-            onClick={goToNextSlide}
-            className="absolute top-1/2 -translate-y-1/2 right-4 md:right-8 z-10 p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:scale-105 transition-transform hidden md:block" // 모바일에서는 숨김
-            aria-label="Next slide"
-          >
-            <ChevronRight size={24} />
-          </button>
-        </>
-      )}
+      </div>
 
       <div className="grid md:grid-cols-3 gap-6 md:gap-12 mb-16 md:mb-32">
         {[
