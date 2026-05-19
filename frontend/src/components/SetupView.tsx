@@ -26,7 +26,7 @@ export const SetupView = ({
   <div className="max-w-4xl mx-auto px-4 md:px-8 py-12 md:py-20">
     <header className="text-center mb-10 md:mb-12">
       <h1 className="text-2xl md:text-4xl font-extrabold font-headline tracking-tight mb-4">새로운 토론 시작</h1>
-      <p className="text-sm md:text-base text-outline">최신 뉴스를 기반으로 심도 있는 토론을 나눠보세요.</p>
+      <p className="text-sm md:text-base text-outline">최신 뉴스를 기반으로 에이전트와 토론을 나눠보세요.</p>
     </header>
 
     <div className="space-y-8 md:space-y-12">
