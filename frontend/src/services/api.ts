@@ -1,6 +1,6 @@
 import { DebateMessage, UserData, SearchDebateItem, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed, RelatedMaterial } from '../types';
 import type { AgentStep } from '../types';
-import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE } from '../mockData'; // MOCK_DEBATE_SUMMARY 임포트
+import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE } from '../mockData';
 
 // 백엔드 Trending API 응답 항목 타입
 interface TrendingTopicResponse {
@@ -63,30 +63,27 @@ export const debateApi = {
     }
   },
   getTrending: async (): Promise<TrendingTopicResponse[]> => { // 트렌딩 토론 목록 가져오기 API
-    let realTopics: TrendingTopicResponse[] = [];
     try {
       const res = await fetch('/api/debates/trending', { headers: getHeaders() });
-      if (res.ok) realTopics = await res.json();
-    } catch (_) { /* 실패 시 빈 배열 유지 */ }
-
-    // 원자력 mock 주제를 맨 앞에 고정 (HomeView는 상위 2개만 슬라이드로 표시)
-    const mockTopic = MOCK_TOPICS[1]; // id:102, 원자력
-    const alreadyExists = realTopics.some(t => t.title === mockTopic.title);
-    return alreadyExists ? realTopics : [mockTopic, ...realTopics];
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+      }
+    } catch (_) { /* 실패 시 목 데이터 반환 */ }
+    return MOCK_TOPICS as TrendingTopicResponse[];
   },
   search: async (query: string): Promise<{ code: number; message: string; data: SearchDebateItem[] }> => { // 토론 검색 API
-    const mockItem: SearchDebateItem = {
-      id: MOCK_TOPICS[1].id,
-      topic: MOCK_TOPICS[1].title,
+    const mockData: SearchDebateItem[] = MOCK_TOPICS.map(t => ({
+      id: t.id,
+      topic: t.title,
       stance: '',
       author: 'anonymous',
-      viewCount: MOCK_TOPICS[1].participants,
+      viewCount: t.participants,
       messageCount: 0,
       createdAt: '',
       updatedAt: '',
-    };
+    }));
 
-    let realData: SearchDebateItem[] = [];
     try {
       const url = query
         ? `/api/debates/search?q=${encodeURIComponent(query)}`
@@ -94,18 +91,13 @@ export const debateApi = {
       const res = await fetch(url, { headers: getHeaders() });
       if (res.ok) {
         const json = await res.json();
-        realData = json?.data ?? [];
+        const realData: SearchDebateItem[] = json?.data ?? [];
+        if (realData.length > 0) return { code: 200, message: 'Success', data: realData };
       }
-    } catch (_) { /* 실패 시 빈 배열 유지 */ }
+    } catch (_) { /* 실패 시 목 데이터 반환 */ }
 
-    // 검색어가 있을 때: mock 주제가 검색어를 포함하면 결과에 추가
-    const mockMatches = !query || mockItem.topic.includes(query);
-    const alreadyExists = realData.some(d => d.topic === mockItem.topic);
-    const data = (mockMatches && !alreadyExists)
-      ? [mockItem, ...realData]
-      : realData;
-
-    return { code: 200, message: 'Success', data };
+    const filtered = query ? mockData.filter(d => d.topic.includes(query)) : mockData;
+    return { code: 200, message: 'Success', data: filtered };
   },
   getQuiz: async (topic: string) => {
     const res = await fetch(`/api/debate/quiz?topic=${encodeURIComponent(topic)}`, {
