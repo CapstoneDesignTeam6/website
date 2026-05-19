@@ -75,15 +75,15 @@ export const QuizView = ({ topic, type, onComplete }: QuizViewProps) => {
   const isCorrect = selectedOption === quiz.correctOptionId;
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-12 md:py-24">
+    <div className="max-w-2xl mx-auto px-4 py-5.5 md:py-11">
       <header className="text-center mb-12">
-        <span className="px-3 py-1 bg-primary/10 text-primary text-[10px] font-bold rounded-full mb-4 inline-block uppercase tracking-widest">
+        <span className="px-3 py-1 bg-primary/10 text-primary text-[4px] md:text-xs font-bold rounded-full mb-1 md:mb-4 inline-block uppercase tracking-widest">
           {type === 'pre' ? '토론 전 퀴즈' : '토론 후 퀴즈'}
         </span>
-        <h1 className="text-2xl md:text-3xl font-extrabold font-headline tracking-tight mb-2">
+        <h1 className="text-2xl md:text-4xl font-extrabold font-headline tracking-tight mb-4">
           {type === 'pre' ? '주제 이해도 체크' : '토론 내용 복습'}
         </h1>
-        <p className="text-sm text-outline">간단한 퀴즈를 통해 주제에 대해 더 깊이 알아보세요.</p>
+        <p className="text-sm md:text-base text-outline">간단한 퀴즈를 통해 주제에 대해 더 깊이 알아보세요.</p>
       </header>
 
       <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 editorial-shadow border border-gray-50">

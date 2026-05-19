@@ -40,8 +40,8 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20">
       <header className="text-center mb-10 md:mb-12">
-        <h1 className="text-2xl md:text-4xl font-extrabold font-headline tracking-tight mb-4 md:mb-6 text-on-surface">토론 주제 탐색</h1>
-        <p className="text-base md:text-lg text-outline max-w-2xl mx-auto">관심 있는 시사 이슈를 검색하고 토론에 참여해보세요.</p>
+        <h1 className="text-2xl md:text-4xl font-extrabold font-headline tracking-tight mb-4 text-on-surface">토론 주제 탐색</h1>
+        <p className="text-sm md:text-base text-outline max-w-2xl mx-auto">관심 있는 시사 이슈를 검색하고 토론에 참여해보세요.</p>
       </header>
 
       <div className="max-w-3xl mx-auto mb-12 md:mb-16">
