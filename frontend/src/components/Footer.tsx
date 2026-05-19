@@ -1,6 +1,6 @@
 export const Footer = () => (
-  <footer className="bg-surface-container py-8 md:py-16 border-t border-gray-200">
-    <div className="max-w-7xl mx-auto px-4 md:px-8 flex flex-col md:flex-row justify-between items-start gap-8 md:gap-12">
+  <footer className="bg-surface-container py-8 md:py-10 border-t border-gray-200">
+    <div className="max-w-7xl mx-auto px-4 md:px-0 flex flex-col md:flex-row justify-between items-start gap-8 md:gap-12">
       <div className="space-y-4">
         <span className="text-xl md:text-2xl font-black font-headline tracking-tighter">Agora</span>
         <p className="text-outline text-xs md:text-sm max-w-xs leading-relaxed">
@@ -24,7 +24,7 @@ export const Footer = () => (
         </div>
       </div>
     </div>
-    <div className="max-w-7xl mx-auto px-4 md:px-8 mt-8 md:mt-16 pt-6 md:pt-8 border-t border-gray-200 flex justify-between text-[10px] md:text-xs text-outline">
+    <div className="max-w-7xl mx-auto px-4 md:px-0 mt-8 md:mt-10 pt-6 md:pt-8 border-t border-gray-200 flex justify-between text-[10px] md:text-xs text-outline">
       <span>© 2026 Agora. All rights reserved.</span>
     </div>
   </footer>
