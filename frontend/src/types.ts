@@ -72,6 +72,16 @@ export interface DiscussionSessionResponse {
   // 백엔드 응답에 따라 다른 필드 추가 가능
 }
 
+// 에이전트 사고과정 단계 타입
+export type AgentStepType = 'orchestrator' | 'search' | 'generate' | 'simplify';
+
+export interface AgentStep {
+  step: AgentStepType;
+  label: string;
+  description: string;
+  status: 'pending' | 'running' | 'done';
+}
+
 // 관련 자료 항목 타입
 export interface RelatedMaterial {
   category: string;

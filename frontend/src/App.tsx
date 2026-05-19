@@ -10,7 +10,7 @@ import {
 
 // --- Types & Services ---
 // --- 타입 및 서비스 ---
-import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty/*, ResponseSpeed*/ } from "./types";
+import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep/*, ResponseSpeed*/ } from "./types";
 import { debateApi, userApi } from "./services/api";
 
 // --- Components ---
@@ -44,6 +44,7 @@ export default function App() {
   const [fullScreenMode, setFullScreenMode] = useState(false); // 전체 화면 모드 상태 추가
   const [discussionId, setDiscussionId] = useState<number | null>(null); // discussionId 상태
   const [usedMaterialUrls, setUsedMaterialUrls] = useState<string[]>([]); // AI 주장에 사용된 자료 URL
+  const [agentSteps, setAgentSteps] = useState<AgentStep[]>([]); // 에이전트 사고과정 단계
 
   useEffect(() => {
     const initAuth = async () => {
@@ -127,6 +128,9 @@ export default function App() {
       const data = await debateApi.sendMessage(topic, text, messages, discussionId, currentRound, difficulty/*, responseSpeed*/);
       if (data.used_material_urls && data.used_material_urls.length > 0) {
         setUsedMaterialUrls(data.used_material_urls);
+      }
+      if (data.agent_steps && data.agent_steps.length > 0) {
+        setAgentSteps(data.agent_steps);
       }
 
       // 사용자 메시지 객체 생성
@@ -255,6 +259,7 @@ export default function App() {
                       discussionId={discussionId}
                       setFullScreenMode={setFullScreenMode}
                       usedMaterialUrls={usedMaterialUrls}
+                      agentSteps={agentSteps}
                       difficulty={difficulty}
                     />
                   ) : (

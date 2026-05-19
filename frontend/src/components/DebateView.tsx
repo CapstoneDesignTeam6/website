@@ -19,7 +19,7 @@ import {
   Bot,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { DebateMessage, UserEvaluationScore, RelatedMaterial, Difficulty } from '../types';
+import { DebateMessage, UserEvaluationScore, RelatedMaterial, Difficulty, AgentStep } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api'; // debateApi 임포트
 import { MOCK_REBUTTAL_HINT } from '../mockData.ts'; // 목 반박 힌트 임포트
@@ -36,6 +36,7 @@ interface DebateViewProps {
   discussionId: number;
   setFullScreenMode: (isFullScreen: boolean) => void;
   usedMaterialUrls?: string[];
+  agentSteps?: AgentStep[];
   difficulty?: Difficulty;
 }
 
@@ -52,16 +53,42 @@ const AGENT_STEPS_EASY = [
   { icon: Lightbulb, label: '쉬운 설명',    desc: '표현 변환 중' },
 ];
 
-const AgentThinkingIndicator = ({ isEasy }: { isEasy: boolean }) => {
-  const steps = isEasy ? AGENT_STEPS_EASY : AGENT_STEPS_NORMAL;
-  const [activeStep, setActiveStep] = useState(0);
+const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agentSteps?: AgentStep[] }) => {
+  const STEP_TYPE_TO_ICON: Record<string, React.ElementType> = {
+    orchestrator: Bot,
+    search: Search,
+    generate: Brain,
+    simplify: Lightbulb,
+  };
+
+  const backendSteps = agentSteps && agentSteps.length > 0
+    ? agentSteps.map(s => ({
+        icon: STEP_TYPE_TO_ICON[s.step] ?? Bot,
+        label: s.label,
+        desc: s.description,
+        status: s.status,
+      }))
+    : null;
+
+  const fallbackSteps = isEasy ? AGENT_STEPS_EASY : AGENT_STEPS_NORMAL;
+  const steps = backendSteps ?? fallbackSteps.map(s => ({ ...s, status: 'pending' as const }));
+
+  const initialActive = backendSteps
+    ? Math.max(0, backendSteps.findIndex(s => s.status === 'running'))
+    : 0;
+  const [activeStep, setActiveStep] = useState(initialActive);
 
   useEffect(() => {
+    if (backendSteps) {
+      const runningIdx = backendSteps.findIndex(s => s.status === 'running');
+      setActiveStep(runningIdx >= 0 ? runningIdx : backendSteps.length - 1);
+      return;
+    }
     const interval = setInterval(() => {
       setActiveStep(prev => (prev + 1) % steps.length);
     }, 1800);
     return () => clearInterval(interval);
-  }, [steps.length]);
+  }, [agentSteps, steps.length]);
 
   return (
     <div className="flex items-start gap-4">

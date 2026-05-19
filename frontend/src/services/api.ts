@@ -1,4 +1,5 @@
 import { DebateMessage, UserData, SearchDebateItem, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed, RelatedMaterial } from '../types';
+import type { AgentStep } from '../types';
 import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE } from '../mockData'; // MOCK_DEBATE_SUMMARY 임포트
 
 // 백엔드 Trending API 응답 항목 타입
@@ -39,7 +40,7 @@ export const debateApi = {
     }
     return res.json(); // 성공적인 응답일 경우 JSON으로 파싱합니다.
   }, // 메시지 전송 API
-  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number, difficulty?: Difficulty, responseSpeed?: ResponseSpeed): Promise<{ userSide: string; aiResponse: DebateMessage; used_material_urls?: string[] }> => {
+  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number, difficulty?: Difficulty, responseSpeed?: ResponseSpeed): Promise<{ userSide: string; aiResponse: DebateMessage; used_material_urls?: string[]; agent_steps?: AgentStep[] }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
