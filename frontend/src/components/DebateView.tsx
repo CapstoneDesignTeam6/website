@@ -574,7 +574,7 @@ export const DebateView = ({
       {/* Left Sidebar Toggle Button */}
       <button
         onClick={() => setIsScoreSidebarOpen(!isScoreSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isScoreSidebarOpen ? 'left-75' : 'left-3'}`}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isScoreSidebarOpen ? 'left-75' : 'left-2'}`}
       >
         {isScoreSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
       </button>
@@ -582,9 +582,9 @@ export const DebateView = ({
       {/* Center: Chat */}
       <main className="flex-1 flex flex-col bg-surface overflow-hidden relative">
         {/* Header with Topic and Progress */}
-        <div className="bg-white border-b border-gray-100 p-2 md:p-3 shadow-sm z-10">
-          <div className="max-w-4xl mx-auto py-0">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="bg-white border-b border-gray-100 p-4 md:p-5 shadow-sm z-10">
+          <div className="w-full py-0 px-4 md:px-7">
+            <div className="flex flex-row items-center justify-between gap-3">
               <div className="flex flex-col gap-1 flex-1">
                 <h2 className="text-lg md:text-xl font-black font-headline line-clamp-1">{topic}</h2>
                 <div className="flex items-center gap-3">
@@ -605,13 +605,13 @@ export const DebateView = ({
                 </div>
                 {/* 새 토론 시작 및 토론 종료 버튼 패딩 조정 */}
                 <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
-                  <RefreshCw size={14} /> 다시 시작
+                  <RefreshCw size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '다시 시작'}
                 </button>
                 <button onClick={onFinish} className="px-2 py-1 bg-secondary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
-                  <Power size={14} /> 토론 종료
+                  <Power size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '토론 종료'}
                 </button>
                 <button onClick={toggleFullScreen} className="px-2 py-1 bg-gray-100 text-on-surface rounded-xl font-bold text-xs transition-all flex items-center gap-1">
-                  {isFullScreen ? <Minimize size={14} /> : <Maximize size={14} />} 전체 화면
+                  {isFullScreen ? <Minimize size={14} /> : <Maximize size={14} />} {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '전체 화면'}
                 </button>
               </div>
             </div>
@@ -678,7 +678,7 @@ export const DebateView = ({
             style={{
               paddingLeft: '1rem',
               paddingRight: isHelpOpen ? '22rem' : '5.5rem',
-              maxWidth: '50%',
+              maxWidth: '60%',
               minWidth: '650px',
             }}
           >
