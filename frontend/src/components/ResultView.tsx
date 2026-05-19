@@ -94,7 +94,7 @@ export const ResultView = ({ topic, result }: ResultViewProps) => {
     }
   };
   return (
-    <div className="max-w-5xl mx-auto px-4 md:px-8 py-8 md:py-12">
+    <div className="max-w-5xl mx-auto px-4 md:px-8 py-8 md:py-20">
       {/* PDF로 변환할 리포트 섹션을 ref로 감싸기 */}
       <div ref={reportRef}>
         <section className="bg-white p-8 md:p-16 editorial-shadow rounded-2xl border-t-8 border-primary card-hover">

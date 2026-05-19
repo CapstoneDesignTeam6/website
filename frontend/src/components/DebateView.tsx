@@ -580,7 +580,7 @@ export const DebateView = ({
       {/* Center: Chat */}
       <main className="flex-1 flex flex-col bg-surface overflow-hidden relative">
         {/* Header with Topic and Progress */}
-        <div className="bg-white border-b border-gray-100 p-4 md:p-5 shadow-sm z-10">
+        <div className="bg-white border-b border-gray-100 p-4 md:px-14 shadow-sm z-10">
           <div className="w-full py-0 px-4 md:px-7">
             <div className="flex flex-row items-center justify-between gap-3">
               <div className="flex flex-col gap-1 flex-1">

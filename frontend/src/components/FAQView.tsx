@@ -35,10 +35,9 @@ export const FAQView = () => {
   ];
 
   return (
-    <div className="max-w-4xl mx-auto px-4 md:px-8 py-12 md:py-24">
+    <div className="max-w-4xl mx-auto px-4 md:px-8 py-12 md:py-20">
       <header className="text-center mb-12 md:mb-20">
-        <span className="text-primary font-bold tracking-widest text-[10px] md:text-sm uppercase mb-3 md:mb-4 block">Help Center</span>
-        <h1 className="text-3xl md:text-5xl font-extrabold font-headline tracking-tight mb-4 md:mb-6">자주 묻는 질문</h1>
+        <h1 className="text-2xl md:text-4xl font-extrabold font-headline tracking-tight mb-4 md:mb-6">자주 묻는 질문</h1>
         <p className="text-sm md:text-lg text-outline">Agora 이용에 대해 궁금한 점이 있으신가요? 분야별로 정리된 답변을 확인해 보세요.</p>
       </header>
 
