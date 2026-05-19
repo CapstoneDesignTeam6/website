@@ -113,6 +113,18 @@ export interface DiscussionSummaryResponse {
   quiz_comparison?: string;
 }
 
+// ─── 토론 기록 관련 ───────────────────────────────────────────────────────────
+
+export interface DiscussionHistoryItem {
+  id: number;
+  title: string;
+  topic: string;
+  score: number;
+  exp_earned: number;
+  created_at: string;
+  completed_at: string | null;
+}
+
 // ─── 회원정보 관련 ────────────────────────────────────────────────────────────
 
 export interface UserData {

@@ -71,7 +71,7 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 md:px-0 py-3 md:py-4 flex justify-between items-center">
+      <div className="max-w-7xl mx-auto px-4 md:px-9 py-3 md:py-4 flex justify-between items-center">
         <div className="flex items-center gap-6 md:gap-12">
           <button onClick={() => navigateTo('/')} className="flex items-center gap-2 md:gap-3 text-xl md:text-2xl font-black tracking-tighter font-headline cursor-pointer group">
             <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl overflow-hidden group-hover:scale-110 transition-transform">
@@ -93,7 +93,7 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
         </div>
         
         <div className="hidden md:flex items-center gap-4 relative" ref={dropdownRef}>
-          <button className="p-2 text-outline hover:bg-gray-100 rounded-full transition-colors"><Bell size={20} /></button>
+          
           <button 
             onClick={handleUserClick} 
             className={`p-2 rounded-full transition-colors ${isActive('/profile') || isActive('/login') || isActive('/signup') ? 'bg-primary/10 text-primary' : 'text-outline hover:bg-gray-100'}`}
@@ -115,7 +115,7 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
                   className="w-full px-4 py-3 text-left text-sm font-bold text-on-surface hover:bg-gray-50 flex items-center gap-3 transition-colors"
                 >
                   <Settings size={16} className="text-outline" />
-                  회원 정보
+                  마이페이지
                 </button>
                 <button 
                   onClick={handleLogout}

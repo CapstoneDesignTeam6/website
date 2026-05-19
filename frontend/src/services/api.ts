@@ -1,4 +1,4 @@
-import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed, RelatedMaterial } from '../types';
+import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed, RelatedMaterial, DiscussionHistoryItem } from '../types';
 import type { DebateTopic } from '../types';
 import type { AgentStep } from '../types';
 import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE } from '../mockData';
@@ -174,9 +174,9 @@ export const userApi = {
     return localStorage.getItem(TOKEN_KEY);
   },
   getCurrentUser: async (): Promise<UserData> => {
-    const res = await fetch('/api/auth/me', { // 백엔드 @router.get("/me") 경로
+    const res = await fetch('/api/auth/me', {
       method: 'GET',
-      headers: getHeaders(), // Authorization 헤더가 포함된 공통 헤더 사용
+      headers: getHeaders(),
     });
 
     if (!res.ok) {
@@ -184,7 +184,14 @@ export const userApi = {
       throw new Error(error.detail || '사용자 정보를 불러오지 못했습니다.');
     }
 
-    return res.json(); // UserDetailResponse 반환
-  }
-  
+    return res.json();
+  },
+  getDiscussionHistory: async (skip = 0, limit = 20): Promise<DiscussionHistoryItem[]> => {
+    const res = await fetch(`/api/debate/?skip=${skip}&limit=${limit}`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  },
 };
