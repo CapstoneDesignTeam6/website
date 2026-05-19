@@ -19,10 +19,11 @@ import {
   Bot,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import ReactMarkdown from 'react-markdown';
 import { DebateMessage, UserEvaluationScore, RelatedMaterial, Difficulty, AgentStep } from '../types';
 import { useNavigate } from 'react-router-dom';
-import { debateApi } from '../services/api'; // debateApi 임포트
-import { MOCK_REBUTTAL_HINT } from '../mockData.ts'; // 목 반박 힌트 임포트
+import { debateApi } from '../services/api';
+import { MOCK_REBUTTAL_HINT, MOCK_COUNTER_HINT } from '../mockData.ts';
 
 interface DebateViewProps {
   topic: string;
@@ -169,7 +170,7 @@ export const DebateView = ({
   const [relatedMaterials, setRelatedMaterials] = useState<RelatedMaterial[]>([]); // 관련 자료 상태
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
   const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
-    { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"라고 입력해보세요.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
+    { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"를 눌러보세요.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
   ]);
   const [isHintGenerating, setIsHintGenerating] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -306,12 +307,6 @@ export const DebateView = ({
     } else if (userMessage.includes('반박 힌트')) {
       hintEndpoint = `/api/debate/${discussionId}/rebuttal-hint`;
       hintType = '반박';
-      // 목 데이터 사용 (기존 API 호출 주석 처리)
-
-      // 목 데이터 응답 처리
-      setChatbotMessages(prev => [...prev, { sender: 'bot', text: MOCK_REBUTTAL_HINT, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
-      setIsHintGenerating(false);
-      return; // 목 데이터 처리 후 함수 종료
     }
 
     if (hintEndpoint) {
@@ -320,21 +315,8 @@ export const DebateView = ({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            // Assuming authentication token is handled globally or not needed for hints
-            // 'Authorization': `Bearer ${yourAuthToken}`
           },
-          // No body needed as per backend implementation, as the backend fetches discussion history by discussionId
         });
-        // // 기존 API 호출 로직 (주석 처리)
-        // const response = await fetch(hintEndpoint, {
-        //   method: 'POST',
-        //   headers: {
-        //     'Content-Type': 'application/json',
-        //     // Assuming authentication token is handled globally or not needed for hints
-        //     // 'Authorization': `Bearer ${yourAuthToken}`
-        //   },
-        //   // No body needed as per backend implementation, as the backend fetches discussion history by discussionId
-        // });
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
@@ -344,7 +326,9 @@ export const DebateView = ({
         setChatbotMessages(prev => [...prev, { sender: 'bot', text: data.hint || `${hintType} 힌트를 생성할 수 없습니다.`, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
       } catch (error) {
         console.error(`Error fetching ${hintType} hint:`, error);
-        setChatbotMessages(prev => [...prev, { sender: 'bot', text: `${hintType} 힌트를 가져오는 데 실패했습니다. 다시 시도해주세요.`, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
+        const fallback = hintType === '반박' ? MOCK_REBUTTAL_HINT : hintType === '재반박' ? MOCK_COUNTER_HINT : null;
+        const text = fallback ?? `${hintType} 힌트를 가져오는 데 실패했습니다. 다시 시도해주세요.`;
+        setChatbotMessages(prev => [...prev, { sender: 'bot', text, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
       } finally {
         setIsHintGenerating(false);
       }
@@ -355,29 +339,37 @@ export const DebateView = ({
     }
   };
 
+  // **레이블**: 형태의 섹션 레이블을 children 배열에서 제거하는 함수
+  // ReactMarkdown은 **foo**: bar 를 [<strong>foo</strong>, ": bar"] 로 파싱함
+  // <strong> 바로 다음 문자열이 콜론으로 시작하면 그 strong + 콜론 prefix를 제거
+  const stripSectionLabels = (children: React.ReactNode): React.ReactNode[] => {
+    const nodes = Array.isArray(children) ? children : [children];
+    const result: React.ReactNode[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const next = nodes[i + 1];
+      if (
+        React.isValidElement(node) &&
+        (node as React.ReactElement).type === 'strong' &&
+        typeof next === 'string' &&
+        (next as string).trimStart().startsWith(':')
+      ) {
+        const rest = (next as string).replace(/^\s*[:：]\s*/, '');
+        if (rest) result.push(rest);
+        i++;
+      } else {
+        result.push(node);
+      }
+    }
+    return result;
+  };
+
   const proCount = messages.filter(m => m.side === 'pro').length;
   const conCount = messages.filter(m => m.side === 'con').length;
   const totalCount = proCount + conCount;
   const proPercent = totalCount > 0 ? Math.round((proCount / totalCount) * 100) : 50;
   const conPercent = totalCount > 0 ? 100 - proPercent : 50;
   const neutralValue = totalCount === 0 ? '0.5 Neutral' : proPercent > conPercent ? `Pro dominant (${proPercent}%)` : `Con dominant (${conPercent}%)`;
-
-  // 메시지 내용을 파싱하여 볼드체 태그를 처리하는 함수
-  const renderContentWithHighlights = (content: string) => {
-    // **...** 패턴을 찾아 분리합니다.
-    // 정규식: /(\*\*.*?\*\*)/g
-    const parts = content.split(/(\*\*.*?\*\*)/g);
-    
-    return parts.map((part, index) => {
-      // ** 태그로 시작하고 ** 태그로 끝나는 경우
-      if (part && part.startsWith('**') && part.endsWith('**')) {
-        // 태그를 제거하고 내부 텍스트만 추출합니다.
-        const boldText = part.substring(2, part.length - 2);
-        return <strong key={index} className="font-bold">{boldText}</strong>; // 볼드체 스타일 적용
-      }
-      return <React.Fragment key={index}>{part}</React.Fragment>; // 일반 텍스트는 그대로 반환
-    });
-  };
 
   const scoreLabels = [
     {
@@ -653,8 +645,25 @@ export const DebateView = ({
                         : msg.side === 'con'
                           ? 'bg-red-50 border-2 border-red-200 text-gray-800'
                           : 'bg-white border-2 border-dashed border-gray-200 text-gray-700'
-                    } whitespace-pre-wrap`}>
-                      {renderContentWithHighlights(msg.content)}
+                    } prose prose-sm max-w-none`}>
+                      <ReactMarkdown
+                        components={{
+                          h2: () => null,
+                          h3: () => null,
+                          strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                          ol: ({ children }) => <ol className="list-decimal list-inside flex flex-col gap-1.5 my-2">{children}</ol>,
+                          ul: ({ children }) => <ul className="list-disc list-inside flex flex-col gap-1 my-2">{children}</ul>,
+                          li: ({ children }) => <li className="leading-relaxed">{stripSectionLabels(children)}</li>,
+                          p: ({ children }) => {
+                            const content = stripSectionLabels(children);
+                            const isEmpty = content.every(c => c === '' || c === null || c === undefined);
+                            if (isEmpty) return null;
+                            return <p className="mb-1.5 last:mb-0">{content}</p>;
+                          },
+                        }}
+                      >
+                        {msg.content}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 </div>
@@ -679,7 +688,7 @@ export const DebateView = ({
             }}
           >
             {isFirstInput && (
-              <div className="px-1">
+              <div className="px-1 py-2">
                 <span className="text-xs font-bold text-primary flex items-center gap-2">
                   💡 첫 주장에는 찬반 입장을 포함해주세요
                 </span>
@@ -767,7 +776,20 @@ export const DebateView = ({
                   {chatbotMessages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[80%] p-2 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
-                        <p className="text-sm">{msg.text}</p>
+                        {msg.sender === 'bot' ? (
+                          <div className="text-sm prose prose-sm max-w-none">
+                            <ReactMarkdown
+                              components={{
+                                strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                                p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
+                              }}
+                            >
+                              {msg.text}
+                            </ReactMarkdown>
+                          </div>
+                        ) : (
+                          <p className="text-sm">{msg.text}</p>
+                        )}
                         <span className={`block text-[9px] mt-1 ${msg.sender === 'user' ? 'text-white/70' : 'text-gray-500'}`}>{msg.timestamp}</span>
                       </div>
                     </div>
