@@ -339,9 +339,20 @@ export const DebateView = ({
     }
   };
 
+  // 렌더링 전 content 문자열 전처리:
+  // 1. \n 이스케이프 문자열을 실제 줄바꿈으로 변환 (백엔드/목데이터 혼용 대응)
+  // 2. ## / ### 헤더 줄 제거
+  // 3. [1], [2] 등 인라인 각주 번호 제거
+  const preprocessContent = (content: string): string =>
+    content
+      .replace(/\\n/g, '\n')
+      .replace(/^#{1,6}\s+.+$/gm, '')
+      .replace(/\[\d+\]/g, '')
+      .trim();
+
   // **레이블**: 형태의 섹션 레이블을 children 배열에서 제거하는 함수
   // ReactMarkdown은 **foo**: bar 를 [<strong>foo</strong>, ": bar"] 로 파싱함
-  // <strong> 바로 다음 문자열이 콜론으로 시작하면 그 strong + 콜론 prefix를 제거
+  // strong 커스텀 컴포넌트를 쓰지 않으므로 type === 'strong' 문자열 비교가 정확히 작동함
   const stripSectionLabels = (children: React.ReactNode): React.ReactNode[] => {
     const nodes = Array.isArray(children) ? children : [children];
     const result: React.ReactNode[] = [];
@@ -607,7 +618,7 @@ export const DebateView = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-12 pb-32 md:pb-36 flex flex-col gap-6 md:gap-8 custom-scrollbar relative" ref={scrollRef}>
+        <div className="flex-1 overflow-y-auto px-2 py-2 md:px-10 md:py-6 pb-32 md:pb-36 flex flex-col gap-6 md:gap-8 custom-scrollbar relative" ref={scrollRef}>
           {messages.length === 0 && !isGenerating && (
             <div className="flex flex-col items-center justify-center gap-4 h-full text-center opacity-40">
               <Brain size={48} className="text-outline" />
@@ -650,10 +661,14 @@ export const DebateView = ({
                         components={{
                           h2: () => null,
                           h3: () => null,
-                          strong: ({ children }) => <strong className="font-bold">{children}</strong>,
-                          ol: ({ children }) => <ol className="list-decimal list-inside flex flex-col gap-1.5 my-2">{children}</ol>,
-                          ul: ({ children }) => <ul className="list-disc list-inside flex flex-col gap-1 my-2">{children}</ul>,
-                          li: ({ children }) => <li className="leading-relaxed">{stripSectionLabels(children)}</li>,
+                          ol: ({ children }) => <div className="flex flex-col gap-1.5 my-2">{children}</div>,
+                          ul: ({ children }) => <div className="flex flex-col gap-1 my-2">{children}</div>,
+                          li: ({ children }) => {
+                            const content = stripSectionLabels(children);
+                            const isEmpty = content.every(c => c === '' || c === null || c === undefined);
+                            if (isEmpty) return null;
+                            return <p className="mb-1.5 last:mb-0 leading-relaxed">{content}</p>;
+                          },
                           p: ({ children }) => {
                             const content = stripSectionLabels(children);
                             const isEmpty = content.every(c => c === '' || c === null || c === undefined);
@@ -662,7 +677,7 @@ export const DebateView = ({
                           },
                         }}
                       >
-                        {msg.content}
+                        {preprocessContent(msg.content)}
                       </ReactMarkdown>
                     </div>
                   </div>
