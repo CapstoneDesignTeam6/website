@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
 import {
   TrendingUp,
-  MessageSquare,
-  ArrowRight,
-  Download, // AboutView에서 사용되는 아이콘 추가
-  User, // AboutView에서 사용되는 아이콘 추가
-  Library, // AboutView에서 사용되는 아이콘 추가
-  Gavel, // AboutView에서 사용되는 아이콘 추가
-  FileText, // AboutView에서 사용되는 아이콘 추가
-  // TrendingUp, MessageSquare는 이미 존재
+  Download, 
   Brain,
   Loader2,
   ChevronLeft, // 추가: 왼쪽 화살표 아이콘
@@ -18,45 +11,15 @@ import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { MOCK_TOPICS } from "../mockData.ts"; // mockData.ts에서 MOCK_TOPICS 임포트
 import { debateApi } from "../services/api";
+import type { DebateTopic, HeroSlide } from "../types";
 
 interface HomeViewProps {
   setTopic: (t: string) => void;
 }
 
-// 백엔드에서 받아오는 트렌딩 토론 데이터 타입 정의
-interface TrendingDebate {
-  id: number;
-  category: string;
-  isHot: boolean;
-  title: string; // 백엔드에서 topic 대신 title 사용
-  description: string;
-  participants: number; // 백엔드에서 viewCount 대신 participants 사용
-}
-
-// 카드 섹션에 사용될 데이터 타입 정의 (SearchView와 동일)
-interface CardDebate {
-  id: number;
-  title: string;
-  description: string;
-  category: string;
-  isHot: boolean;
-  participants: number;
-}
-
-// 슬라이더에 사용될 데이터 타입 정의
-interface HeroSlide {
-  tag: string;
-  id?: string; // 고유 식별자 추가 (옵션)
-  title: string;
-  description: string;
-  color: string;
-  isAboutAgora: boolean; // About Agora 슬라이드 여부를 나타내는 플래그
-}
-
 export const HomeView = ({ setTopic }: HomeViewProps) => {
   const navigate = useNavigate();
   const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]); // 슬라이드 데이터 상태
-  const [cardDebates, setCardDebates] = useState<CardDebate[]>([]); // 이 상태는 현재 사용되지 않습니다.
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false); // 애니메이션 중인지 여부를 나타내는 상태
 
@@ -86,7 +49,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
       isAboutAgora: true, // About Agora 슬라이드임을 나타내는 플래그
     };
     const fetchTrending = async () => {
-      let debatesToProcess: TrendingDebate[] = []; // 처리할 토론 데이터를 담을 변수
+      let debatesToProcess: DebateTopic[] = []; // 처리할 토론 데이터를 담을 변수
 
       try {
         const response = await debateApi.getTrending();

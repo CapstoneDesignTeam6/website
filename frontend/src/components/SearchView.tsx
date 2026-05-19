@@ -7,54 +7,26 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_TOPICS } from '../mockData'; // mock 데이터 임포트
 import { debateApi } from '../services/api';
-import { SearchDebateItem } from '../types'; // SearchDebateItem 타입 임포트
+import type { DebateTopic } from '../types';
 
 interface SearchViewProps {
   setTopic: (t: string) => void;
 }
 
-// 카드 섹션에 사용될 데이터 타입 정의 (HomeView와 동일하게)
-interface CardDebate {
-  id: number;
-  title: string;
-  description: string;
-  category: string;
-  isHot: boolean;
-  participants: number;
-}
-
 export const SearchView = ({ setTopic }: SearchViewProps) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
-  const [debates, setDebates] = useState<CardDebate[]>([]); // CardDebate[] 타입 사용
+  const [debates, setDebates] = useState<DebateTopic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const fetchDebates = async () => {
       setIsLoading(true);
       try {
-        const response = await debateApi.search(searchQuery);
-        // 백엔드 search API는 { code, message, data: [...] } 형태로 반환
-        // 백엔드에서 데이터가 있거나, 응답 형식이 예상과 다를 경우 목 데이터 사용
-        if (response?.data && Array.isArray(response.data) && response.data.length > 0) { // 데이터가 있고 배열이며 비어있지 않은 경우
-          // SearchDebateItem을 CardDebate 형식으로 변환하여 사용
-          const mappedDebates: CardDebate[] = response.data.map(item => ({
-            id: item.id,
-            title: item.topic, // 백엔드 topic을 title로 사용
-            description: `${item.topic}에 대한 토론입니다. 현재 ${item.messageCount}개의 메시지가 오고 갔습니다.`, // 설명 생성
-            category: "시사", // 백엔드에 category 필드가 없으므로 임의 지정
-            isHot: item.viewCount > 100, // 조회수 100 이상이면 Hot으로 간주 (임의 로직)
-            participants: item.viewCount, // 백엔드 viewCount를 participants로 사용
-          }));
-          setDebates(mappedDebates);
-        } else {
-          // 백엔드에서 데이터가 없거나, 응답 형식이 예상과 다를 경우 목 데이터 사용
-          console.warn("백엔드에서 데이터가 없거나 예상치 못한 응답 형식입니다. 목 데이터를 사용합니다:", response);
-          setDebates(MOCK_TOPICS); // 목 데이터 사용
-        }
-      } catch (error) { // API 호출 실패 시
+        const data = await debateApi.search(searchQuery);
+        setDebates(data);
+      } catch (error) {
         console.error("Failed to fetch debates:", error);
       } finally {
         setIsLoading(false);

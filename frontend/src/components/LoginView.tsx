@@ -28,6 +28,8 @@ export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
   const handleGoogleLogin = () => {
     setIsLoggedIn(true);
     setUserData({
+      id: 0,
+      username: 'google_user',
       nickname: 'Google User',
       email: 'google_user@gmail.com'
     });

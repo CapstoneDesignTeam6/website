@@ -1,37 +1,28 @@
-export interface DebateMessage {
-  id?: number; // 백엔드 Message 모델의 ID (선택적)
-  discussion_id?: number; // 백엔드 Message 모델의 session_id (선택적)
-  role: 'agent' | 'user';
-  agentName?: string; // 에이전트 이름 (프론트엔드 표시용, 선택적)
-  side?: 'pro' | 'con' | 'neutral'; // 토론 입장 (프론트엔드 표시용, 선택적)
-  content: string;
-  timestamp: string; // 메시지 시간 (프론트엔드 포맷용)
-  round?: number; // 토론 라운드 (프론트엔드 관리용, 선택적)
-}
-
 export type View = 'home' | 'setup' | 'debate' | 'result' | 'faq' | 'search' | 'profile' | 'login' | 'signup' | 'pre-quiz' | 'post-quiz';
 
-export type Difficulty = 'easy' | 'normal';
-export type ResponseSpeed = 'fast' | 'slow';
+// ─── HomeView  관련 ───────────────────────────────────────────────────────────
 
-export interface UserData {
-  id: number; // 사용자 고유 ID
-  username: string; // 사용자 이름 (백엔드 username)
-  email: string;
-  nickname: string;
-  is_guest?: boolean; // 게스트 여부 (선택적)
-  level?: number; // 사용자 레벨 (선택적)
-  experience_points?: number; // 사용자 경험치 (선택적)
+export interface HeroSlide {
+  tag: string;
+  id?: string;
+  title: string;
+  description: string;
+  color: string;
+  isAboutAgora: boolean;
 }
+
+// ─── 주제 탐색 관련 ───────────────────────────────────────────────────────────
 
 export interface DebateTopic {
   id: number;
-  category: string;
-  isHot: boolean;
   title: string;
   description: string;
+  category: string;
+  isHot: boolean;
   participants: number;
 }
+
+// ─── 퀴즈 관련 ────────────────────────────────────────────────────────────────
 
 export interface QuizOption {
   id: number;
@@ -47,70 +38,90 @@ export interface Quiz {
   explanation: string;
 }
 
-// 백엔드 Search API 응답 항목 타입
-export interface SearchDebateItem {
-  id: number; // 토론 세션 ID
-  topic: string; // 토론 주제 (백엔드 topic)
-  stance: string; // 사용자의 입장 (찬성/반대)
-  author: string; // 토론 생성자 (현재는 'anonymous')
-  viewCount: number; // 조회수 (백엔드 messageCount를 활용)
-  messageCount: number; // 메시지 수
-  createdAt: string; // 생성일시 (ISO 8601 형식)
-  updatedAt: string; // 최종 업데이트 일시 (ISO 8601 형식)
+// ─── 토론 관련 ────────────────────────────────────────────────────────────────
+
+export type MessageRole = 'agent' | 'user';
+export type DebateSide = 'pro' | 'con';
+export type Difficulty = 'easy' | 'normal';
+export type ResponseSpeed = 'fast' | 'slow';
+
+export interface DebateMessage {
+  id?: number;
+  discussion_id?: number;
+  role: MessageRole;
+  agentName?: string;
+  side?: DebateSide;
+  content: string;
+  timestamp: string;
+  round?: number;
 }
 
-// 백엔드 DiscussionSession API 응답 항목 타입
-export interface DiscussionSessionResponse {
-  id: number; // 토론 세션 ID
-  user_id: number; // 사용자 ID
-  title: string; // 토론 제목
-  topic: string; // 토론 주제
-  status: string; // 토론 상태 (예: ongoing, completed)
-  score: number; // 토론 점수
-  exp_earned: number; // 획득 경험치
-  created_at: string; // 생성일시 (ISO 8601 형식)
-  // 백엔드 응답에 따라 다른 필드 추가 가능
+export interface DiscussionSessionResponse { 
+  // 토론 세션 메타데이터
+  id: number;
+  user_id: number;
+  title: string;
+  topic: string;
+  status: string;
+  score: number;
+  exp_earned: number;
+  created_at: string;
 }
 
-// 에이전트 사고과정 단계 타입
 export type AgentStepType = 'orchestrator' | 'search' | 'generate' | 'simplify';
+export type AgentStepStatus = 'pending' | 'running' | 'done';
 
 export interface AgentStep {
+  // 에이전트 사고 과정
   step: AgentStepType;
   label: string;
   description: string;
-  status: 'pending' | 'running' | 'done';
+  status: AgentStepStatus;
 }
 
-// 관련 자료 항목 타입
 export interface RelatedMaterial {
+  // 관련 자료, 주장 생성에 사용
   category: string;
   color: string;
   title: string;
   description: string;
   source: string;
   url?: string;
-  used?: boolean; // 주장 생성에 사용된 자료 여부
+  used?: boolean;
 }
 
-// 실시간 사용자 평가 점수 타입
 export interface UserEvaluationScore {
-  specificity: number;     // 발언 구체성 (0~5)
-  understanding: number;   // 상황 이해도 (0~5)
-  logic: number;           // 논리력 (0~5)
-  informativeness: number; // 정보 주도성 (0~5)
-  bias: number;            // 편향도 (0~5, 낮을수록 좋음 → UI에서 반전)
+  // 사용자 평가 점수
+  specificity: number;
+  understanding: number;
+  logic: number;
+  informativeness: number;
+  bias: number;
 }
 
-// 토론 결과 보고서 요약 타입
+// ─── 결과 보고서 관련 ─────────────────────────────────────────────────────────
+
 export interface DiscussionSummaryResponse {
-  summary: string; // 토론 요약
-  issues: string; // 주요 쟁점
-  logic_feedback: string; // 논리 피드백
-  extra_info: string; // 추가 정보
-  pre_quiz_correct?: boolean; // 토론 전 퀴즈 정답 여부
-  pre_quiz_explanation?: string; // 토론 전 퀴즈 해설
-  post_quiz_correct?: boolean; // 토론 후 퀴즈 정답 여부
-  post_quiz_explanation?: string; // 토론 후 퀴즈 해설
-  quiz_comparison?: string; // 토론 전후 퀴즈 비교 분석
+  summary: string;
+  issues: string;
+  logic_feedback: string;
+  extra_info: string;
+  pre_quiz_correct?: boolean;
+  pre_quiz_explanation?: string;
+  post_quiz_correct?: boolean;
+  post_quiz_explanation?: string;
+  quiz_comparison?: string;
 }
+
+// ─── 회원정보 관련 ────────────────────────────────────────────────────────────
+
+export interface UserData {
+  id: number;
+  username: string;
+  email: string;
+  nickname: string;
+  is_guest?: boolean;
+  level?: number;
+  experience_points?: number;
+}
+

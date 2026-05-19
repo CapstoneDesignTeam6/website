@@ -35,6 +35,8 @@ export const SignupView = ({ setIsLoggedIn, setUserData }: SignupViewProps) => {
   const handleGoogleSignup = () => {
     setIsLoggedIn(true);
     setUserData({
+      id: 0,
+      username: 'google_user',
       nickname: 'Google User',
       email: 'google_user@gmail.com'
     });
