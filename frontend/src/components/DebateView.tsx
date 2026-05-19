@@ -547,7 +547,7 @@ export const DebateView = ({
       {/* Left Sidebar Toggle Button */}
       <button
         onClick={() => setIsScoreSidebarOpen(!isScoreSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isScoreSidebarOpen ? 'left-77' : 'left-2'}`}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isScoreSidebarOpen ? 'left-75' : 'left-3'}`}
       >
         {isScoreSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
       </button>
@@ -644,10 +644,19 @@ export const DebateView = ({
           )}
         </div>
 
+        {/* 입력창: 챗봇 열림 여부에 따라 우측 패딩 동적 조정으로 겹침 방지 */}
         <div className="absolute bottom-0 left-0 right-0 pt-2 md:pt-3 pb-6 md:pb-6 bg-transparent">
-          <div className="max-w-3xl mx-auto">
+          <div
+            className="mx-auto transition-all duration-300"
+            style={{
+              paddingLeft: '1rem',
+              paddingRight: isHelpOpen ? '22rem' : '5.5rem',
+              maxWidth: '50%',
+              minWidth: '650px',
+            }}
+          >
             {isFirstInput && (
-              <div className="px-4">
+              <div className="px-1">
                 <span className="text-xs font-bold text-primary flex items-center gap-2">
                   💡 첫 주장에는 찬반 입장을 포함해주세요
                 </span>
@@ -681,15 +690,8 @@ export const DebateView = ({
           </div>
         </div>
 
-        {/* Floating Help Button & Chatbot Popup */}
-        <div className={`absolute bottom-6 z-60 flex flex-col gap-4 ${ // 챗봇 위치를 입력창과 수평으로 맞추기 위해 bottom-6으로 조정
-          isRelatedMaterialsSidebarOpen
-            ? 'right-10 items-end' // 관련 자료 사이드바가 열려있으면 사이드바 너비(24rem) + 여백(1rem) 만큼 왼쪽으로 이동
-            : 'right-6 items-end' // 관련 자료 사이드바가 닫혀있으면 화면 오른쪽 끝에서 1.5rem (right-6) 만큼 이동
-        }`}> {/* 챗봇 전체를 오른쪽 하단으로 이동하고 입력창과 겹치지 않도록 높이 조정 */}
-          {/* isRelatedMaterialsSidebarOpen이 true일 때 (사이드바 열림), 사이드바 너비(w-96 = 24rem) + 여백(1rem) 만큼 왼쪽으로 이동하여 right-[calc(24rem+1rem)]로 설정.
-              isRelatedMaterialsSidebarOpen이 false일 때 (사이드바 닫힘), 화면 오른쪽 끝에서 right-6 만큼 이동.
-              items-end로 변경하여 팝업이 버튼의 오른쪽에 정렬되도록 함. */}
+        {/* Floating Help Button & Chatbot Popup: 챗봇은 항상 main 영역 우측 하단에 고정 */}
+        <div className="absolute bottom-6 right-6 z-60 flex flex-col items-end gap-4">
           <AnimatePresence>
             {isHelpOpen && (
               <motion.div
@@ -762,10 +764,10 @@ export const DebateView = ({
       <motion.aside 
         initial={false}
         // isRelatedMaterialsSidebarOpen 상태에 따라 너비 애니메이션
-        animate={{ width: isRelatedMaterialsSidebarOpen ? 384 : 0, opacity: isRelatedMaterialsSidebarOpen ? 1 : 0 }}
+        animate={{ width: isRelatedMaterialsSidebarOpen ? 360 : 0, opacity: isRelatedMaterialsSidebarOpen ? 1 : 0 }}
         className="bg-white flex flex-col border-l border-gray-200 overflow-hidden relative md:flex order-last" // order-last로 우측 정렬
       >
-        <div className="p-8 flex flex-col gap-6 h-full w-96 overflow-y-auto custom-scrollbar">
+        <div className="p-6 flex flex-col gap-3 h-full w-90 overflow-y-auto custom-scrollbar">
           <div className="flex items-center gap-2">
             <FileText size={20} className="text-secondary" />
             <h2 className="text-base font-black font-headline">관련 자료</h2>
@@ -827,7 +829,7 @@ export const DebateView = ({
 <button
         
         onClick={() => setIsRelatedMaterialsSidebarOpen(!isRelatedMaterialsSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isRelatedMaterialsSidebarOpen ? 'right-92' : 'right-4'}`} // 위치 조정
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isRelatedMaterialsSidebarOpen ? 'right-85' : 'right-2'}`} // 위치 조정
       > {/* 관련 자료 사이드바 토글 버튼 */}
         {isRelatedMaterialsSidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />} {/* 아이콘 방향 변경 */}
       </button>
