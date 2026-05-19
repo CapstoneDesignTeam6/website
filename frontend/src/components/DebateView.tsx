@@ -355,32 +355,116 @@ export const DebateView = ({
   };
 
   const scoreLabels = [
-    { key: 'specificity' as const,     label: '발언 구체성',  desc: '불확실한 발언의 비율에 따른 점수' },
-    { key: 'understanding' as const,   label: '상황 이해도',  desc: '현재 주제와 관련 있는 주장과 발언을 하는지에 따른 점수' },
-    { key: 'logic' as const,           label: '논리력',       desc: '근거의 품질, 주장의 검증 가능성과 신뢰성, 반례의 고려 유무 등 전반적인 논리력에 따른 점수' },
-    { key: 'informativeness' as const, label: '정보 주도성',  desc: 'AI의 발언 외의 새로운 정보를 추가적으로 언급했는지에 따른 점수' },
-    { key: 'bias' as const,            label: '편향도',       desc: '유리한 통계만 사용하는지, 반례를 무시하는지, 감정적인 선동만을 무기로 하는지에 따른 점수' },
+    {
+      key: 'specificity' as const,
+      label: '발언 구체성',
+      desc: '불확실한 발언의 비율에 따른 점수',
+      tip: '구체적인 수치, 날짜, 이름 등을 발언에 포함해보세요. "많다", "크다" 같은 막연한 표현 대신 정확한 데이터를 인용하면 점수가 올라갑니다.',
+    },
+    {
+      key: 'understanding' as const,
+      label: '상황 이해도',
+      desc: '현재 주제와 관련 있는 주장과 발언을 하는지에 따른 점수',
+      tip: '토론 주제의 핵심 쟁점을 파악하고 발언이 항상 그 맥락과 연결되도록 유지하세요. 상대방의 논점에 직접 반응하는 것도 도움이 됩니다.',
+    },
+    {
+      key: 'logic' as const,
+      label: '논리력',
+      desc: '근거의 품질, 주장의 검증 가능성과 신뢰성, 반례의 고려 유무 등 전반적인 논리력에 따른 점수',
+      tip: '주장마다 검증 가능한 근거를 제시하고, 반례도 먼저 언급해 논리를 강화하세요. "왜냐하면 ~이기 때문입니다" 구조를 의식적으로 활용하세요.',
+    },
+    {
+      key: 'informativeness' as const,
+      label: '정보 주도성',
+      desc: 'AI의 발언 외의 새로운 정보를 추가적으로 언급했는지에 따른 점수',
+      tip: 'AI가 제시한 내용을 반복하기보다, 직접 알고 있는 사례·연구·통계를 새롭게 추가하세요. 독자적인 정보를 도입할수록 점수가 올라갑니다.',
+    },
+    {
+      key: 'bias' as const,
+      label: '편향도',
+      desc: '유리한 통계만 사용하는지, 반례를 무시하는지, 감정적인 선동만을 무기로 하는지에 따른 점수',
+      tip: '자신에게 불리한 데이터도 인정하되 반박하세요. 감정적 호소보다는 사실 기반 논거를 사용하고, 다양한 관점을 균형 있게 다루면 편향도 점수가 낮아집니다.',
+    },
   ];
 
+  const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
+
   const PentagonChart = ({ score }: { score: UserEvaluationScore }) => {
-    const size = 180;
+    const size = 240;
+    const padding = 46;
     const cx = size / 2;
     const cy = size / 2;
-    const maxR = 70;
+    const maxR = size / 2 - padding;
     const n = 5;
-    const angles = Array.from({ length: n }, (_, i) => (Math.PI * 2 * i) / n - Math.PI / 2);
+    const angles = Array.from({ length: n }, (_, i) => -(Math.PI * 2 * i) / n - Math.PI / 2);
     const toXY = (r: number, angle: number) => ({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
     const values = [score.specificity, score.understanding, score.logic, score.informativeness, 5 - score.bias];
     const gridLevels = [1, 2, 3, 4, 5];
     const gridPolygon = (ratio: number) => angles.map(a => { const p = toXY(maxR * ratio, a); return `${p.x},${p.y}`; }).join(' ');
     const dataPolygon = angles.map((a, i) => { const p = toXY(maxR * (values[i] / 5), a); return `${p.x},${p.y}`; }).join(' ');
+
+    // 축 숫자 레이블 위치: 상단 축(angle[0]) 방향으로 배치
+    const axisAngle = angles[0];
+    const axisLabelPositions = gridLevels.map(lvl => toXY(maxR * (lvl / 5), axisAngle));
+
     return (
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {gridLevels.map(lvl => <polygon key={lvl} points={gridPolygon(lvl / 5)} fill="none" stroke="#e5e7eb" strokeWidth="1" />)}
-        {angles.map((a, i) => { const outer = toXY(maxR, a); return <line key={i} x1={cx} y1={cy} x2={outer.x} y2={outer.y} stroke="#e5e7eb" strokeWidth="1" />; })}
-        <polygon points={dataPolygon} fill="rgba(99,102,241,0.2)" stroke="#6366f1" strokeWidth="2" />
-        {angles.map((a, i) => { const p = toXY(maxR * (values[i] / 5), a); return <circle key={i} cx={p.x} cy={p.y} r="4" fill="#6366f1" />; })}
-        {angles.map((a, i) => { const p = toXY(maxR + 18, a); return <text key={i} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle" fontSize="9" fontWeight="700" fill="#374151">{scoreLabels[i].label}</text>; })}
+      <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} className="overflow-visible" style={{ maxWidth: '100%', aspectRatio: '1 / 1' }}>
+        {gridLevels.map(lvl => (
+          <polygon key={lvl} points={gridPolygon(lvl / 5)} fill="none" stroke="#e5e7eb" strokeWidth="1" />
+        ))}
+        {angles.map((a, i) => {
+          const outer = toXY(maxR, a);
+          return <line key={i} x1={cx} y1={cy} x2={outer.x} y2={outer.y} stroke="#e5e7eb" strokeWidth="1" />;
+        })}
+        {/* 축 범위 숫자 */}
+        {axisLabelPositions.map((pos, i) => (
+          <text
+            key={i}
+            x={pos.x + 6}
+            y={pos.y}
+            textAnchor="start"
+            dominantBaseline="middle"
+            fontSize="8"
+            fill="#9ca3af"
+          >
+            {gridLevels[i]}
+          </text>
+        ))}
+        <polygon points={dataPolygon} fill="rgba(0,74,198,0.15)" stroke="#004ac6" strokeWidth="2" />
+        {angles.map((a, i) => {
+          const p = toXY(maxR * (values[i] / 5), a);
+          return <circle key={i} cx={p.x} cy={p.y} r="4" fill="#004ac6" />;
+        })}
+        {/* 레이블: 충분한 여백 확보 */}
+        {angles.map((a, i) => {
+          const labelR = maxR + 26;
+          const p = toXY(labelR, a);
+          const words = scoreLabels[i].label.split(' ');
+          return (
+            <text
+              key={i}
+              x={p.x}
+              y={p.y}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize="10"
+              fontWeight="700"
+              fill={activeTooltip === i ? '#004ac6' : '#374151'}
+              style={{ cursor: 'pointer', userSelect: 'none' }}
+              onClick={() => setActiveTooltip(activeTooltip === i ? null : i)}
+            >
+              {words.length === 1 ? (
+                <tspan>{words[0]}</tspan>
+              ) : (
+                words.map((w, wi) => (
+                  <tspan key={wi} x={p.x} dy={wi === 0 ? `-${(words.length - 1) * 6}` : '13'}>
+                    {w}
+                  </tspan>
+                ))
+              )}
+            </text>
+          );
+        })}
       </svg>
     );
   };
@@ -393,47 +477,67 @@ export const DebateView = ({
         animate={{ width: isScoreSidebarOpen ? 320 : 0, opacity: isScoreSidebarOpen ? 1 : 0 }}
         className="bg-white flex flex-col border-r border-gray-200 overflow-hidden relative md:flex order-first"
       >
-        <div className="p-6 flex flex-col h-full w-80 overflow-y-auto custom-scrollbar">
-          <div className="mb-6 flex items-center gap-2">
-            <BarChart3 size={20} className="text-primary" />
+        <div className="p-6 flex flex-col gap-3 h-full w-80 overflow-y-auto custom-scrollbar">
+          <div className="flex items-center gap-2">
+            <BarChart3 size={20} className={evaluationScore ? 'text-primary' : 'text-outline'} />
             <h2 className="text-base font-black font-headline">실시간 평가 지표</h2>
           </div>
           {isLoadingScore ? (
-            <div className="flex flex-col items-center justify-center flex-1">
-              <Loader2 size={28} className="animate-spin text-primary mb-3" />
+            <div className="flex flex-col items-center justify-center gap-3 flex-1">
+              <Loader2 size={28} className="animate-spin text-primary" />
               <p className="text-xs text-outline">점수를 계산하는 중...</p>
             </div>
           ) : evaluationScore ? (
             <>
-              <div className="flex justify-center mb-4 pt-6">
+              <div className="w-full">
                 <PentagonChart score={evaluationScore} />
               </div>
-              <div className="space-y-3">
-                {scoreLabels.map(({ key, label, desc }) => {
+              <p className="text-[10px] text-outline text-center -mt-5 mb-1">지표 이름을 클릭하면 설명을 볼 수 있어요</p>
+              <AnimatePresence>
+                {activeTooltip !== null && (
+                  <motion.div
+                    key={activeTooltip}
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className="relative bg-indigo-50 border border-indigo-200 rounded-xl p-4"
+                  >
+                    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
+                      <p className="text-sm font-black text-primary">{scoreLabels[activeTooltip].label}</p>
+                      <p className="text-base font-black text-primary">
+                        {(() => { const k = scoreLabels[activeTooltip].key; const v = evaluationScore[k]; return k === 'bias' ? 5 - v : v; })()} / 5
+                      </p>
+                      <button onClick={() => setActiveTooltip(null)} className="text-outline hover:text-on-surface">
+                        <X size={14} />
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-on-surface leading-relaxed mt-1">{scoreLabels[activeTooltip].desc}</p>
+                    <div className="flex flex-col gap-1 border-t border-indigo-200 mt-2 pt-2">
+                      <p className="text-[11px] font-bold text-primary">점수 올리는 팁</p>
+                      <p className="text-[10px] text-outline leading-relaxed">{scoreLabels[activeTooltip].tip}</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div className="flex flex-col gap-2">
+                {scoreLabels.map(({ key, label }, idx) => {
                   const raw = evaluationScore[key];
                   const displayValue = key === 'bias' ? 5 - raw : raw;
                   return (
-                    <div key={key} className="bg-gray-50 rounded-xl p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-bold text-on-surface">{label}</span>
-                        <span className="text-xs font-black text-primary">{displayValue} / 5</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-200 rounded-full overflow-hidden mb-2">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${(displayValue / 5) * 100}%` }}
-                          className="h-full bg-primary rounded-full"
-                        />
-                      </div>
-                      <p className="text-[10px] text-outline leading-relaxed">{desc}</p>
+                    <div
+                      key={key}
+                      className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 cursor-pointer hover:bg-indigo-50 transition-colors"
+                      onClick={() => setActiveTooltip(activeTooltip === idx ? null : idx)}
+                    >
+                      <span className="text-xs font-bold text-on-surface">{label}</span>
+                      <span className="text-xs font-black text-primary">{displayValue} / 5</span>
                     </div>
                   );
                 })}
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50 space-y-2">
-              <BarChart3 size={36} className="text-outline" />
+            <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
               <p className="text-xs text-outline">첫 발언 후 점수가 표시됩니다.</p>
             </div>
           )}
@@ -453,10 +557,10 @@ export const DebateView = ({
         {/* Header with Topic and Progress */}
         <div className="bg-white border-b border-gray-100 p-2 md:p-3 shadow-sm z-10">
           <div className="max-w-4xl mx-auto py-0">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3"> {/* 요소 간 간격 조정 */}
-              <div className="flex-1">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div className="flex flex-col gap-1 flex-1">
                 <h2 className="text-lg md:text-xl font-black font-headline line-clamp-1">{topic}</h2>
-                <div className="flex items-center gap-3 mt-1"> {/* 진행률 바 상단 마진 조정 */}
+                <div className="flex items-center gap-3">
                   <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
                     <motion.div
                       initial={{ width: 0 }}
@@ -467,10 +571,10 @@ export const DebateView = ({
                   <span className="text-[10px] font-bold text-primary whitespace-nowrap">{progress}%</span> {/* 텍스트 크기 조정 */}
                 </div>
               </div>
-              <div className="flex items-center gap-3 shrink-0"> {/* 버튼 간 간격 조정 */}
-                <div className="px-3 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center"> {/* 라운드 표시 패딩 조정 */}
-                  <span className="text-[10px] font-bold text-outline uppercase block mb-0.5">현재 라운드</span>
-                  <span className="text-xs font-black text-on-surface">{currentRound} / {totalRounds}</span> {/* 텍스트 크기 조정 */}
+              <div className="flex items-center gap-3 shrink-0">
+                <div className="flex flex-col gap-0.5 px-3 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
+                  <span className="text-[10px] font-bold text-outline uppercase">현재 라운드</span>
+                  <span className="text-xs font-black text-on-surface">{currentRound} / {totalRounds}</span>
                 </div>
                 {/* 새 토론 시작 및 토론 종료 버튼 패딩 조정 */}
                 <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
@@ -487,9 +591,9 @@ export const DebateView = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-12 pb-32 md:pb-36 space-y-6 md:space-y-8 custom-scrollbar relative" ref={scrollRef}>
+        <div className="flex-1 overflow-y-auto p-4 md:p-12 pb-32 md:pb-36 flex flex-col gap-6 md:gap-8 custom-scrollbar relative" ref={scrollRef}>
           {messages.length === 0 && !isGenerating && (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-40">
+            <div className="flex flex-col items-center justify-center gap-4 h-full text-center opacity-40">
               <Brain size={48} className="text-outline" />
               <p className="text-sm md:text-base text-outline font-medium">토론이 시작되기를 기다리고 있습니다...</p>
             </div>
@@ -503,7 +607,7 @@ export const DebateView = ({
             return (
               <React.Fragment key={idx}>
                 {showRoundIndicator && (
-                  <div className="flex justify-center mb-8">
+                  <div className="flex justify-center">
                     <span className="px-4 py-1.5 bg-gray-200 text-outline text-[10px] font-bold rounded-full uppercase tracking-widest">
                       라운드 {msg.round}
                     </span>
@@ -540,10 +644,10 @@ export const DebateView = ({
           )}
         </div>
 
-        <div className="absolute bottom-0 left-0 right-0 pt-2 md:pt-3 pb-6 md:pb-6 bg-transparent"> {/* 입력창 섹션 */}
+        <div className="absolute bottom-0 left-0 right-0 pt-2 md:pt-3 pb-6 md:pb-6 bg-transparent">
           <div className="max-w-3xl mx-auto">
             {isFirstInput && (
-              <div className="mb-2 px-4"> {/* 첫 입력 가이드 메시지 마진 조정 */}
+              <div className="px-4">
                 <span className="text-xs font-bold text-primary flex items-center gap-2">
                   💡 첫 주장에는 찬반 입장을 포함해주세요
                 </span>
@@ -553,7 +657,7 @@ export const DebateView = ({
               <textarea
                 ref={textareaRef}
                 className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-xs md:text-sm resize-none custom-scrollbar"
-                style={{ minHeight: '2rem', maxHeight: '16rem', overflowY: 'hidden', padding: '1rem 0.5rem' }}
+                style={{ minHeight: '2rem', maxHeight: '16rem', overflowY: 'hidden', padding: '0.375rem' }}
                 placeholder={placeholder}
                 value={inputText}
                 onChange={(e) => {
@@ -605,7 +709,7 @@ export const DebateView = ({
                     <X size={20} /> {/* 닫기 아이콘을 X로 변경 */}
                   </button>
                 </div>
-                <div className="p-4 h-48 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col space-y-2 custom-scrollbar">
+                <div className="p-4 h-48 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col gap-2 custom-scrollbar">
                   {chatbotMessages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}> {/* 메시지 정렬 */}
                       <div className={`max-w-[80%] p-2 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
@@ -661,30 +765,28 @@ export const DebateView = ({
         animate={{ width: isRelatedMaterialsSidebarOpen ? 384 : 0, opacity: isRelatedMaterialsSidebarOpen ? 1 : 0 }}
         className="bg-white flex flex-col border-l border-gray-200 overflow-hidden relative md:flex order-last" // order-last로 우측 정렬
       >
-        <div className="p-8 flex flex-col h-full w-96 overflow-y-auto custom-scrollbar">
-          <div className="mb-10">
-            <div className="flex items-center gap-2"> {/* 관련 자료 제목 */}
-              <FileText size={20} className="text-secondary" />
-              <h2 className="text-base font-black font-headline">관련 자료</h2>
-            </div>
+        <div className="p-8 flex flex-col gap-6 h-full w-96 overflow-y-auto custom-scrollbar">
+          <div className="flex items-center gap-2">
+            <FileText size={20} className="text-secondary" />
+            <h2 className="text-base font-black font-headline">관련 자료</h2>
           </div>
 
-          {isLoadingRelatedMaterials ? ( // 관련 자료 로딩 중일 때
-            <div className="flex flex-col items-center justify-center h-full">
-              <Loader2 size={32} className="animate-spin text-primary mb-4" /> {/* 로딩 스피너 */}
+          {isLoadingRelatedMaterials ? (
+            <div className="flex flex-col items-center justify-center gap-4 h-full">
+              <Loader2 size={32} className="animate-spin text-primary" />
               <p className="text-outline">관련 자료를 불러오는 중입니다...</p>
             </div>
-          ) : relatedMaterials.length > 0 ? ( // 관련 자료가 있을 때
-            <div className="space-y-10">
+          ) : relatedMaterials.length > 0 ? (
+            <div className="flex flex-col gap-10">
               {relatedMaterials.map((material, i) => (
-                <article key={i} className={`bg-white rounded-2xl border p-5 card-hover ${material.used ? 'border-primary/40 ring-1 ring-primary/20' : 'border-gray-100'}`}>
-                  <div className="flex items-center gap-2 mb-1">
+                <article key={i} className={`flex flex-col gap-2 bg-white rounded-2xl border p-5 card-hover ${material.used ? 'border-primary/40 ring-1 ring-primary/20' : 'border-gray-100'}`}>
+                  <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-bold ${material.color}`}>{material.category}</span>
                     {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">주장에 사용됨</span>}
                   </div>
-                  <h3 className="text-sm font-bold leading-tight mb-2">{material.title}</h3>
+                  <h3 className="text-sm font-bold leading-tight">{material.title}</h3>
                   {material.description && (
-                    <p className="text-[11px] text-outline leading-relaxed line-clamp-3 mb-3">{material.description}</p>
+                    <p className="text-[11px] text-outline leading-relaxed line-clamp-3">{material.description}</p>
                   )}
                   <div className="flex justify-between items-center pt-3 border-t border-gray-50">
                     <span className="text-[10px] font-bold text-outline uppercase">출처: {material.source}</span>
