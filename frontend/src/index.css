@@ -49,13 +49,9 @@
   box-shadow: 0 12px 32px rgba(25, 28, 29, 0.04);
 }
 
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
+.custom-scrollbar {
+  scrollbar-width: auto;
 }
-.custom-scrollbar::-webkit-scrollbar-track {
-  background: transparent;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #e1e3e4;
-  border-radius: 10px;
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a0a4a8;
 }
