@@ -173,7 +173,8 @@ export const DebateView = ({
   ]);
   const [isHintGenerating, setIsHintGenerating] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
-  const [helpInput, setHelpInput] = useState('');
+
+  const [chatbotSize, setChatbotSize] = useState({ width: 480, height: 350 });
   const [isFirstInput, setIsFirstInput] = useState(true);
   const [placeholder, setPlaceholder] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -290,13 +291,10 @@ export const DebateView = ({
       }
     }
   };
-  const handleHelpSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!helpInput.trim() || isHintGenerating) return;
+  const handleHintRequest = async (userMessage: string) => {
+    if (isHintGenerating) return;
 
-    const userMessage = helpInput;
     setChatbotMessages(prev => [...prev, { sender: 'user', text: userMessage, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
-    setHelpInput('');
     setIsHintGenerating(true);
 
     let hintEndpoint = '';
@@ -595,7 +593,7 @@ export const DebateView = ({
                       className="h-full bg-primary"
                     />
                   </div>
-                  <span className="text-[10px] font-bold text-primary whitespace-nowrap">{progress}%</span> {/* 텍스트 크기 조정 */}
+                  <span className="text-[10px] font-bold text-primary whitespace-nowrap">{progress}%</span>
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
@@ -603,7 +601,6 @@ export const DebateView = ({
                   <span className="text-[10px] font-bold text-outline uppercase">현재 라운드</span>
                   <span className="text-xs font-black text-on-surface">{currentRound} / {totalRounds}</span>
                 </div>
-                {/* 새 토론 시작 및 토론 종료 버튼 패딩 조정 */}
                 <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
                   <RefreshCw size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '다시 시작'}
                 </button>
@@ -627,10 +624,9 @@ export const DebateView = ({
           )}
 
           {messages.map((msg, idx) => {
-            // Show round indicator if the round changes or it's the first message with a round
             const prevMsg = idx > 0 ? messages[idx - 1] : null;
             const showRoundIndicator = msg.round && (!prevMsg || prevMsg.round !== msg.round);
-            
+
             return (
               <React.Fragment key={idx}>
                 {showRoundIndicator && (
@@ -657,8 +653,8 @@ export const DebateView = ({
                         : msg.side === 'con'
                           ? 'bg-red-50 border-2 border-red-200 text-gray-800'
                           : 'bg-white border-2 border-dashed border-gray-200 text-gray-700'
-                    } whitespace-pre-wrap`}> {/* 줄바꿈 기호가 적용되도록 whitespace-pre-wrap 추가 */}
-                      {renderContentWithHighlights(msg.content)} {/* 하이라이트 처리 함수 적용 */}
+                    } whitespace-pre-wrap`}>
+                      {renderContentWithHighlights(msg.content)}
                     </div>
                   </div>
                 </div>
@@ -671,13 +667,13 @@ export const DebateView = ({
           )}
         </div>
 
-        {/* 입력창: 챗봇 열림 여부에 따라 우측 패딩 동적 조정으로 겹침 방지 */}
+        {/* 입력창: 고정 크기, 챗봇 열림 여부와 무관 */}
         <div className="absolute bottom-0 left-0 right-0 pt-2 md:pt-3 pb-6 md:pb-6 bg-transparent">
           <div
-            className="mx-auto transition-all duration-300"
+            className="mx-auto"
             style={{
               paddingLeft: '1rem',
-              paddingRight: isHelpOpen ? '22rem' : '5.5rem',
+              paddingRight: '5rem',
               maxWidth: '60%',
               minWidth: '650px',
             }}
@@ -717,7 +713,7 @@ export const DebateView = ({
           </div>
         </div>
 
-        {/* Floating Help Button & Chatbot Popup: 챗봇은 항상 main 영역 우측 하단에 고정 */}
+        {/* 챗봇 플로팅 버튼 & 팝업 */}
         <div className="absolute bottom-6 right-6 z-60 flex flex-col items-end gap-4">
           <AnimatePresence>
             {isHelpOpen && (
@@ -725,22 +721,51 @@ export const DebateView = ({
                 initial={{ opacity: 0, scale: 0.8, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8, y: 20 }}
-                className="w-72 md:w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col mb-2"
+                style={{ width: chatbotSize.width, height: chatbotSize.height }}
+                className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col mb-2 relative"
               >
-                <div className="bg-primary p-4 text-white flex justify-between items-center">
+                {/* 드래그 핸들 (좌상단 모서리) */}
+                <div
+                  title="드래그하여 크기 조절"
+                  className="absolute top-1 left-1 w-6 h-6 cursor-nw-resize z-10 flex items-center justify-center text-white/60 hover:text-white/90 transition-colors"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const startX = e.clientX;
+                    const startY = e.clientY;
+                    const startW = chatbotSize.width;
+                    const startH = chatbotSize.height;
+                    const onMove = (me: MouseEvent) => {
+                      setChatbotSize({
+                        width: Math.max(280, startW - (me.clientX - startX)),
+                        height: Math.max(300, startH - (me.clientY - startY)),
+                      });
+                    };
+                    const onUp = () => {
+                      window.removeEventListener('mousemove', onMove);
+                      window.removeEventListener('mouseup', onUp);
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10 2 Q2 2 2 10" />
+                  </svg>
+                </div>
+                <div className="bg-primary p-4 text-white flex justify-between items-center shrink-0">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
                       <Brain size={18} />
                     </div>
-                    <span className="font-bold text-sm">보조 에이전트</span> {/* 보조 에이전트 제목 */}
+                    <span className="font-bold text-sm">보조 에이전트</span>
                   </div>
-                  <button onClick={() => setIsHelpOpen(false)} className="hover:bg-white/10 p-1 rounded-lg transition-colors"> {/* 챗봇 닫기 버튼 */}
-                    <X size={20} /> {/* 닫기 아이콘을 X로 변경 */}
+                  <button onClick={() => setIsHelpOpen(false)} className="hover:bg-white/10 p-1 rounded-lg transition-colors">
+                    <X size={20} />
                   </button>
                 </div>
-                <div className="p-4 h-48 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col gap-2 custom-scrollbar">
+                <div className="flex-1 p-4 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col gap-2 custom-scrollbar">
                   {chatbotMessages.map((msg, index) => (
-                    <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}> {/* 메시지 정렬 */}
+                    <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[80%] p-2 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
                         <p className="text-sm">{msg.text}</p>
                         <span className={`block text-[9px] mt-1 ${msg.sender === 'user' ? 'text-white/70' : 'text-gray-500'}`}>{msg.timestamp}</span>
@@ -748,39 +773,41 @@ export const DebateView = ({
                     </div>
                   ))}
                   {isHintGenerating && (
-                    <div className="flex justify-start"> {/* 힌트 생성 중 로딩 스피너 */}
+                    <div className="flex justify-start">
                       <div className="max-w-[80%] p-2 rounded-lg bg-white text-gray-800 border border-gray-100">
                         <Loader2 size={16} className="animate-spin text-gray-400" />
                       </div>
                     </div>
                   )}
                 </div>
-
-                <form onSubmit={handleHelpSubmit} className="p-3 border-t border-gray-100 bg-white flex gap-2">
-                  <input 
-                    type="text"
-                    value={helpInput}
-                    onChange={(e) => setHelpInput(e.target.value)}
-                    placeholder="무엇을 도와드릴까요?"
-                    className="flex-1 text-xs px-3 py-2 bg-gray-50 rounded-xl border-none focus:ring-1 focus:ring-primary/30"
-                  />
-                  <button type="submit" className="p-2 bg-primary text-white rounded-lg hover:scale-105 transition-transform"> {/* 전송 버튼 */}
-                    <Send size={14} /> {/* 전송 아이콘 */}
+                <div className="p-3 border-t border-gray-100 bg-white flex gap-2 shrink-0">
+                  <button
+                    onClick={() => handleHintRequest('반박 힌트')}
+                    disabled={isHintGenerating}
+                    className="flex-1 text-xs py-2 px-3 bg-primary/10 text-primary font-bold rounded-xl hover:bg-primary/20 transition-colors disabled:opacity-50"
+                  >
+                    반박 힌트
                   </button>
-                </form>
+                  <button
+                    onClick={() => handleHintRequest('재반박 힌트')}
+                    disabled={isHintGenerating}
+                    className="flex-1 text-xs py-2 px-3 bg-secondary/10 text-secondary font-bold rounded-xl hover:bg-secondary/20 transition-colors disabled:opacity-50"
+                  >
+                    재반박 힌트
+                  </button>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
-          
-          <button 
+
+          <button
             onClick={() => setIsHelpOpen(!isHelpOpen)}
-            className="w-12 h-12 md:w-14 md:h-14 bg-gray-100 border-gray-100 flex items-center justify-center overflow-hidden hover:scale-110 transition-transform group"
-          > {/* 챗봇 토글 버튼 */}
-            {/* 아이콘에 이미지 삽입 */}
-            <img 
-              src="/help_icon.png"  // public 폴더에 있음
-              alt="Help Icon" 
-              className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
+            className="w-12 h-12 md:w-14 md:h-14 bg-transparent border-none flex items-center justify-center overflow-hidden hover:scale-110 transition-transform"
+          >
+            <img
+              src="/help_icon.png"
+              alt="Help Icon"
+              className="w-full h-full object-contain"
               referrerPolicy="no-referrer"
             />
           </button>
@@ -806,7 +833,7 @@ export const DebateView = ({
               <p className="text-outline">관련 자료를 불러오는 중입니다...</p>
             </div>
           ) : relatedMaterials.length > 0 ? (
-            <div className="flex flex-col gap-10">
+            <div className="flex flex-col gap-5">
               {relatedMaterials.map((material, i) => (
                 <article key={i} className={`flex flex-col gap-2 bg-white rounded-2xl border p-5 card-hover ${material.used ? 'border-primary/40 ring-1 ring-primary/20' : 'border-gray-100'}`}>
                   <div className="flex items-center gap-2">
@@ -853,12 +880,12 @@ export const DebateView = ({
           )}
         </div>
       </motion.aside>
-<button
-        
+
+      <button
         onClick={() => setIsRelatedMaterialsSidebarOpen(!isRelatedMaterialsSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isRelatedMaterialsSidebarOpen ? 'right-85' : 'right-2'}`} // 위치 조정
-      > {/* 관련 자료 사이드바 토글 버튼 */}
-        {isRelatedMaterialsSidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />} {/* 아이콘 방향 변경 */}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isRelatedMaterialsSidebarOpen ? 'right-85' : 'right-2'}`}
+      >
+        {isRelatedMaterialsSidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
       </button>
 
       <div className="h-24" />
