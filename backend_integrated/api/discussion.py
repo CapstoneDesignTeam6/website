@@ -556,7 +556,7 @@ async def get_trending_debates(background_tasks: BackgroundTasks):
         sb = get_supabase_client()
         rows = (
             sb.table("discussion_topics")
-            .select("id, title, description, category, created_at")
+            .select("id, title, description, category, side_a, side_b, related_news, created_at")
             .order("created_at", desc=True)
             .limit(10)
             .execute()
@@ -577,7 +577,10 @@ async def get_trending_debates(background_tasks: BackgroundTasks):
             "isHot": i < 3,
             "title": row.get("title", ""),
             "description": row.get("description", ""),
-            "participants": 0,
+            "participants": row.get("participants", 0),
+            "side_a": row.get("side_a", ""),
+            "side_b": row.get("side_b", ""),
+            "related_news": row.get("related_news") or [],
         })
     return result
 
@@ -590,7 +593,7 @@ async def search_debates(q: str = ""):
         sb = get_supabase_client()
         rows = (
             sb.table("discussion_topics")
-            .select("id, title, description, category, created_at")
+            .select("id, title, description, category, side_a, side_b, related_news, participants, created_at")
             .order("created_at", desc=True)
             .limit(50)
             .execute()
@@ -611,13 +614,14 @@ async def search_debates(q: str = ""):
     data = [
         {
             "id": row.get("id", 0),
-            "topic": row.get("title", ""),
-            "stance": "",
-            "author": "anonymous",
-            "viewCount": 0,
-            "messageCount": 0,
-            "createdAt": row.get("created_at", ""),
-            "updatedAt": row.get("created_at", ""),
+            "category": row.get("category", "시사"),
+            "isHot": False,
+            "title": row.get("title", ""),
+            "description": row.get("description", ""),
+            "participants": row.get("participants", 0),
+            "side_a": row.get("side_a", ""),
+            "side_b": row.get("side_b", ""),
+            "related_news": row.get("related_news") or [],
         }
         for row in rows[:20]
     ]

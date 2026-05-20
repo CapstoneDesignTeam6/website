@@ -45,7 +45,7 @@ USER_PROMPT_TEMPLATE = """아래는 오늘의 주요 뉴스 제목 목록입니�
 
 {titles}
 
-위 뉴스들을 바탕으로, 일반 시민이 쉽게 이해하고 토론할 수 있는 주제를 최대한 많이 만들어주세요.
+위 뉴스들을 바탕으로, 일반 시민이 쉽게 이해하고 토론할 수 있는 주제를 최소 10개 이상으로 많이 만들어주세요.
 찬반이 나뉘는 주제라면 빠짐없이 모두 뽑아주세요. 단순 사실 보도처럼 찬반이 없는 뉴스는 제외하세요.
 
 각 주제는 아래 필드를 포함해야 합니다.
@@ -194,53 +194,6 @@ def _call_gpt(news_data: list[dict]) -> list[dict]:
         return []
 
 
-def _validate_topic(topic: dict) -> tuple[bool, str]:
-    """
-    GPT-4o-mini로 단일 주제가 안전한지 검수한다.
-    Returns (is_safe, reason).
-    """
-    from openai import OpenAI
-    from config import settings
-
-    if not settings.OPENAI_API_KEY:
-        return True, "API 키 없음 — 검수 생략"
-
-    client = OpenAI(api_key=settings.OPENAI_API_KEY)
-    title = topic.get("title", "")
-    description = topic.get("description", "")
-
-    system = (
-        "당신은 토론 플랫폼의 콘텐츠 안전 검수 담당자입니다. "
-        "아래 토론 주제가 다음 조건 중 하나라도 해당하면 'BLOCK'이라고만 답하고, "
-        "모두 안전하면 'OK'라고만 답하세요.\n"
-        "차단 조건:\n"
-        "1. 제목이나 설명에 특정 정치인·공직자·유명인의 실명이 포함된 경우\n"
-        "2. 특정 종교를 비판하거나 종교 간 우열을 가리는 경우\n"
-        "3. 지역 감정 자극 또는 특정 지역 비하\n"
-        "4. 성별·나이·인종·장애 차별 조장\n"
-        "5. 성적 콘텐츠·폭력·자살·자해 관련\n"
-        "6. 특정 기업·제품 광고성 비교"
-    )
-    user = f"제목: {title}\n설명: {description}"
-
-    try:
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            temperature=0,
-            max_tokens=10,
-        )
-        answer = resp.choices[0].message.content.strip().upper()
-        if "BLOCK" in answer:
-            return False, f"콘텐츠 안전 검수 실패: {title}"
-        return True, "OK"
-    except Exception as e:
-        logger.warning(f"검수 GPT 호출 실패 ({title}): {e} — 통과 처리")
-        return True, "검수 오류 — 통과"
-
 
 def _replace_topics(topics: list[dict]) -> int:
     """
@@ -257,7 +210,6 @@ def _replace_topics(topics: list[dict]) -> int:
         return 0
 
     rows = []
-    blocked_count = 0
     for t in topics:
         title = t.get("title", "").strip()
         description = t.get("description", "").strip()
@@ -267,12 +219,6 @@ def _replace_topics(topics: list[dict]) -> int:
             continue
         if category not in CATEGORIES:
             category = "사회"
-
-        is_safe, reason = _validate_topic(t)
-        if not is_safe:
-            logger.warning(f"⚠️ 주제 차단됨: {reason}")
-            blocked_count += 1
-            continue
 
         rows.append({
             "title": title,
@@ -285,9 +231,6 @@ def _replace_topics(topics: list[dict]) -> int:
             "participants": 0,
             "trending_score": 0.0,
         })
-
-    if blocked_count:
-        logger.info(f"총 {blocked_count}개 주제 차단됨")
 
     if not rows:
         logger.warning("저장할 토론 주제가 없습니다.")

@@ -20,6 +20,9 @@ export interface DebateTopic {
   title: string;
   description: string;
   participants: number;
+  side_a?: string;
+  side_b?: string;
+  related_news?: string[];
 }
 
 // ─── 퀴즈 관련 ────────────────────────────────────────────────────────────────
