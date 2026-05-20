@@ -61,37 +61,6 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         
         return response
 
-# 동시 갱신 방지 락
-_refresh_lock = asyncio.Lock()
-
-
-async def _maybe_refresh_data():
-    """
-    뉴스/주제가 오래됐으면 백그라운드에서 갱신한다.
-    - 뉴스: 마지막 크롤링이 하루 이상 지난 경우
-    - 주제: 마지막 생성이 7일 이상 지난 경우
-    락을 사용해 동시 실행을 방지한다.
-    """
-    if _refresh_lock.locked():
-        return
-
-    async with _refresh_lock:
-        try:
-            from services.news import is_news_expired, crawl_and_replace_news
-            from services.topic import generate_and_save_topics
-
-            if is_news_expired():
-                logger.info("🔄 [자동] 뉴스 만료 → 크롤링 시작...")
-                crawl_result = await crawl_and_replace_news()
-                logger.info(f"🔄 [자동] 크롤링 결과: {crawl_result}")
-
-            loop = asyncio.get_event_loop()
-            topic_result = await loop.run_in_executor(
-                None, lambda: generate_and_save_topics(force=False)
-            )
-            logger.info(f"💬 [자동] 주제 확인 결과: {topic_result}")
-        except Exception as e:
-            logger.error(f"자동 갱신 실패: {e}")
 
 
 # FastAPI 앱 생성
@@ -112,18 +81,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# 요청 기반 자동 갱신 미들웨어
-class RefreshMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        skip_prefixes = ("/admin", "/docs", "/openapi.json", "/redoc")
-        skip_paths = {"/", "/health"}
-        path = request.url.path
-        if path not in skip_paths and not any(path.startswith(p) for p in skip_prefixes):
-            asyncio.create_task(_maybe_refresh_data())
-        return await call_next(request)
-
-app.add_middleware(RefreshMiddleware)
 
 # 라우터 등록
 app.include_router(auth.router)

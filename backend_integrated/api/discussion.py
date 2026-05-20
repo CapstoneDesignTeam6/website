@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from supabase import Client
 from pydantic import BaseModel
@@ -18,6 +18,35 @@ from services.agent_service import AgentService
 from services.content_filter import is_sensitive_topic, is_on_topic
 from agents.discussion_agent import DiscussionAgent
 from database import get_db, get_supabase
+import asyncio
+import logging
+
+_logger = logging.getLogger(__name__)
+_refresh_running = False  # 동시 갱신 방지 플래그
+
+
+async def _refresh_if_needed():
+    """뉴스/주제가 만료됐으면 백그라운드에서 갱신한다."""
+    global _refresh_running
+    if _refresh_running:
+        return
+    _refresh_running = True
+    try:
+        from services.news import is_news_expired, crawl_and_replace_news
+        from services.topic import generate_and_save_topics
+
+        if is_news_expired():
+            _logger.info("🔄 [bg] 뉴스 만료 → 크롤링 시작...")
+            await crawl_and_replace_news()
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=False))
+        _logger.info(f"💬 [bg] 주제 갱신 결과: {result}")
+    except Exception as e:
+        _logger.warning(f"백그라운드 갱신 실패: {e}")
+    finally:
+        _refresh_running = False
+
 
 # 1대1 토론 라우터 (단수형)
 router = APIRouter(prefix="/api/debate", tags=["debates"])
@@ -510,8 +539,11 @@ async def get_related_materials(topic: str = ""):
 
 
 @public_router.get("/trending")
-async def get_trending_debates():
-    """Supabase discussion_topics 테이블 기반 트렌딩 토론 주제 목록"""
+async def get_trending_debates(background_tasks: BackgroundTasks):
+    """Supabase discussion_topics 테이블 기반 트렌딩 토론 주제 목록.
+    기존 DB 데이터를 즉시 반환하고, 만료 여부에 따라 백그라운드에서 갱신한다.
+    """
+    # 1. 현재 DB 데이터 즉시 조회
     try:
         from database import get_supabase_client
         sb = get_supabase_client()
@@ -526,12 +558,16 @@ async def get_trending_debates():
     except Exception:
         rows = []
 
+    # 2. 응답 후 백그라운드에서 만료 체크 & 갱신
+    background_tasks.add_task(_refresh_if_needed)
+
+    # 3. 즉시 반환
     result = []
     for i, row in enumerate(rows):
         result.append({
             "id": row.get("id", i),
             "category": row.get("category", "시사"),
-            "isHot": i < 3,  # 최신 3개를 Hot으로 표시
+            "isHot": i < 3,
             "title": row.get("title", ""),
             "description": row.get("description", ""),
             "participants": 0,
