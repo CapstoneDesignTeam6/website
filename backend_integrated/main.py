@@ -10,8 +10,7 @@ from api import auth, discussion, level
 from api.auth import auth_router
 from database import SessionLocal
 from config import settings
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
+import asyncio
 import logging
 import time
 import json
@@ -62,8 +61,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         
         return response
 
-# 스케줄러 (매일 12시 뉴스 크롤링)
-scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
+
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -115,32 +113,7 @@ async def startup_event():
     finally:
         db.close()
     
-    # 뉴스 크롤링 스케줄러 등록 (매일 오전 12시 = 정오)
-    from services.news import crawl_and_replace_news
-
-    async def scheduled_news_crawl():
-        import asyncio
-        from services.topic import generate_and_save_topics
-
-        logger.info("🗞️ [스케줄러] 뉴스 크롤링 시작...")
-        crawl_result = await crawl_and_replace_news()
-        logger.info(f"🗞️ [스케줄러] 크롤링 결과: {crawl_result}")
-
-        if crawl_result.get("success"):
-            logger.info("💬 [스케줄러] 토론 주제 생성 시작 (7일 경과 여부 확인)...")
-            loop = asyncio.get_event_loop()
-            topic_result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=False))
-            logger.info(f"💬 [스케줄러] 주제 생성 결과: {topic_result}")
-
-    scheduler.add_job(
-        scheduled_news_crawl,
-        trigger=CronTrigger(hour=12, minute=0, timezone="Asia/Seoul"),
-        id="daily_news_crawl",
-        name="매일 12시 뉴스 크롤링",
-        replace_existing=True,
-    )
-    scheduler.start()
-    logger.info("✅ 뉴스 크롤링 스케줄러 등록 완료 (매일 12:00 KST)")
+    logger.info("✅ 요청 기반 자동 갱신 활성화 (뉴스: 1일, 주제: 7일)")
 
     # LLM 설정 상태 확인
     logger.info("Checking LLM configuration...")
@@ -159,7 +132,6 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """앱 종료 시 정리"""
-    scheduler.shutdown(wait=False)
     logger.info("Shutting down application...")
 
 @app.get("/")

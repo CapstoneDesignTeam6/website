@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from supabase import Client
 from pydantic import BaseModel
@@ -18,6 +18,37 @@ from services.agent_service import AgentService
 from services.content_filter import is_sensitive_topic, is_on_topic
 from agents.discussion_agent import DiscussionAgent
 from database import get_db, get_supabase
+import asyncio
+import logging
+
+_logger = logging.getLogger(__name__)
+_refresh_running = False  # 동시 갱신 방지 플래그
+
+
+async def _refresh_if_needed():
+    """뉴스/주제가 만료됐으면 백그라운드에서 갱신한다.
+    Render 상시 실행 환경이므로 타임아웃 없이 Playwright 크롤링도 가능.
+    """
+    global _refresh_running
+    if _refresh_running:
+        return
+    _refresh_running = True
+    try:
+        from services.news import is_news_expired, crawl_and_replace_news
+        from services.topic import generate_and_save_topics
+
+        if is_news_expired():
+            _logger.info("🔄 [bg] 뉴스 만료 → 크롤링 시작...")
+            await crawl_and_replace_news()
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=False))
+        _logger.info(f"💬 [bg] 주제 갱신 결과: {result}")
+    except Exception as e:
+        _logger.warning(f"백그라운드 갱신 실패: {e}")
+    finally:
+        _refresh_running = False
+
 
 # 1대1 토론 라우터 (단수형)
 router = APIRouter(prefix="/api/debate", tags=["debates"])
@@ -71,16 +102,16 @@ async def start_discussion(
     import random
     from datetime import datetime as dt
 
-    # 1) 민감 주제 필터링
+    agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
+    agent_name = random.choice(agents)
+
+    # 민감 주제 차단
     sensitive, reason = is_sensitive_topic(body.topic)
     if sensitive:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=reason or "이 주제로는 토론을 시작할 수 없습니다.",
+            detail=f"해당 주제는 서비스 정책상 토론할 수 없습니다. 다른 주제를 선택해 주세요.",
         )
-
-    agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
-    agent_name = random.choice(agents)
 
     intro = AgentService.get_intro(topic=body.topic)
     content = intro.get("summary", f'"{body.topic}"에 대한 토론을 시작합니다.')
@@ -127,21 +158,18 @@ async def send_message(
     agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
     agent_name = random.choice(agents)
 
-    # 1) 토론 무관 발언 컷
-    on_topic, off_reason = is_on_topic(body.topic, body.message)
+    # 토론 주제와 무관한 발언 필터 (에이전트 호출 전)
+    on_topic, fallback_msg = is_on_topic(body.topic, body.message)
     if not on_topic:
         return {
             "userSide": "pro",
-            "aiResponse": {
-                "agentName": "진행자",
-                "side": "con",
-                "content": (
-                    f"방금 발언은 '{body.topic}' 주제와 관련이 없어 보입니다. "
-                    f"{off_reason}\n주제에 맞는 의견을 다시 입력해주세요."
-                ),
-                "timestamp": dt.now().strftime("%H:%M"),
-            },
             "off_topic": True,
+            "aiResponse": {
+                "agentName": agent_name,
+                "side": "con",
+                "content": fallback_msg,
+                "timestamp": dt.now().strftime("%H:%M"),
+            }
         }
 
     # "agent" → "assistant" 변환 (GPT 형식)
@@ -513,8 +541,11 @@ async def get_related_materials(topic: str = ""):
 
 
 @public_router.get("/trending")
-async def get_trending_debates():
-    """Supabase discussion_topics 테이블 기반 트렌딩 토론 주제 목록"""
+async def get_trending_debates(background_tasks: BackgroundTasks):
+    """Supabase discussion_topics 테이블 기반 트렌딩 토론 주제 목록.
+    기존 DB 데이터를 즉시 반환하고, 만료 여부에 따라 백그라운드에서 갱신한다.
+    """
+    # 1. 현재 DB 데이터 즉시 조회
     try:
         from database import get_supabase_client
         sb = get_supabase_client()
@@ -529,12 +560,16 @@ async def get_trending_debates():
     except Exception:
         rows = []
 
+    # 2. 응답 후 백그라운드에서 만료 체크 & 갱신
+    background_tasks.add_task(_refresh_if_needed)
+
+    # 3. 즉시 반환
     result = []
     for i, row in enumerate(rows):
         result.append({
             "id": row.get("id", i),
             "category": row.get("category", "시사"),
-            "isHot": i < 3,  # 최신 3개를 Hot으로 표시
+            "isHot": i < 3,
             "title": row.get("title", ""),
             "description": row.get("description", ""),
             "participants": 0,
