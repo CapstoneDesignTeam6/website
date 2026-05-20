@@ -619,7 +619,7 @@ export const DebateView = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-2 py-2 md:px-10 md:py-6 pb-32 md:pb-36 flex flex-col gap-6 md:gap-8 custom-scrollbar relative" ref={scrollRef}>
+        <div className={`flex-1 overflow-y-auto py-2 md:py-6 pb-32 md:pb-36 flex flex-col gap-6 md:gap-8 custom-scrollbar relative transition-all duration-300 ${isScoreSidebarOpen && isRelatedMaterialsSidebarOpen ? 'px-6 md:px-7' : isScoreSidebarOpen || isRelatedMaterialsSidebarOpen ? 'px-7 md:px-12' : 'px-8 md:px-21'}`} ref={scrollRef}>
           {messages.length === 0 && !isGenerating && (
             <div className="flex flex-col items-center justify-center gap-4 h-full text-center opacity-40">
               <Brain size={48} className="text-outline" />
@@ -644,7 +644,7 @@ export const DebateView = ({
                   <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${msg.role === 'user' ? 'bg-primary text-white' : 'bg-gray-200 text-gray-500'}`}>
                     {msg.role === 'user' ? <User size={18} /> : <Brain size={18} />}
                   </div>
-                  <div className={`flex flex-col gap-1 md:gap-1.5 max-w-[85%] md:max-w-[70%] ${msg.role === 'user' ? 'items-end' : ''}`}>
+                  <div className={`flex flex-col gap-1 md:gap-1.5 max-w-[82%] ${msg.role === 'user' ? 'items-end' : ''}`}>
                     <div className="flex items-center gap-2 px-1">
                       <span className="text-[10px] md:text-xs font-bold text-on-surface">
                         {msg.role === 'user' ? '나 (사용자)' : msg.agentName || 'AI 에이전트'}
