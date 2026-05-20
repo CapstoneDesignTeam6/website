@@ -142,6 +142,16 @@ export const MOCK_DEBATE_MESSAGES: DebateMessage[] = [
   {
     id: 1,
     discussion_id: MOCK_DISCUSSION_ID,
+    role: 'agent',
+    content: '원자력 발전소의 증설 여부는 에너지 생산의 효율성과 환경적 영향을 고려한 복잡한 문제입니다. 지구온난화와 에너지 수요 증가에 대응하기 위해 원자력 에너지가 청정하고 안정적인 대안으로 주목받고 있지만, 방사능 위험과 폐기물 처리 문제 등은 여전히 논란이 되고 있습니다. 이 토론에서는 원자력 발전소의 장단점, 안전성, 경제성 등을 다각도로 살펴보겠습니다.',
+    timestamp: '09:59',
+    agentName: 'AI 에이전트',
+    side: 'con',
+    round: 1,
+  },
+  {
+    id: 2,
+    discussion_id: MOCK_DISCUSSION_ID,
     role: 'user',
     content: '원자력 발전소를 증설해야 한다는게 내 주장이야. 그 이유는 원자력 발전이 탄소 배출이 없고 안정적인 전력 공급원이라서야.',
     timestamp: '10:00',
@@ -150,7 +160,7 @@ export const MOCK_DEBATE_MESSAGES: DebateMessage[] = [
     round: 1,
   },
   {
-    id: 2,
+    id: 3,
     discussion_id: MOCK_DISCUSSION_ID,
     role: 'agent',
     content: // 에이전트 응답 내용: 주요 주장 부분을 임의로 볼드 처리함
