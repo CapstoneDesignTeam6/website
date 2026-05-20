@@ -39,13 +39,18 @@ async def _refresh_if_needed():
 
         if is_news_expired():
             _logger.info("🔄 [bg] 뉴스 만료 → 크롤링 시작...")
-            await crawl_and_replace_news()
+            try:
+                crawl_result = await crawl_and_replace_news()
+                _logger.info(f"🔄 [bg] 크롤링 결과: {crawl_result}")
+            except Exception as crawl_err:
+                _logger.error(f"❌ [bg] 크롤링 실패 — {type(crawl_err).__name__}: {crawl_err}")
 
         loop = asyncio.get_event_loop()
-        result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=False))
-        _logger.info(f"💬 [bg] 주제 갱신 결과: {result}")
-    except Exception as e:
-        _logger.warning(f"백그라운드 갱신 실패: {e}")
+        try:
+            result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=False))
+            _logger.info(f"💬 [bg] 주제 갱신 결과: {result}")
+        except Exception as topic_err:
+            _logger.error(f"❌ [bg] 주제 생성 실패 — {type(topic_err).__name__}: {topic_err}")
     finally:
         _refresh_running = False
 
