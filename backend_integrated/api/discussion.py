@@ -26,7 +26,9 @@ _refresh_running = False  # 동시 갱신 방지 플래그
 
 
 async def _refresh_if_needed():
-    """뉴스/주제가 만료됐으면 백그라운드에서 갱신한다."""
+    """뉴스/주제가 만료됐으면 백그라운드에서 갱신한다.
+    Render 상시 실행 환경이므로 타임아웃 없이 Playwright 크롤링도 가능.
+    """
     global _refresh_running
     if _refresh_running:
         return
