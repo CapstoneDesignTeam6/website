@@ -46,6 +46,7 @@ export default function App() {
   const [discussionId, setDiscussionId] = useState<number | null>(null); // discussionId 상태
   const [usedMaterialUrls, setUsedMaterialUrls] = useState<string[]>([]); // AI 주장에 사용된 자료 URL
   const [agentSteps, setAgentSteps] = useState<AgentStep[]>([]); // 에이전트 사고과정 단계
+  const [userSide, setUserSide] = useState<'pro' | 'con' | undefined>(undefined); // 사용자 입장 (첫 메시지 후 설정)
 
   useEffect(() => {
     const initAuth = async () => {
@@ -132,6 +133,12 @@ export default function App() {
       }
       if (data.agent_steps && data.agent_steps.length > 0) {
         setAgentSteps(data.agent_steps);
+      }
+
+      // 첫 메시지인 경우 사용자 입장 저장
+      const detectedSide = (data.userSide === 'pro' || data.userSide === 'con') ? data.userSide : undefined;
+      if (detectedSide && !userSide) {
+        setUserSide(detectedSide);
       }
 
       // 사용자 메시지 객체 생성
@@ -260,6 +267,7 @@ export default function App() {
                       usedMaterialUrls={usedMaterialUrls}
                       agentSteps={agentSteps}
                       difficulty={difficulty}
+                      userSide={userSide}
                     />
                   ) : (
                     <Navigate to="/setup" replace /> // discussionId가 없으면 설정 페이지로 리다이렉트

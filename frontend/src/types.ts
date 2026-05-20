@@ -41,7 +41,7 @@ export interface Quiz {
 // ─── 토론 관련 ────────────────────────────────────────────────────────────────
 
 export type MessageRole = 'agent' | 'user';
-export type DebateSide = 'pro' | 'con';
+export type DebateSide = 'pro' | 'con' | 'neutral';
 export type Difficulty = 'easy' | 'normal';
 export type ResponseSpeed = 'fast' | 'slow';
 
