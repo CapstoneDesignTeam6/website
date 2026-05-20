@@ -15,10 +15,10 @@ export interface HeroSlide {
 
 export interface DebateTopic {
   id: number;
-  title: string;
-  description: string;
   category: string;
   isHot: boolean;
+  title: string;
+  description: string;
   participants: number;
 }
 
