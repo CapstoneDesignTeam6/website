@@ -29,56 +29,6 @@ VERTEX_MODEL_ID = os.getenv("VERTEX_MODEL_ID", "gemini-2.5-pro")
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
 
 
-# ── GPT 호출 ──────────────────────────────────────────────────────────────
-
-
-def _call_gpt(system_prompt: str, user_prompt: str, max_tokens: int = 300) -> str:
-    """OpenAI GPT 호출. 실패 시 예외 발생."""
-    response = requests.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": "gpt-4o-mini",
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "max_tokens": max_tokens,
-            "temperature": 0.7,
-        },
-        timeout=30,
-    )
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"].strip()
-
-
-def _call_gpt_json(system_prompt: str, user_prompt: str, max_tokens: int = 600) -> dict:
-    """JSON 응답을 강제하는 GPT 호출."""
-    response = requests.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {settings.OPENAI_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json={
-            "model": "gpt-4o-mini",
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            "max_tokens": max_tokens,
-            "temperature": 0.7,
-            "response_format": {"type": "json_object"},
-        },
-        timeout=30,
-    )
-    response.raise_for_status()
-    raw = response.json()["choices"][0]["message"]["content"].strip()
-    return json.loads(raw)
-
 
 # ── 내부 헬퍼 ─────────────────────────────────────────────────────────────
 
@@ -93,29 +43,6 @@ def _normalize_history(history: Optional[List[Dict]]) -> List[Dict]:
     ]
 
 
-def _gpt_debate_response(
-    agent_name: str,
-    topic: str,
-    conversation_history: List[Dict],
-    max_tokens: int,
-) -> dict:
-    history_text = "\n".join([
-        f"{'사용자' if m.get('role') == 'user' else 'AI'}: {m.get('content', '')}"
-        for m in conversation_history[-6:]
-    ])
-    system_prompt = (
-        f"당신은 '{topic}' 주제로 토론하는 AI 에이전트입니다. "
-        f"역할: {agent_name}. "
-        f"사용자의 주장에 반대 입장에서 논리적으로 반박하세요. "
-        f"2-3문장으로 간결하게 답하세요. 한국어로 답하세요."
-    )
-    user_prompt = f"지금까지 대화:\n{history_text}\n\n위 내용에 대해 반박해주세요."
-    response_text = _call_gpt(system_prompt, user_prompt, max_tokens=max_tokens)
-    return {
-        "response": response_text,
-        "agent": agent_name,
-        "timestamp": datetime.utcnow().isoformat(),
-    }
 
 
 # ── AgentService ──────────────────────────────────────────────────────────

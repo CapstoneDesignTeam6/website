@@ -10,8 +10,7 @@ from api import auth, discussion, level
 from api.auth import auth_router
 from database import SessionLocal
 from config import settings
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
+import asyncio
 import logging
 import time
 import json
@@ -62,8 +61,38 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         
         return response
 
-# 스케줄러 (매일 12시 뉴스 크롤링)
-scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
+# 동시 갱신 방지 락
+_refresh_lock = asyncio.Lock()
+
+
+async def _maybe_refresh_data():
+    """
+    뉴스/주제가 오래됐으면 백그라운드에서 갱신한다.
+    - 뉴스: 마지막 크롤링이 하루 이상 지난 경우
+    - 주제: 마지막 생성이 7일 이상 지난 경우
+    락을 사용해 동시 실행을 방지한다.
+    """
+    if _refresh_lock.locked():
+        return
+
+    async with _refresh_lock:
+        try:
+            from services.news import is_news_expired, crawl_and_replace_news
+            from services.topic import generate_and_save_topics
+
+            if is_news_expired():
+                logger.info("🔄 [자동] 뉴스 만료 → 크롤링 시작...")
+                crawl_result = await crawl_and_replace_news()
+                logger.info(f"🔄 [자동] 크롤링 결과: {crawl_result}")
+
+            loop = asyncio.get_event_loop()
+            topic_result = await loop.run_in_executor(
+                None, lambda: generate_and_save_topics(force=False)
+            )
+            logger.info(f"💬 [자동] 주제 확인 결과: {topic_result}")
+        except Exception as e:
+            logger.error(f"자동 갱신 실패: {e}")
+
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -83,6 +112,18 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# 요청 기반 자동 갱신 미들웨어
+class RefreshMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        skip_prefixes = ("/admin", "/docs", "/openapi.json", "/redoc")
+        skip_paths = {"/", "/health"}
+        path = request.url.path
+        if path not in skip_paths and not any(path.startswith(p) for p in skip_prefixes):
+            asyncio.create_task(_maybe_refresh_data())
+        return await call_next(request)
+
+app.add_middleware(RefreshMiddleware)
 
 # 라우터 등록
 app.include_router(auth.router)
@@ -115,32 +156,7 @@ async def startup_event():
     finally:
         db.close()
     
-    # 뉴스 크롤링 스케줄러 등록 (매일 오전 12시 = 정오)
-    from services.news import crawl_and_replace_news
-
-    async def scheduled_news_crawl():
-        import asyncio
-        from services.topic import generate_and_save_topics
-
-        logger.info("🗞️ [스케줄러] 뉴스 크롤링 시작...")
-        crawl_result = await crawl_and_replace_news()
-        logger.info(f"🗞️ [스케줄러] 크롤링 결과: {crawl_result}")
-
-        if crawl_result.get("success"):
-            logger.info("💬 [스케줄러] 토론 주제 생성 시작 (7일 경과 여부 확인)...")
-            loop = asyncio.get_event_loop()
-            topic_result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=False))
-            logger.info(f"💬 [스케줄러] 주제 생성 결과: {topic_result}")
-
-    scheduler.add_job(
-        scheduled_news_crawl,
-        trigger=CronTrigger(hour=12, minute=0, timezone="Asia/Seoul"),
-        id="daily_news_crawl",
-        name="매일 12시 뉴스 크롤링",
-        replace_existing=True,
-    )
-    scheduler.start()
-    logger.info("✅ 뉴스 크롤링 스케줄러 등록 완료 (매일 12:00 KST)")
+    logger.info("✅ 요청 기반 자동 갱신 활성화 (뉴스: 1일, 주제: 7일)")
 
     # LLM 설정 상태 확인
     logger.info("Checking LLM configuration...")
@@ -159,7 +175,6 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_event():
     """앱 종료 시 정리"""
-    scheduler.shutdown(wait=False)
     logger.info("Shutting down application...")
 
 @app.get("/")

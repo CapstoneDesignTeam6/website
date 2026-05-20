@@ -385,6 +385,14 @@ class DebateOrchestrator:
             except Exception as e:
                 logger.warning(f"⚠️ 검색 실패 ({q}): {e}")
 
+        # Supabase에 캐싱 (24시간 내 중복 저장 방지)
+        if collected:
+            try:
+                from services.topic_news import save_topic_news
+                save_topic_news(self.topic, collected)
+            except Exception as e:
+                logger.warning(f"⚠️ topic_news 저장 실패 (비필수): {e}")
+
         next_context = {
             "topic": self.topic,
             "previous_instruction": instruction,

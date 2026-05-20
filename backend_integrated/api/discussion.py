@@ -71,16 +71,16 @@ async def start_discussion(
     import random
     from datetime import datetime as dt
 
-    # 1) 민감 주제 필터링
+    agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
+    agent_name = random.choice(agents)
+
+    # 민감 주제 차단
     sensitive, reason = is_sensitive_topic(body.topic)
     if sensitive:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=reason or "이 주제로는 토론을 시작할 수 없습니다.",
+            detail=f"해당 주제는 서비스 정책상 토론할 수 없습니다. 다른 주제를 선택해 주세요.",
         )
-
-    agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
-    agent_name = random.choice(agents)
 
     intro = AgentService.get_intro(topic=body.topic)
     content = intro.get("summary", f'"{body.topic}"에 대한 토론을 시작합니다.')
@@ -127,21 +127,18 @@ async def send_message(
     agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
     agent_name = random.choice(agents)
 
-    # 1) 토론 무관 발언 컷
-    on_topic, off_reason = is_on_topic(body.topic, body.message)
+    # 토론 주제와 무관한 발언 필터 (에이전트 호출 전)
+    on_topic, fallback_msg = is_on_topic(body.topic, body.message)
     if not on_topic:
         return {
             "userSide": "pro",
-            "aiResponse": {
-                "agentName": "진행자",
-                "side": "con",
-                "content": (
-                    f"방금 발언은 '{body.topic}' 주제와 관련이 없어 보입니다. "
-                    f"{off_reason}\n주제에 맞는 의견을 다시 입력해주세요."
-                ),
-                "timestamp": dt.now().strftime("%H:%M"),
-            },
             "off_topic": True,
+            "aiResponse": {
+                "agentName": agent_name,
+                "side": "con",
+                "content": fallback_msg,
+                "timestamp": dt.now().strftime("%H:%M"),
+            }
         }
 
     # "agent" → "assistant" 변환 (GPT 형식)

@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from database import get_supabase_client
 
 # bs4, playwright 는 크롤링 실행 시점에 임포트 (서버 startup 오류 방지)
@@ -181,6 +181,34 @@ def _crawl_sync() -> tuple[list[dict], str]:
         browser.close()
 
     return news_rows, crawled_at
+
+
+def is_news_expired() -> bool:
+    """최근 크롤링이 하루 이상 지났거나 데이터가 없으면 True."""
+    supabase = get_supabase_client()
+    try:
+        response = (
+            supabase.table("news")
+            .select("crawled_at")
+            .order("crawled_at", desc=True)
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            return True
+        latest_str = response.data[0]["crawled_at"]
+        latest = datetime.fromisoformat(latest_str)
+        if latest.tzinfo is None:
+            latest = latest.replace(tzinfo=timezone.utc)
+        age = datetime.now(timezone.utc) - latest
+        if age >= timedelta(days=1):
+            logger.info(f"뉴스 마지막 크롤링 후 {age.seconds//3600}시간 경과 → 갱신 필요")
+            return True
+        logger.info(f"뉴스 마지막 크롤링 후 {age.seconds//3600}시간 경과 → 아직 유효")
+        return False
+    except Exception as e:
+        logger.error(f"뉴스 만료 여부 확인 실패: {e}")
+        return True
 
 
 async def crawl_and_replace_news() -> dict:
