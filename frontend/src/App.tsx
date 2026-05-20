@@ -12,6 +12,7 @@ import {
 // --- 타입 및 서비스 ---
 import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep/*, ResponseSpeed*/ } from "./types";
 import { debateApi, userApi } from "./services/api";
+import { formatTime } from "./utils";
 
 // --- Components ---
 import { Navbar } from "./components/Navbar";
@@ -100,7 +101,7 @@ export default function App() {
           agentName: data.agentName || "AI 에이전트", 
           side: data.side || "pro", 
           content: data.content || `"${topic}"에 대한 토론을 시작합니다.`,
-          timestamp: data.timestamp || new Date().toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" }),
+          timestamp: data.timestamp || formatTime(),
           round: 1, // 초기 메시지는 1라운드에 속함
           },
         ];
@@ -139,9 +140,7 @@ export default function App() {
         // data.userSide가 'pro', 'con', 'neutral' 중 하나인지 확인하고 할당
         side: (data.userSide === 'pro' || data.userSide === 'con' || data.userSide === 'neutral') ? data.userSide : undefined,
         content: text,
-        timestamp: new Date().toLocaleTimeString("ko-KR", {
-          hour: "2-digit",
-        }),
+        timestamp: formatTime(),
         round: currentRound,
       };
 
@@ -154,7 +153,7 @@ export default function App() {
           agentName: data.aiResponse.agentName,
           side: (data.aiResponse.side === 'pro' || data.aiResponse.side === 'con' || data.aiResponse.side === 'neutral') ? data.aiResponse.side : undefined,
           content: data.aiResponse.content,
-          timestamp: data.aiResponse.timestamp,
+          timestamp: data.aiResponse.timestamp ? formatTime(data.aiResponse.timestamp) : formatTime(),
           round: currentRound,
         },
       ]);

@@ -24,6 +24,7 @@ import { DebateMessage, UserEvaluationScore, RelatedMaterial, Difficulty, AgentS
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api';
 import { MOCK_REBUTTAL_HINT, MOCK_COUNTER_HINT } from '../mockData.ts';
+import { formatTime } from '../utils';
 
 interface DebateViewProps {
   topic: string;
@@ -170,7 +171,7 @@ export const DebateView = ({
   const [relatedMaterials, setRelatedMaterials] = useState<RelatedMaterial[]>([]); // 관련 자료 상태
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
   const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
-    { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"를 눌러보세요.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }
+    { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"를 눌러보세요.', timestamp: formatTime() }
   ]);
   const [isHintGenerating, setIsHintGenerating] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
@@ -295,7 +296,7 @@ export const DebateView = ({
   const handleHintRequest = async (userMessage: string) => {
     if (isHintGenerating) return;
 
-    setChatbotMessages(prev => [...prev, { sender: 'user', text: userMessage, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
+    setChatbotMessages(prev => [...prev, { sender: 'user', text: userMessage, timestamp: formatTime() }]);
     setIsHintGenerating(true);
 
     let hintEndpoint = '';
@@ -323,18 +324,18 @@ export const DebateView = ({
         }
 
         const data = await response.json();
-        setChatbotMessages(prev => [...prev, { sender: 'bot', text: data.hint || `${hintType} 힌트를 생성할 수 없습니다.`, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
+        setChatbotMessages(prev => [...prev, { sender: 'bot', text: data.hint || `${hintType} 힌트를 생성할 수 없습니다.`, timestamp: formatTime() }]);
       } catch (error) {
         console.error(`Error fetching ${hintType} hint:`, error);
         const fallback = hintType === '반박' ? MOCK_REBUTTAL_HINT : hintType === '재반박' ? MOCK_COUNTER_HINT : null;
         const text = fallback ?? `${hintType} 힌트를 가져오는 데 실패했습니다. 다시 시도해주세요.`;
-        setChatbotMessages(prev => [...prev, { sender: 'bot', text, timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
+        setChatbotMessages(prev => [...prev, { sender: 'bot', text, timestamp: formatTime() }]);
       } finally {
         setIsHintGenerating(false);
       }
     } else {
       // Generic response if no specific hint keyword is found
-      setChatbotMessages(prev => [...prev, { sender: 'bot', text: '어떤 도움이 필요하신가요? "재반박 힌트" 또는 "반박 힌트"라고 입력해보세요.', timestamp: new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) }]);
+      setChatbotMessages(prev => [...prev, { sender: 'bot', text: '어떤 도움이 필요하신가요? "재반박 힌트" 또는 "반박 힌트"라고 입력해보세요.', timestamp: formatTime() }]);
       setIsHintGenerating(false);
     }
   };
