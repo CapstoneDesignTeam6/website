@@ -36,8 +36,20 @@ export const debateApi = {
         : '/api/debates/search';
       const res = await fetch(url, { headers: getHeaders() });
       if (res.ok) {
-        const data: DebateTopic[] = await res.json();
-        if (Array.isArray(data) && data.length > 0) return data;
+        const json = await res.json();
+        // 백엔드가 { code, message, data: [...] } 형태로 반환하는 경우 처리
+        const rows: { id?: number; topic?: string; title?: string; description?: string; category?: string; createdAt?: string }[] =
+          Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : []);
+        if (rows.length > 0) {
+          return rows.map((row, i) => ({
+            id: row.id ?? i,
+            category: row.category ?? '사회',
+            isHot: i < 3,
+            title: row.title ?? row.topic ?? '',
+            description: row.description ?? '',
+            participants: 0,
+          }));
+        }
       }
     } catch (_) { /* 실패 시 목 데이터 반환 */ }
     return query ? MOCK_TOPICS.filter(d => d.title.includes(query)) : MOCK_TOPICS;
