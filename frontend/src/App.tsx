@@ -46,7 +46,6 @@ export default function App() {
   const [discussionId, setDiscussionId] = useState<number | null>(null); // discussionId 상태
   const [usedMaterialUrls, setUsedMaterialUrls] = useState<string[]>([]); // AI 주장에 사용된 자료 URL
   const [agentSteps, setAgentSteps] = useState<AgentStep[]>([]); // 에이전트 사고과정 단계
-  const [userSide, setUserSide] = useState<'pro' | 'con' | undefined>(undefined); // 사용자 입장 (첫 메시지 후 설정)
 
   useEffect(() => {
     const initAuth = async () => {
@@ -135,17 +134,10 @@ export default function App() {
         setAgentSteps(data.agent_steps);
       }
 
-      // 첫 메시지인 경우 사용자 입장 저장
-      const detectedSide = (data.userSide === 'pro' || data.userSide === 'con') ? data.userSide : undefined;
-      if (detectedSide && !userSide) {
-        setUserSide(detectedSide);
-      }
-
       // 사용자 메시지 객체 생성
       const userMsg: DebateMessage = {
         role: "user",
-        // data.userSide가 'pro', 'con', 'neutral' 중 하나인지 확인하고 할당
-        side: (data.userSide === 'pro' || data.userSide === 'con' || data.userSide === 'neutral') ? data.userSide : undefined,
+        side: data.userSide || undefined,
         content: text,
         timestamp: formatTime(),
         round: currentRound,
@@ -158,7 +150,7 @@ export default function App() {
         {
           role: "agent",
           agentName: data.aiResponse.agentName,
-          side: (data.aiResponse.side === 'pro' || data.aiResponse.side === 'con' || data.aiResponse.side === 'neutral') ? data.aiResponse.side : undefined,
+          side: data.aiResponse.side || undefined,
           content: data.aiResponse.content,
           timestamp: data.aiResponse.timestamp ? formatTime(data.aiResponse.timestamp) : formatTime(),
           round: currentRound,
@@ -267,7 +259,6 @@ export default function App() {
                       usedMaterialUrls={usedMaterialUrls}
                       agentSteps={agentSteps}
                       difficulty={difficulty}
-                      userSide={userSide}
                     />
                   ) : (
                     <Navigate to="/setup" replace /> // discussionId가 없으면 설정 페이지로 리다이렉트

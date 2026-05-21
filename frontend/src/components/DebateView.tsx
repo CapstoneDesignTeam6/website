@@ -40,7 +40,6 @@ interface DebateViewProps {
   usedMaterialUrls?: string[];
   agentSteps?: AgentStep[];
   difficulty?: Difficulty;
-  userSide?: 'pro' | 'con';
 }
 
 const AGENT_STEPS_NORMAL = [
@@ -162,7 +161,6 @@ export const DebateView = ({
   discussionId,
   usedMaterialUrls,
   difficulty = 'normal',
-  userSide,
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -378,12 +376,6 @@ export const DebateView = ({
     return result;
   };
 
-  const proCount = messages.filter(m => m.side === 'pro').length;
-  const conCount = messages.filter(m => m.side === 'con').length;
-  const totalCount = proCount + conCount;
-  const proPercent = totalCount > 0 ? Math.round((proCount / totalCount) * 100) : 50;
-  const conPercent = totalCount > 0 ? 100 - proPercent : 50;
-  const neutralValue = totalCount === 0 ? '0.5 Neutral' : proPercent > conPercent ? `Pro dominant (${proPercent}%)` : `Con dominant (${conPercent}%)`;
 
   const scoreLabels = [
     {
@@ -643,57 +635,43 @@ export const DebateView = ({
                   </div>
                 )}
                 <div className={`flex items-start gap-3 md:gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                  {(() => {
-                    const side = msg.side && msg.side !== 'neutral' ? msg.side : (
-                      msg.role === 'user'
-                        ? (userSide ?? 'pro')
-                        : (userSide === 'pro' ? 'con' : userSide === 'con' ? 'pro' : 'con')
-                    );
-                    const isPro = side === 'pro';
-                    const iconBg = isPro ? 'bg-primary text-white' : 'bg-secondary text-white';
-                    const bubbleCls = isPro
-                      ? 'bg-blue-50 border-2 border-blue-200 text-gray-800'
-                      : 'bg-red-50 border-2 border-red-200 text-gray-800';
-                    return (
-                      <>
-                        <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${iconBg}`}>
-                          {msg.role === 'user' ? <User size={18} /> : <Brain size={18} />}
-                        </div>
-                        <div className={`flex flex-col gap-1 md:gap-1.5 max-w-[82%] ${msg.role === 'user' ? 'items-end' : ''}`}>
-                          <div className="flex items-center gap-2 px-1">
-                            <span className="text-[10px] md:text-xs font-bold text-on-surface">
-                              {msg.role === 'user' ? '나 (사용자)' : msg.agentName || 'AI 에이전트'}
-                            </span>
-                            <span className="text-[9px] md:text-[10px] text-outline">{msg.timestamp || '14:02'}</span>
-                          </div>
-                          <div className={`p-4 md:p-6 rounded-2xl text-xs md:text-sm leading-relaxed ${bubbleCls} prose prose-sm max-w-none`}>
-                            <ReactMarkdown
-                              components={{
-                                h2: () => null,
-                                h3: () => null,
-                                ol: ({ children }) => <div className="flex flex-col gap-1.5 my-2">{children}</div>,
-                                ul: ({ children }) => <div className="flex flex-col gap-1 my-2">{children}</div>,
-                                li: ({ children }) => {
-                                  const content = stripSectionLabels(children);
-                                  const isEmpty = content.every(c => c === '' || c === null || c === undefined);
-                                  if (isEmpty) return null;
-                                  return <p className="mb-1.5 last:mb-0 leading-relaxed">{content}</p>;
-                                },
-                                p: ({ children }) => {
-                                  const content = stripSectionLabels(children);
-                                  const isEmpty = content.every(c => c === '' || c === null || c === undefined);
-                                  if (isEmpty) return null;
-                                  return <p className="mb-1.5 last:mb-0">{content}</p>;
-                                },
-                              }}
-                            >
-                              {preprocessContent(msg.content)}
-                            </ReactMarkdown>
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
+                  <>
+                    <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${msg.role === 'user' ? 'bg-primary text-white' : 'bg-secondary text-white'}`}>
+                      {msg.role === 'user' ? <User size={18} /> : <Brain size={18} />}
+                    </div>
+                    <div className={`flex flex-col gap-1 md:gap-1.5 max-w-[82%] ${msg.role === 'user' ? 'items-end' : ''}`}>
+                      <div className="flex items-center gap-2 px-1">
+                        <span className="text-[10px] md:text-xs font-bold text-on-surface">
+                          {msg.role === 'user' ? '나 (사용자)' : msg.agentName || 'AI 에이전트'}
+                        </span>
+                        <span className="text-[9px] md:text-[10px] text-outline">{msg.timestamp || '14:02'}</span>
+                      </div>
+                      <div className={`p-4 md:p-6 rounded-2xl text-xs md:text-sm leading-relaxed prose prose-sm max-w-none ${msg.role === 'user' ? 'bg-blue-50 border-2 border-blue-200 text-gray-800' : 'bg-gray-50 border-2 border-gray-200 text-gray-800'}`}>
+                        <ReactMarkdown
+                          components={{
+                            h2: () => null,
+                            h3: () => null,
+                            ol: ({ children }) => <div className="flex flex-col gap-1.5 my-2">{children}</div>,
+                            ul: ({ children }) => <div className="flex flex-col gap-1 my-2">{children}</div>,
+                            li: ({ children }) => {
+                              const content = stripSectionLabels(children);
+                              const isEmpty = content.every(c => c === '' || c === null || c === undefined);
+                              if (isEmpty) return null;
+                              return <p className="mb-1.5 last:mb-0 leading-relaxed">{content}</p>;
+                            },
+                            p: ({ children }) => {
+                              const content = stripSectionLabels(children);
+                              const isEmpty = content.every(c => c === '' || c === null || c === undefined);
+                              if (isEmpty) return null;
+                              return <p className="mb-1.5 last:mb-0">{content}</p>;
+                            },
+                          }}
+                        >
+                          {preprocessContent(msg.content)}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  </>
                 </div>
               </React.Fragment>
             );

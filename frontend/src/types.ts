@@ -44,16 +44,18 @@ export interface Quiz {
 // ─── 토론 관련 ────────────────────────────────────────────────────────────────
 
 export type MessageRole = 'agent' | 'user';
-export type DebateSide = 'pro' | 'con' | 'neutral';
+export type DebateSide = string;
+export type SpeechType = 'argument' | 'rebuttal' | 'counter-rebuttal';
 export type Difficulty = 'easy' | 'normal';
 export type ResponseSpeed = 'fast' | 'slow';
 
 export interface DebateMessage {
-  id?: number;
+  id?: number; // 게스트 모드일 경우 백엔드에서 ID가 없을 수 있음
   discussion_id?: number;
   role: MessageRole;
   agentName?: string;
   side?: DebateSide;
+  speechType?: SpeechType; // 주장, 반박, 재반박
   content: string;
   timestamp: string;
   round?: number;
