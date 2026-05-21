@@ -376,8 +376,8 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
           },
           {
             icon: "🤖",
-            title: "AI 에이전트 토론, 살아있는 다양성",
-            description: "다양한 입장을 대변하는 AI 에이전트들이 논리적인 토론을 펼칩니다. 편향되지 않은 균형 잡힌 시각을 제공합니다.",
+            title: "AI 에이전트 토론, 균형 잡힌 시각",
+            description: "다양한 주제에 AI 에이전트들이 논리적인 주장을 펼칩니다. 편향되지 않은 균형 잡힌 시각을 제공합니다.",
           },
           {
             icon: "🗣️",
