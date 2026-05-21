@@ -25,20 +25,59 @@ export interface DebateTopic {
   related_news?: string[];
 }
 
-// ─── 퀴즈 관련 ────────────────────────────────────────────────────────────────
+// ─── 배경 요약 관련 ──────────────────────────────────────────────────────────
 
-export interface QuizOption {
-  id: number;
-  text: string;
+export interface BackgroundSummary {
+  topic: string;
+  summary: string;
 }
 
-export interface Quiz {
+// ─── 퀴즈 관련 ────────────────────────────────────────────────────────────────
+
+export type QuizPhase = 'pre' | 'post';
+export type QuizType = 'ox' | 'subjective';
+
+interface QuizBase {
   id: number;
   topic: string;
   question: string;
-  options: QuizOption[];
-  correctOptionId: number;
   explanation: string;
+  phase: QuizPhase;
+}
+
+export interface OXQuiz extends QuizBase {
+  type: 'ox';
+  correctAnswer: 'O' | 'X';
+}
+
+export interface SubjectiveQuiz extends QuizBase {
+  type: 'subjective';
+  hint?: string;
+}
+
+export type Quiz = OXQuiz | SubjectiveQuiz;
+
+export interface QuizSet {
+  ox: OXQuiz[];
+  subjective: SubjectiveQuiz[];
+}
+
+export interface SubjectiveAnswer {
+  quiz: SubjectiveQuiz;
+  userAnswer: string;
+}
+
+export interface SubjectiveEvaluationResult {
+  questionIndex: number;
+  score: number;
+  maxScore: number;
+  feedback: string;
+}
+
+export interface SubjectiveEvaluationResponse {
+  results: SubjectiveEvaluationResult[];
+  totalScore: number;
+  maxTotalScore: number;
 }
 
 // ─── 토론 관련 ────────────────────────────────────────────────────────────────
