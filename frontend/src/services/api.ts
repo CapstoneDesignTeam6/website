@@ -1,7 +1,7 @@
-import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed, RelatedMaterial, DiscussionHistoryItem } from '../types';
+import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed, RelatedMaterial, DiscussionHistoryItem, BackgroundSummary, SubjectiveEvaluationResponse, QuizSet, SubjectiveAnswer } from '../types';
 import type { DebateTopic } from '../types';
 import type { AgentStep } from '../types';
-import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE } from '../mockData';
+import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE, MOCK_BACKGROUND_SUMMARY } from '../mockData';
 
 // 로컬 스토리지에 저장되는 인증 토큰 키
 const TOKEN_KEY = 'agora_token';
@@ -62,6 +62,14 @@ export const debateApi = {
     });
     return res.json();
   },
+  getQuizSet: async (topic: string, phase: 'pre' | 'post'): Promise<QuizSet> => {
+    const res = await fetch(
+      `/api/debate/quiz/set?topic=${encodeURIComponent(topic)}&phase=${phase}`,
+      { headers: getHeaders() },
+    );
+    if (!res.ok) throw new Error(`API error: ${res.statusText}`);
+    return res.json();
+  },
 
   // ─── 토론 관련 (DebateMessage, AgentStep, RelatedMaterial, UserEvaluationScore) ──
   start: async (topic: string, difficulty?: Difficulty, responseSpeed?: ResponseSpeed): Promise<DebateMessage> => {
@@ -120,6 +128,56 @@ export const debateApi = {
       return res.json();
     } catch (_) {
       return MOCK_USER_EVALUATION_SCORE;
+    }
+  },
+
+  // ─── 배경 요약 관련 (BackgroundSummary) ──────────────────────────────────────
+  getBackgroundSummary: async (topic: string): Promise<BackgroundSummary> => {
+    try {
+      const res = await fetch(`/api/debate/background?topic=${encodeURIComponent(topic)}`, {
+        headers: getHeaders(),
+      });
+      if (!res.ok) throw new Error(`API error: ${res.statusText}`);
+      return res.json();
+    } catch (_) {
+      return MOCK_BACKGROUND_SUMMARY;
+    }
+  },
+
+  // ─── 주관식 퀴즈 평가 관련 (SubjectiveEvaluationResponse) ────────────────────
+  evaluateSubjective: async (
+    topic: string,
+    phase: 'pre' | 'post',
+    answers: SubjectiveAnswer[],
+    discussionId?: number | null,
+  ): Promise<SubjectiveEvaluationResponse> => {
+    try {
+      const res = await fetch('/api/debate/quiz/evaluate', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({
+          topic,
+          phase,
+          answers: answers.map(({ quiz, userAnswer }) => ({
+            question: quiz.question,
+            user_answer: userAnswer,
+          })),
+          discussion_id: discussionId ?? null,
+        }),
+      });
+      if (!res.ok) throw new Error(`API error: ${res.statusText}`);
+      return res.json();
+    } catch (_) {
+      return {
+        results: answers.map((_, i) => ({
+          questionIndex: i,
+          score: 0,
+          maxScore: 5,
+          feedback: '평가를 불러오지 못했습니다.',
+        })),
+        totalScore: 0,
+        maxTotalScore: answers.length * 5,
+      };
     }
   },
 
