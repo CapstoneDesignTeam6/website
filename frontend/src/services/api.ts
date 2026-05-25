@@ -91,7 +91,7 @@ export const debateApi = {
     }
     return res.json();
   },
-  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number, difficulty?: DebateMessage['difficulty']): Promise<{ userSide: string; aiResponse: DebateMessage; used_material_urls?: string[]; agent_steps?: AgentStep[] }> => {
+  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number, difficulty?: DebateMessage['difficulty']): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: RelatedMaterial[]; agent_steps?: AgentStep[] }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),

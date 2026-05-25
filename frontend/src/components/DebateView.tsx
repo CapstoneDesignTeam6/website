@@ -37,7 +37,7 @@ interface DebateViewProps {
   progress?: number;
   discussionId: number;
   setFullScreenMode: (isFullScreen: boolean) => void;
-  usedMaterialUrls?: string[];
+  usedMaterials?: RelatedMaterial[];
   agentSteps?: AgentStep[];
   difficulty?: Difficulty;
   speechStep?: number;
@@ -162,7 +162,7 @@ export const DebateView = ({
   totalRounds = 2,
   progress = 25,
   discussionId,
-  usedMaterialUrls,
+  usedMaterials,
   difficulty = 'normal',
   speechStep = 1,
   waitingForContinue = false,
@@ -252,15 +252,16 @@ export const DebateView = ({
     fetchRelatedMaterials();
   }, [topic]); // 토론 주제가 변경될 때마다 다시 불러옴
 
-  // 사용된 자료 URL이 바뀌면 해당 자료를 위로 재배치
+  // 백엔드에서 사용 여부가 포함된 자료 목록을 받으면 used 자료를 위로 재배치
   useEffect(() => {
-    if (!usedMaterialUrls || usedMaterialUrls.length === 0) return;
+    if (!usedMaterials || usedMaterials.length === 0) return;
+    const usedUrls = new Set(usedMaterials.filter(m => m.used && m.url).map(m => m.url!));
     setRelatedMaterials(prev => {
-      const used = prev.filter(m => m.url && usedMaterialUrls.includes(m.url)).map(m => ({ ...m, used: true }));
-      const unused = prev.filter(m => !m.url || !usedMaterialUrls.includes(m.url)).map(m => ({ ...m, used: false }));
+      const used = prev.filter(m => m.url && usedUrls.has(m.url)).map(m => ({ ...m, used: true }));
+      const unused = prev.filter(m => !m.url || !usedUrls.has(m.url)).map(m => ({ ...m, used: false }));
       return [...used, ...unused];
     });
-  }, [usedMaterialUrls]);
+  }, [usedMaterials]);
 
   useEffect(() => {
     console.log("DebateView received messages:", messages); // 디버깅용 로그 추가
@@ -896,7 +897,7 @@ export const DebateView = ({
                 <article key={i} className={`flex flex-col gap-2 bg-white rounded-2xl border p-5 card-hover ${material.used ? 'border-primary/40 ring-1 ring-primary/20' : 'border-gray-100'}`}>
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-bold ${material.color}`}>{material.category}</span>
-                    {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">주장에 사용됨</span>}
+                    {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">AI가 참고한 자료</span>}
                   </div>
                   <h3 className="text-sm font-bold leading-tight">{material.title}</h3>
                   {material.description && (

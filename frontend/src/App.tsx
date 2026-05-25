@@ -47,7 +47,7 @@ export default function App() {
   const [waitingForContinue, setWaitingForContinue] = useState(false);
   const [fullScreenMode, setFullScreenMode] = useState(false); // 전체 화면 모드 상태 추가
   const [discussionId, setDiscussionId] = useState<number | null>(null); // discussionId 상태
-  const [usedMaterialUrls, setUsedMaterialUrls] = useState<string[]>([]); // AI 주장에 사용된 자료 URL
+  const [usedMaterials, setUsedMaterials] = useState<import('./types').RelatedMaterial[]>([]); // AI 주장에 사용된 자료 목록
   const [agentSteps, setAgentSteps] = useState<AgentStep[]>([]); // 에이전트 사고과정 단계
 
   useEffect(() => {
@@ -140,8 +140,8 @@ export default function App() {
     try {
       // 백엔드 API를 통해 메시지 전송
       const data = await debateApi.sendMessage(topic, text, messages, discussionId, currentRound, difficulty/*, responseSpeed*/);
-      if (data.used_material_urls && data.used_material_urls.length > 0) {
-        setUsedMaterialUrls(data.used_material_urls);
+      if (data.used_materials && data.used_materials.length > 0) {
+        setUsedMaterials(data.used_materials);
       }
       if (data.agent_steps && data.agent_steps.length > 0) {
         setAgentSteps(data.agent_steps);
@@ -288,7 +288,7 @@ export default function App() {
                       progress={progress}
                       discussionId={discussionId}
                       setFullScreenMode={setFullScreenMode}
-                      usedMaterialUrls={usedMaterialUrls}
+                      usedMaterials={usedMaterials}
                       agentSteps={agentSteps}
                       difficulty={difficulty}
                       speechStep={speechStep}
