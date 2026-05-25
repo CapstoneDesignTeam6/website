@@ -32,10 +32,10 @@ export interface BackgroundSummary {
   summary: string;
 }
 
-// ─── 퀴즈 관련 ────────────────────────────────────────────────────────────────
+// ─── 퀴즈 관련(객관식만 사용중 ) ─────────────────────────────────────────────
 
 export type QuizPhase = 'pre' | 'post';
-export type QuizType = 'ox' | 'subjective';
+export type QuizType = 'ox' | 'subjective' | 'multiple-choice';
 
 interface QuizBase {
   id: number;
@@ -55,11 +55,18 @@ export interface SubjectiveQuiz extends QuizBase {
   hint?: string;
 }
 
-export type Quiz = OXQuiz | SubjectiveQuiz;
+export interface MultipleChoiceQuiz extends QuizBase {
+  type: 'multiple-choice';
+  options: string[];
+  correctIndex: number;
+}
+
+export type Quiz = OXQuiz | SubjectiveQuiz | MultipleChoiceQuiz;
 
 export interface QuizSet {
   ox: OXQuiz[];
   subjective: SubjectiveQuiz[];
+  multipleChoice: MultipleChoiceQuiz[];
 }
 
 export interface SubjectiveAnswer {

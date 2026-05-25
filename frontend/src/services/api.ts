@@ -1,4 +1,4 @@
-import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed, RelatedMaterial, DiscussionHistoryItem, BackgroundSummary, SubjectiveEvaluationResponse, QuizSet, SubjectiveAnswer } from '../types';
+import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed, RelatedMaterial, DiscussionHistoryItem, BackgroundSummary, MultipleChoiceQuiz } from '../types';
 import type { DebateTopic } from '../types';
 import type { AgentStep } from '../types';
 import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE, MOCK_BACKGROUND_SUMMARY } from '../mockData';
@@ -69,56 +69,13 @@ export const debateApi = {
   },
 
   // ─── 퀴즈 관련 (Quiz) ────────────────────────────────────────────────────────
-  getQuiz: async (topic: string) => {
-    const res = await fetch(`/api/debate/quiz?topic=${encodeURIComponent(topic)}`, {
-      headers: getHeaders(),
-    });
-    return res.json();
-  },
-  getQuizSet: async (topic: string, phase: 'pre' | 'post'): Promise<QuizSet> => {
+  getQuizSet: async (topic: string, phase: 'pre' | 'post'): Promise<MultipleChoiceQuiz[]> => {
     const res = await fetch(
       `/api/debate/quiz/set?topic=${encodeURIComponent(topic)}&phase=${phase}`,
       { headers: getHeaders() },
     );
     if (!res.ok) throw new Error(`API error: ${res.statusText}`);
     return res.json();
-  },
-
-  // ─── 주관식 퀴즈 평가 관련 (SubjectiveEvaluationResponse) ────────────────────
-  evaluateSubjective: async (
-    topic: string,
-    phase: 'pre' | 'post',
-    answers: SubjectiveAnswer[],
-    discussionId?: number | null,
-  ): Promise<SubjectiveEvaluationResponse> => {
-    try {
-      const res = await fetch('/api/debate/quiz/evaluate', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({
-          topic,
-          phase,
-          answers: answers.map(({ quiz, userAnswer }) => ({
-            question: quiz.question,
-            user_answer: userAnswer,
-          })),
-          discussion_id: discussionId ?? null,
-        }),
-      });
-      if (!res.ok) throw new Error(`API error: ${res.statusText}`);
-      return res.json();
-    } catch (_) {
-      return {
-        results: answers.map((_, i) => ({
-          questionIndex: i,
-          score: 0,
-          maxScore: 5,
-          feedback: '평가를 불러오지 못했습니다.',
-        })),
-        totalScore: 0,
-        maxTotalScore: answers.length * 5,
-      };
-    }
   },
 
   // ─── 토론 관련 (DebateMessage, AgentStep, RelatedMaterial, UserEvaluationScore) ──

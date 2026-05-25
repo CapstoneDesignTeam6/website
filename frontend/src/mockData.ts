@@ -1,5 +1,5 @@
 // frontend/src/mockData.ts
-import { DebateMessage, DiscussionSummaryResponse, UserEvaluationScore, BackgroundSummary, OXQuiz, SubjectiveQuiz } from './types';
+import { DebateMessage, DiscussionSummaryResponse, UserEvaluationScore, BackgroundSummary, OXQuiz, SubjectiveQuiz, MultipleChoiceQuiz } from './types';
 
 // 목(mock) 관련 자료 데이터
 export const MOCK_RELATED_MATERIALS = [
@@ -167,34 +167,16 @@ export const MOCK_BACKGROUND_SUMMARY: BackgroundSummary = {
   summary: `최근 미국과 이란 사이의 긴장감이 최고조에 달하면서 전 세계가 이 갈등의 향방을 주목하고 있어요. 트럼프 행정부가 이란과 합의를 이끌어내기 위해 60일이라는 시한을 정했었지만, 결국 합의에 실패하면서 이스라엘이 이란을 공격하는 등 군사적 충돌이 실제 상황으로 이어지고 있기 때문이죠. 특히 미국의 군 지휘부 사이에서는 만약 지금의 휴전 상태가 무너진다면 이 전쟁을 공식적으로 다시 명명하는 것까지 고려할 정도로 상황이 매우 심각해요. 이번 토론의 핵심 쟁점은 이 전쟁이 지속되었을 때 미국과 이란 중 어느 쪽이 더 큰 타격을 입느냐는 것이에요. 한쪽에서는 이란의 경제가 이미 한계치에 다다랐고 미국의 군사적 압박으로 인해 이란 정권이 붕괴 위기에 처해있다고 보고 있지만, 다른 한쪽에서는 이란이 호르무즈 해협을 봉쇄하거나 에너지 인프라를 공격하는 등의 방식으로 미국과 세계 경제에 엄청난 피해를 줄 수 있다고 우려하고 있어요. 구체적인 수치를 살펴보면, 전쟁의 여파로 인해 전 세계 석유 공급량의 약 20%가 통과하는 호르무즈 해협이 사실상 막히면서 기름값이 급등하고 있어요. 실제로 미국의 휘발유 가격은 4년 만에 가장 높은 수준까지 치솟았고, 디젤 가격도 매우 높아진 상태죠. 이처럼 에너지 공급망이 흔들리면서 전 세계 물가와 경제에 직접적인 영향을 주고 있는 상황이에요.`,
 };
 
-// 목(mock) 사전 퀴즈 세트 (이란/미국 전쟁)
+// 목(mock) 사전 퀴즈 세트 (데이터 형식 예시)
 export const MOCK_PRE_QUIZ_OX: OXQuiz[] = [
   {
     id: 10,
     type: 'ox',
     phase: 'pre',
-    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
-    question: "미국의 휘발유 가격은 전쟁의 여파로 인해 4년 만에 가장 높은 수준까지 올랐어요.",
+    topic: "예시 주제",
+    question: "예시 OX 퀴즈 문제입니다.",
     correctAnswer: 'O',
-    explanation: "배경 설명에 따르면 미국의 휘발유 가격은 4년 만에 가장 높은 수준까지 치솟았다고 명시되어 있어요.",
-  },
-  {
-    id: 11,
-    type: 'ox',
-    phase: 'pre',
-    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
-    question: "호르무즈 해협은 전 세계 석유 공급량의 약 50%가 통과하는 매우 중요한 통로예요.",
-    correctAnswer: 'X',
-    explanation: "호르무즈 해협은 전 세계 석유 공급량의 약 20%가 통과하는 곳이라고 설명되어 있어요.",
-  },
-  {
-    id: 12,
-    type: 'ox',
-    phase: 'pre',
-    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
-    question: "이란이 호르무즈 해협을 봉쇄할 경우 미국과 세계 경제에 큰 피해를 줄 수 있다는 우려가 있어요.",
-    correctAnswer: 'O',
-    explanation: "이란이 호르무즈 해협을 봉쇄하거나 에너지 인프라를 공격함으로써 세계 경제에 엄청난 피해를 줄 수 있다는 우려가 제기되고 있어요.",
+    explanation: "예시 해설입니다.",
   },
 ];
 
@@ -203,72 +185,113 @@ export const MOCK_PRE_QUIZ_SUBJECTIVE: SubjectiveQuiz[] = [
     id: 13,
     type: 'subjective',
     phase: 'pre',
-    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
-    question: "이란의 경제적 한계로 인한 정권 붕괴 위기와 호르무즈 해협 봉쇄로 인한 전 세계 에너지 공급망 마비 중, 전쟁 발생 시 어느 쪽이 상대방에게 더 치명적인 타격을 입힐 것이라고 생각하시나요?",
-    hint: "전쟁의 승패를 가르는 핵심 요소인 '정권의 존립'과 '글로벌 경제 인프라' 중 무엇이 더 결정적인 약점인지 판단해 보세요.",
-    explanation: "두 가지 요인 모두 중요하지만, 정권의 존립이 흔들리면 전쟁 수행 능력 자체가 무너지므로 이란에게 더 치명적일 수 있어요.",
-  },
-  {
-    id: 14,
-    type: 'subjective',
-    phase: 'pre',
-    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
-    question: "미국의 휘발유 및 디젤 가격 상승 등 에너지 물가 폭등이 현실화되고 있는데, 이러한 경제적 피해가 미국의 군사적 압박을 지속하는 명분이 될 수 있다고 보시나요, 아니면 전쟁 억제를 위한 외교적 해결의 신호로 보아야 한다고 생각하시나요?",
-    hint: "경제적 비용 상승이 미국의 대(對)이란 정책 기조에 어떤 영향을 미칠지에 대해 본인의 견해를 정리해 보세요.",
-    explanation: "에너지 가격 상승은 양측 모두에 압박으로 작용하며, 역사적으로 경제적 피해가 커질수록 협상 테이블로 돌아오는 경향이 있어요.",
+    topic: "예시 주제",
+    question: "예시 주관식 퀴즈 문제입니다.",
+    hint: "예시 힌트입니다.",
+    explanation: "예시 해설입니다.",
   },
 ];
 
-// 목(mock) 복습 퀴즈 OX (이란/미국 전쟁)
+// 목(mock) 복습 퀴즈 (데이터 형식 예시)
 export const MOCK_POST_QUIZ_OX: OXQuiz[] = [
   {
     id: 20,
     type: 'ox',
     phase: 'post',
-    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
-    question: "전쟁이 일어나서 에너지 가격(기름값 등)이 오르면, 미국 내 물가가 올라가서 미국 국민들이 경제적 부담을 느낄 수 있어요.",
+    topic: "예시 주제",
+    question: "예시 OX 퀴즈 문제입니다.",
     correctAnswer: 'O',
-    explanation: "AI는 에너지 가격 급등이 미국의 물가 상승과 소비 위축을 일으켜 국민들이 경제적 부담을 떠안을 것이라고 주장했어요.",
-  },
-  {
-    id: 21,
-    type: 'ox',
-    phase: 'post',
-    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
-    question: "미국은 전쟁이 일어나도 국방비(나라를 지키는 데 쓰는 돈)가 줄어들기 때문에 복지 예산을 더 늘릴 수 있어요.",
-    correctAnswer: 'X',
-    explanation: "AI는 전쟁으로 인해 국방비가 증가하면 오히려 복지 예산이 축소되어 국민의 삶의 질이 떨어질 수 있다고 말했어요.",
-  },
-  {
-    id: 22,
-    type: 'ox',
-    phase: 'post',
-    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
-    question: "이란은 이미 2023년 기준으로 아프가니스탄에서 온 난민을 380만 명이나 받아들여서 수용하고 있는 상태예요.",
-    correctAnswer: 'O',
-    explanation: "유저는 UN난민기구(UNHCR)의 2023년 보고서를 인용하여 이란이 이미 380만 명의 아프가니스탄 난민을 수용 중이라고 설명했어요.",
+    explanation: "예시 해설입니다.",
   },
 ];
 
-// 목(mock) 약점 퀴즈 주관식 (이란/미국 전쟁)
 export const MOCK_POST_QUIZ_SUBJECTIVE: SubjectiveQuiz[] = [
   {
     id: 23,
     type: 'subjective',
     phase: 'post',
+    topic: "예시 주제",
+    question: "예시 주관식 퀴즈 문제입니다.",
+    hint: "예시 힌트입니다.",
+    explanation: "예시 해설입니다.",
+  },
+];
+
+// 목(mock) 토론 전 객관식 퀴즈 3개 (이란/미국 전쟁)
+export const MOCK_PRE_QUIZ_MC: MultipleChoiceQuiz[] = [
+  {
+    id: 30,
+    type: 'multiple-choice',
+    phase: 'pre',
     topic: "이란과 미국 전쟁, 누가 더 손해인가?",
-    question: "현대전에서는 미사일이나 사이버 공격(컴퓨터를 이용한 공격)을 통해 멀리 떨어진 국가의 기반 시설도 공격받을 수 있어요. 만약 미국의 주요 에너지 시설이나 금융 시스템이 마비된다면, 이것을 '직접적인 인명 피해'와 비교했을 때 어느 쪽이 더 치명적인 손해라고 생각하시나요?",
-    hint: "물리적인 거리와 상관없이 현대 기술이 가져올 수 있는 새로운 형태의 피해 규모를 가늠해보기 위해서예요.",
-    explanation: "현대전에서는 사이버 공격으로 인한 인프라 마비가 간접적인 인명 피해로 이어질 수 있어, 두 피해 유형의 경계가 점차 흐려지고 있어요.",
+    question: "호르무즈 해협은 전 세계 석유 공급량의 약 몇 %가 통과하는 중요한 통로인가요?",
+    options: ["약 5%", "약 10%", "약 20%", "약 50%"],
+    correctIndex: 2,
+    explanation: "호르무즈 해협은 전 세계 석유 공급량의 약 20%가 통과하는 전략적 요충지예요.",
   },
   {
-    id: 24,
-    type: 'subjective',
+    id: 31,
+    type: 'multiple-choice',
+    phase: 'pre',
+    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
+    question: "트럼프 행정부가 이란과 합의를 이끌어내기 위해 제시한 시한은 얼마였나요?",
+    options: ["30일", "45일", "60일", "90일"],
+    correctIndex: 2,
+    explanation: "트럼프 행정부는 이란에 60일이라는 시한을 제시했으나 결국 합의에 실패했어요.",
+  },
+  {
+    id: 32,
+    type: 'multiple-choice',
+    phase: 'pre',
+    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
+    question: "전쟁의 여파로 인해 미국의 휘발유 가격은 몇 년 만에 가장 높은 수준까지 올랐나요?",
+    options: ["2년", "4년", "6년", "10년"],
+    correctIndex: 1,
+    explanation: "배경 설명에 따르면 미국의 휘발유 가격은 4년 만에 가장 높은 수준까지 치솟았어요.",
+  },
+];
+
+// 목(mock) 토론 후 객관식 퀴즈 3개 (이란/미국 전쟁)
+export const MOCK_POST_QUIZ_MC: MultipleChoiceQuiz[] = [
+  {
+    id: 40,
+    type: 'multiple-choice',
     phase: 'post',
     topic: "이란과 미국 전쟁, 누가 더 손해인가?",
-    question: "전쟁으로 인해 글로벌 공급망(물건이 만들어져 소비자에게 전달되는 과정)이 끊기면서 미국 내 물가가 급격히 오르고 경제가 흔들린다면, 이를 단순한 '경제적 불편함'으로 봐야 할까요, 아니면 이란의 인권 위기와 같은 수준의 '사회적 재난'으로 봐야 할까요?",
-    hint: "경제적 타격이 국민의 삶의 질과 사회적 안전에 미치는 영향력을 어떻게 정의할지 고민해보기 위해서예요.",
-    explanation: "경제적 피해는 그 규모와 지속 시간에 따라 단순한 불편함을 넘어 사회 시스템 전체를 흔드는 재난이 될 수 있어요.",
+    question: "UN난민기구(UNHCR) 2023년 보고서 기준, 이란이 수용 중인 아프가니스탄 난민은 몇 명인가요?",
+    options: ["약 100만 명", "약 200만 명", "약 380만 명", "약 500만 명"],
+    correctIndex: 2,
+    explanation: "유저는 UN난민기구(UNHCR)의 2023년 보고서를 인용하여 이란이 이미 380만 명의 아프가니스탄 난민을 수용 중이라고 설명했어요.",
+  },
+  {
+    id: 41,
+    type: 'multiple-choice',
+    phase: 'post',
+    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
+    question: "AI는 전쟁으로 인해 미국의 국방비가 증가하면 어떤 결과가 초래된다고 주장했나요?",
+    options: [
+      "복지 예산이 늘어나 국민 삶의 질이 향상된다",
+      "복지 예산이 축소되어 국민 삶의 질이 하락한다",
+      "세금이 줄어들어 경제가 활성화된다",
+      "에너지 가격이 안정된다",
+    ],
+    correctIndex: 1,
+    explanation: "AI는 전쟁으로 국방비가 증가하면 복지 예산이 축소되어 저소득층과 중산층의 삶의 질이 하락할 수 있다고 주장했어요.",
+  },
+  {
+    id: 42,
+    type: 'multiple-choice',
+    phase: 'post',
+    topic: "이란과 미국 전쟁, 누가 더 손해인가?",
+    question: "토론에서 이란이 전쟁 발생 시 입는 피해로 주로 강조된 것은 무엇인가요?",
+    options: [
+      "글로벌 금융 시장 불안정",
+      "민간인 인명 피해와 기반 시설 붕괴",
+      "원유 수출 감소로 인한 외화 부족",
+      "군사 장비 조달 어려움",
+    ],
+    correctIndex: 1,
+    explanation: "유저(이란 측)는 전쟁 발생 시 이란 내 민간인 피해와 기반 시설 붕괴로 인한 의료·교육 시스템 마비 등 비가역적 피해를 주로 강조했어요.",
   },
 ];
 
