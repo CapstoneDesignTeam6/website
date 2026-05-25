@@ -600,13 +600,10 @@ export const DebateView = ({
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <div className="flex flex-col gap-0.5 px-3 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
+                <div className="flex flex-col gap-0.5 px-5 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
                   <span className="text-[10px] font-bold text-outline uppercase">라운드</span>
                   <span className="text-xs font-black text-on-surface">
                     {currentRound} / {totalRounds}
-                    <span className="text-[9px] font-bold text-primary ml-1">
-                      {speechStep === 1 ? '주장' : speechStep === 2 ? '반박' : '재반박'}
-                    </span>
                   </span>
                 </div>
                 <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
@@ -640,7 +637,7 @@ export const DebateView = ({
                 {showRoundIndicator && (
                   <div className="flex justify-center">
                     <span className="px-4 py-1.5 bg-primary/10 text-primary text-[11px] font-black rounded-full tracking-widest">
-                      {msg.round}라운드 — 주장 · 반박 · 재반박
+                      {msg.round}라운드
                     </span>
                   </div>
                 )}
@@ -707,7 +704,7 @@ export const DebateView = ({
             {waitingForContinue ? (
               <div className="px-1 py-3 flex flex-col items-center gap-3">
                 <span className="text-sm font-bold text-on-surface">
-                  이번 라운드가 끝났습니다. 다음 라운드를 계속 진행할까요?
+                  토론이 끝났습니다. 다음 라운드를 계속 진행할까요?
                 </span>
                 <div className="flex gap-3">
                   <button
