@@ -40,6 +40,9 @@ interface DebateViewProps {
   usedMaterialUrls?: string[];
   agentSteps?: AgentStep[];
   difficulty?: Difficulty;
+  speechStep?: number;
+  waitingForContinue?: boolean;
+  onContinueDebate?: () => void;
 }
 
 const AGENT_STEPS_NORMAL = [
@@ -156,11 +159,14 @@ export const DebateView = ({
   isGenerating,
   onFinish,
   currentRound = 1,
-  totalRounds = 4,
+  totalRounds = 2,
   progress = 25,
   discussionId,
   usedMaterialUrls,
   difficulty = 'normal',
+  speechStep = 1,
+  waitingForContinue = false,
+  onContinueDebate,
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -187,12 +193,11 @@ export const DebateView = ({
     navigate(path);
   };
 
-  const examples = [
-    `~에 찬성합니다. 왜냐하면...`,
-    `~은 필요하다고 생각합니다...`,
-    `~은 문제가 있다고 생각합니다...`,
-    `~에 반대합니다. 이유는...`
-  ];
+  const SPEECH_GUIDE: Record<number, string> = {
+    1: '💡 주장: 주제에 대한 나의 입장과 근거를 제시해주세요',
+    2: '✅ 반박: 에이전트의 주장에 반박해주세요',
+    3: '🔄️ 재반박: 에이전트의 반박에 맞서 나의 주장을 강화해주세요',
+  };
 
   useEffect(() => {
     setPlaceholder("Ctrl + Enter를 눌러 의견을 제출해주세요.");
@@ -335,7 +340,7 @@ export const DebateView = ({
       }
     } else {
       // Generic response if no specific hint keyword is found
-      setChatbotMessages(prev => [...prev, { sender: 'bot', text: '어떤 도움이 필요하신가요? "재반박 힌트" 또는 "반박 힌트"라고 입력해보세요.', timestamp: formatTime() }]);
+      setChatbotMessages(prev => [...prev, { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"를 눌러보세요.', timestamp: formatTime() }]);
       setIsHintGenerating(false);
     }
   };
@@ -596,8 +601,13 @@ export const DebateView = ({
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <div className="flex flex-col gap-0.5 px-3 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
-                  <span className="text-[10px] font-bold text-outline uppercase">현재 라운드</span>
-                  <span className="text-xs font-black text-on-surface">{currentRound} / {totalRounds}</span>
+                  <span className="text-[10px] font-bold text-outline uppercase">라운드</span>
+                  <span className="text-xs font-black text-on-surface">
+                    {currentRound} / {totalRounds}
+                    <span className="text-[9px] font-bold text-primary ml-1">
+                      {speechStep === 1 ? '주장' : speechStep === 2 ? '반박' : '재반박'}
+                    </span>
+                  </span>
                 </div>
                 <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
                   <RefreshCw size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '다시 시작'}
@@ -629,8 +639,8 @@ export const DebateView = ({
               <React.Fragment key={idx}>
                 {showRoundIndicator && (
                   <div className="flex justify-center">
-                    <span className="px-4 py-1.5 bg-gray-200 text-outline text-[10px] font-bold rounded-full uppercase tracking-widest">
-                      라운드 {msg.round}
+                    <span className="px-4 py-1.5 bg-primary/10 text-primary text-[11px] font-black rounded-full tracking-widest">
+                      {msg.round}라운드 — 주장 · 반박 · 재반박
                     </span>
                   </div>
                 )}
@@ -693,38 +703,61 @@ export const DebateView = ({
               minWidth: '650px',
             }}
           >
-            {isFirstInput && (
-              <div className="px-1 py-2">
-                <span className="text-xs font-bold text-primary flex items-center gap-2">
-                  💡 첫 주장에는 찬반 입장을 포함해주세요
+            {/* 계속 진행 선택 */}
+            {waitingForContinue ? (
+              <div className="px-1 py-3 flex flex-col items-center gap-3">
+                <span className="text-sm font-bold text-on-surface">
+                  이번 라운드가 끝났습니다. 다음 라운드를 계속 진행할까요?
                 </span>
+                <div className="flex gap-3">
+                  <button
+                    onClick={onContinueDebate}
+                    className="px-5 py-2 bg-primary text-white text-sm font-black rounded-xl hover:bg-primary/90 transition-colors"
+                  >
+                    계속 진행
+                  </button>
+                  <button
+                    onClick={onFinish}
+                    className="px-5 py-2 bg-gray-200 text-on-surface text-sm font-black rounded-xl hover:bg-gray-300 transition-colors"
+                  >
+                    토론 종료
+                  </button>
+                </div>
               </div>
+            ) : (
+              <>
+                <div className="px-1 py-2">
+                  <span className="text-xs font-bold text-primary flex items-center gap-2">
+                    {SPEECH_GUIDE[speechStep]}
+                  </span>
+                </div>
+                <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 gap-2">
+                  <textarea
+                    ref={textareaRef}
+                    className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-xs md:text-sm resize-none custom-scrollbar"
+                    style={{ minHeight: '2rem', maxHeight: '16rem', overflowY: 'hidden', padding: '0.375rem' }}
+                    placeholder={placeholder}
+                    value={inputText}
+                    onChange={(e) => {
+                      setInputText(e.target.value);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.ctrlKey) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!inputText.trim() || isGenerating}
+                    className="shrink-0 p-1 md:p-2 bg-primary text-white rounded-xl md:rounded-2xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+                  >
+                    <Send size={18} className="md:w-5 md:h-5" />
+                  </button>
+                </div>
+              </>
             )}
-            <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 gap-2">
-              <textarea
-                ref={textareaRef}
-                className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-xs md:text-sm resize-none custom-scrollbar"
-                style={{ minHeight: '2rem', maxHeight: '16rem', overflowY: 'hidden', padding: '0.375rem' }}
-                placeholder={placeholder}
-                value={inputText}
-                onChange={(e) => {
-                  setInputText(e.target.value);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && e.ctrlKey) {
-                    e.preventDefault();
-                    handleSend();
-                  }
-                }}
-              />
-              <button
-                onClick={handleSend}
-                disabled={!inputText.trim() || isGenerating}
-                className="shrink-0 p-1 md:p-2 bg-primary text-white rounded-xl md:rounded-2xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-              >
-                <Send size={18} className="md:w-5 md:h-5" />
-              </button>
-            </div>
           </div>
         </div>
 

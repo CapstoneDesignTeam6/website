@@ -93,7 +93,6 @@ export type MessageRole = 'agent' | 'user';
 export type DebateSide = string;
 export type SpeechType = 'argument' | 'rebuttal' | 'counter-rebuttal';
 export type Difficulty = 'easy' | 'normal';
-export type ResponseSpeed = 'fast' | 'slow';
 
 export interface DebateMessage {
   id?: number; // 게스트 모드일 경우 백엔드에서 ID가 없을 수 있음
@@ -105,6 +104,7 @@ export interface DebateMessage {
   content: string;
   timestamp: string;
   round?: number;
+  difficulty?: Difficulty; // 쉬운 모드 선택
 }
 
 export type AgentStepType = 'orchestrator' | 'search' | 'generate' | 'simplify';

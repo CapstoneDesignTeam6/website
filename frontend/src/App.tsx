@@ -42,6 +42,9 @@ export default function App() {
   const [currentRound, setCurrentRound] = useState(1);
   const [totalRounds, setTotalRounds] = useState(4);
   const [progress, setProgress] = useState(0);
+  // 라운드 내 발언 단계: 1=사용자주장, 2=사용자반박, 3=사용자재반박, 4=에이전트재반박완료(계속여부선택)
+  const [speechStep, setSpeechStep] = useState(1);
+  const [waitingForContinue, setWaitingForContinue] = useState(false);
   const [fullScreenMode, setFullScreenMode] = useState(false); // 전체 화면 모드 상태 추가
   const [discussionId, setDiscussionId] = useState<number | null>(null); // discussionId 상태
   const [usedMaterialUrls, setUsedMaterialUrls] = useState<string[]>([]); // AI 주장에 사용된 자료 URL
@@ -79,8 +82,10 @@ export default function App() {
     setMessages([]);
     setIsGenerating(true); // 메시지 생성 중 상태 활성화
     setCurrentRound(1); // 토론 시작 시 현재 라운드를 1로 초기화
-    setTotalRounds(4); // 총 라운드 수를 4로 설정 (필요에 따라 변경 가능)
+    setTotalRounds(2); // 초기 총 라운드 수 2 (계속 진행 시 2씩 증가)
     setProgress(0); // 진행률을 0으로 초기화 (아직 완료된 라운드가 없으므로)
+    setSpeechStep(1); // 발언 단계 초기화
+    setWaitingForContinue(false);
 
     try {
       // debateApi.start는 이제 discussionId를 반환합니다.
@@ -120,6 +125,14 @@ export default function App() {
     }
   }; // 실제 토론 시작
 
+  // 발언 단계별 speechType 매핑
+  // speechStep: 1=주장, 2=반박, 3=재반박
+  const getSpeechType = (step: number): 'argument' | 'rebuttal' | 'counter-rebuttal' => {
+    if (step === 1) return 'argument';
+    if (step === 2) return 'rebuttal';
+    return 'counter-rebuttal';
+  };
+
   const handleSendMessage = async (text: string) => {
     // 메시지 전송 시 로딩 상태 활성화
     setIsGenerating(true);
@@ -134,14 +147,19 @@ export default function App() {
         setAgentSteps(data.agent_steps);
       }
 
+      const currentSpeechType = getSpeechType(speechStep);
+
       // 사용자 메시지 객체 생성
       const userMsg: DebateMessage = {
         role: "user",
         side: data.userSide || undefined,
+        speechType: currentSpeechType,
         content: text,
         timestamp: formatTime(),
         round: currentRound,
       };
+
+      const nextSpeechStep = speechStep + 1; // 에이전트 응답 후 다음 단계
 
       // AI 응답 메시지 객체 생성
       setMessages((prev) => [
@@ -151,25 +169,29 @@ export default function App() {
           role: "agent",
           agentName: data.aiResponse.agentName,
           side: data.aiResponse.side || undefined,
+          // 에이전트는 사용자 발언 다음 단계로 응답 (주장→반박, 반박→재반박, 재반박→재반박)
+          speechType: nextSpeechStep === 2 ? 'argument' : nextSpeechStep === 3 ? 'rebuttal' : 'counter-rebuttal',
           content: data.aiResponse.content,
           timestamp: data.aiResponse.timestamp ? formatTime(data.aiResponse.timestamp) : formatTime(),
           round: currentRound,
         },
       ]);
 
-      // 사용자 메시지와 AI 응답이 모두 완료되면 라운드 진행
-      const completedRound = currentRound; // 방금 완료된 라운드
-      const nextRound = currentRound + 1; // 다음 라운드
-      setCurrentRound(nextRound); // 다음 라운드로 상태 업데이트
+      // 발언 단계 진행
+      if (speechStep < 3) {
+        // 아직 재반박 전: 다음 발언 단계로
+        setSpeechStep(speechStep + 1);
+      } else {
+        // 재반박 완료: 계속 진행 여부 선택 대기
+        // 진행률 계산 (완료된 라운드 수 / 총 라운드 수)
+        const newProgress = Math.min(100, Math.round((currentRound / totalRounds) * 100));
+        setProgress(newProgress);
 
-      // 진행률 계산 (완료된 라운드 수 / 총 라운드 수)
-      // Math.min(100, ...)을 사용하여 100%를 초과하지 않도록 합니다.
-      const newProgress = Math.min(100, Math.round((completedRound / totalRounds) * 100));
-      setProgress(newProgress);
-
-      // 모든 라운드가 완료되면 토론 종료 처리
-      if (completedRound >= totalRounds) {
-        handleFinishDebate();
+        if (currentRound >= totalRounds) {
+          handleFinishDebate();
+        } else {
+          setWaitingForContinue(true);
+        }
       }
     } catch (error) {
       console.error("Failed to send message:", error);
@@ -177,6 +199,13 @@ export default function App() {
       setIsGenerating(false);
     }
   }; // 메시지 전송 처리
+
+  const handleContinueDebate = () => {
+    setTotalRounds(prev => prev + 2);
+    setCurrentRound(prev => prev + 1);
+    setSpeechStep(1);
+    setWaitingForContinue(false);
+  }; // 다음 라운드 계속 진행 (totalRounds 2씩 증가)
 
   const handleFinishDebate = async () => {
     navigate("/post-quiz");
@@ -259,6 +288,9 @@ export default function App() {
                       usedMaterialUrls={usedMaterialUrls}
                       agentSteps={agentSteps}
                       difficulty={difficulty}
+                      speechStep={speechStep}
+                      waitingForContinue={waitingForContinue}
+                      onContinueDebate={handleContinueDebate}
                     />
                   ) : (
                     <Navigate to="/setup" replace /> // discussionId가 없으면 설정 페이지로 리다이렉트

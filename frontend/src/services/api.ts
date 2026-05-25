@@ -1,4 +1,4 @@
-import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, Difficulty, ResponseSpeed, RelatedMaterial, DiscussionHistoryItem, BackgroundSummary, MultipleChoiceQuiz } from '../types';
+import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, RelatedMaterial, DiscussionHistoryItem, BackgroundSummary, MultipleChoiceQuiz } from '../types';
 import type { DebateTopic } from '../types';
 import type { AgentStep } from '../types';
 import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE, MOCK_BACKGROUND_SUMMARY } from '../mockData';
@@ -79,11 +79,11 @@ export const debateApi = {
   },
 
   // ─── 토론 관련 (DebateMessage, AgentStep, RelatedMaterial, UserEvaluationScore) ──
-  start: async (topic: string, difficulty?: Difficulty, responseSpeed?: ResponseSpeed): Promise<DebateMessage> => {
+  start: async (topic: string, difficulty?: DebateMessage['difficulty']): Promise<DebateMessage> => {
     const res = await fetch('/api/debate/start', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ topic, difficulty, response_speed: responseSpeed }),
+      body: JSON.stringify({ topic, difficulty }),
     });
     if (!res.ok) {
       const errorText = await res.text();
@@ -91,11 +91,11 @@ export const debateApi = {
     }
     return res.json();
   },
-  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number, difficulty?: Difficulty, responseSpeed?: ResponseSpeed): Promise<{ userSide: string; aiResponse: DebateMessage; used_material_urls?: string[]; agent_steps?: AgentStep[] }> => {
+  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number, difficulty?: DebateMessage['difficulty']): Promise<{ userSide: string; aiResponse: DebateMessage; used_material_urls?: string[]; agent_steps?: AgentStep[] }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, round_number: roundNumber ?? 1, difficulty, response_speed: responseSpeed }),
+      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, round_number: roundNumber ?? 1, difficulty }),
     });
     return res.json();
   },
