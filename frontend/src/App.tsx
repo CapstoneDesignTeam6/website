@@ -178,14 +178,17 @@ export default function App() {
       ]);
 
       // 발언 단계 진행
+      // 진행률 계산: 각 라운드는 에이전트 설명(+1) + 주장/반박/재반박(3) = 4스텝
+      // 완료 스텝 = (이전 라운드 * 4) + (에이전트 설명 1 + 현재 speechStep)
+      const totalSteps = totalRounds * 4;
+      const completedSteps = (currentRound - 1) * 4 + 1 + speechStep;
+      setProgress(Math.min(100, Math.round((completedSteps / totalSteps) * 100)));
+
       if (speechStep < 3) {
         // 아직 재반박 전: 다음 발언 단계로
         setSpeechStep(speechStep + 1);
       } else {
         // 재반박 완료: 계속 진행 여부 선택 대기
-        // 진행률 계산 (완료된 라운드 수 / 총 라운드 수)
-        const newProgress = Math.min(100, Math.round((currentRound / totalRounds) * 100));
-        setProgress(newProgress);
 
         if (currentRound >= totalRounds) {
           handleFinishDebate();
