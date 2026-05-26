@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
 import {
   TrendingUp,
-  Download, 
+  Download,
   Brain,
   Loader2,
-  ChevronLeft, // 추가: 왼쪽 화살표 아이콘
-  ChevronRight, // 추가: 오른쪽 화살표 아이콘
+  ChevronLeft,
+  ChevronRight,
+  Newspaper,
+  Bot,
+  MessageCircle,
+  Wand2,
+  Scale,
+  ClipboardList,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
@@ -370,41 +376,42 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
       <div className="grid md:grid-cols-3 gap-6 md:gap-12 mb-16 md:mb-32">
         {[
           {
-            icon: "📰",
+            Icon: Newspaper,
             title: "뉴스 기반 토론, 정보에서 이해로",
             description: "Agora의 모든 토론은 실제 뉴스에서 시작됩니다. 단순히 기사를 읽는 것이 아니라 주제를 입체적으로 이해할 수 있게 도와줍니다.",
           },
           {
-            icon: "🤖",
+            Icon: Bot,
             title: "AI 에이전트 토론, 균형 잡힌 시각",
             description: "다양한 주제에 AI 에이전트들이 논리적인 주장을 펼칩니다. 편향되지 않은 균형 잡힌 시각을 제공합니다.",
           },
           {
-            icon: "🗣️",
+            Icon: MessageCircle,
             title: "직접 참여, 생각이 깊어지는 경험",
             description: "토론에 참여하며 자신의 논리를 다듬고 사고의 확장을 경험해보세요.",
           },
           {
-            icon: "🪄",
+            Icon: Wand2,
             title: "토론 보조 에이전트",
             description: "토론 중 막히는 부분이 있거나 도움이 필요할 때, 보조 에이전트가 논리적인 근거나 반박 전략을 제시하여 토론을 풍성하게 돕습니다.",
           },
           {
-            icon: "⚖️",
+            Icon: Scale,
             title: "자동 판정 시스템",
             description: "AI 에이전트가 토론 참여자들의 논리력, 근거 활용 등을 분석하여 객관적인 평가와 피드백을 제공합니다.",
-          },{
-            icon: "📋",
+          },
+          {
+            Icon: ClipboardList,
             title: "결과 리포트 제공",
             description: "토론 종료 후, AI 분석 결과가 담긴 상세 리포트를 제공하여 이해도를 높입니다. 샘플 리포트를 다운로드하여 확인해보세요.",
-            hasDownloadButton: true, // 다운로드 버튼이 필요한 항목임을 표시
+            hasDownloadButton: true,
           },
         ].map((item, i) => (
           <div
             key={i}
             className="p-6 md:p-8 bg-white border border-gray-100 rounded-2xl group"
           >
-            <div className="text-3xl md:text-4xl mb-4 md:mb-6">{item.icon}</div>
+            <div className="mb-4 md:mb-6"><item.Icon size={36} className="text-primary" /></div>
             <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4">
               {item.title}
             </h3>
