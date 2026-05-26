@@ -193,6 +193,16 @@ export const DebateView = ({
     navigate(path);
   };
 
+  useEffect(() => {
+    // 히스토리 스택에 현재 상태를 하나 추가해서 뒤로가기를 가로챌 수 있게 함
+    window.history.pushState(null, '', window.location.href);
+    const handlePopState = () => {
+      navigate('/setup', { replace: true });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate]);
+
   const SPEECH_GUIDE: Record<number, string> = {
     1: '💡 주장: 주제에 대한 나의 입장과 근거를 제시해주세요',
     2: '✅ 반박: 에이전트의 주장에 반박해주세요',
@@ -654,7 +664,7 @@ export const DebateView = ({
                         </span>
                         <span className="text-[9px] md:text-[10px] text-outline">{msg.timestamp || '14:02'}</span>
                       </div>
-                      <div className={`p-4 md:p-6 rounded-2xl text-xs md:text-sm leading-relaxed prose prose-sm max-w-none ${msg.role === 'user' ? 'bg-blue-50 border-2 border-blue-200 text-gray-800' : 'bg-gray-50 border-2 border-gray-200 text-gray-800'}`}>
+                      <div className={`p-4 md:p-6 rounded-2xl text-xs md:text-sm leading-relaxed prose prose-sm max-w-none ${msg.role === 'user' ? 'bg-blue-50 border-2 border-primary text-gray-800' : 'bg-red-50 border-2 border-secondary text-gray-800'}`}>
                         <ReactMarkdown
                           components={{
                             h2: () => null,
