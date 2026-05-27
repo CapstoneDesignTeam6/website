@@ -93,8 +93,16 @@ export const QuizView = ({ topic, type, onComplete }: QuizViewProps) => {
     if (type === 'pre') {
       setIsStartingDebate(true);
       try {
-        const response = await debateApi.start(topic);
-        onComplete([response], MOCK_DISCUSSION_ID);
+        // /api/debate/start 대신 sendMessage로 turn=0 초기 메시지를 받음
+        // history를 빈 배열로 전달하면 백엔드에서 turn=0(시작) 메시지를 반환
+        const data = await debateApi.sendMessage(topic, '', [], null);
+        const initialMsg: DebateMessage = {
+          ...data.aiResponse,
+          turn: 0,
+          round: 1, // ui 표시용
+        };
+        const discussionId = initialMsg.discussion_id ?? MOCK_DISCUSSION_ID;
+        onComplete([initialMsg], discussionId);
       } catch {
         onComplete(MOCK_DEBATE_MESSAGES, MOCK_DISCUSSION_ID);
       } finally {

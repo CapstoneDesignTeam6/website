@@ -18,6 +18,7 @@ const getHeaders = () => {
 };
 
 export const debateApi = {
+  
   // ─── 주제 탐색 관련 (DebateTopic) ────────────────────────────────────────────
   getTrending: async (): Promise<DebateTopic[]> => {
     try {
@@ -79,23 +80,11 @@ export const debateApi = {
   },
 
   // ─── 토론 관련 (DebateMessage, AgentStep, RelatedMaterial, UserEvaluationScore) ──
-  start: async (topic: string, difficulty?: DebateMessage['difficulty']): Promise<DebateMessage> => {
-    const res = await fetch('/api/debate/start', {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify({ topic, difficulty }),
-    });
-    if (!res.ok) {
-      const errorText = await res.text();
-      throw new Error(`Failed to start debate: ${res.status} ${res.statusText} - ${errorText}`);
-    }
-    return res.json();
-  },
-  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, roundNumber?: number, difficulty?: DebateMessage['difficulty']): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: RelatedMaterial[]; agent_steps?: AgentStep[] }> => {
+  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, difficulty?: DebateMessage['difficulty']): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: RelatedMaterial[]; agent_steps?: AgentStep[] }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, round_number: roundNumber ?? 1, difficulty }),
+      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, difficulty }),
     });
     return res.json();
   },

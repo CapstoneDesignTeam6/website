@@ -315,42 +315,24 @@ export const DebateView = ({
     setChatbotMessages(prev => [...prev, { sender: 'user', text: userMessage, timestamp: formatTime() }]);
     setIsHintGenerating(true);
 
-    let hintEndpoint = '';
-    let hintType = '';
+    const isCounter = userMessage.includes('재반박 힌트');
+    const isRebuttal = userMessage.includes('반박 힌트');
 
-    if (userMessage.includes('재반박 힌트')) {
-      hintEndpoint = `/api/debate/${discussionId}/counter-hint`;
-      hintType = '재반박';
-    } else if (userMessage.includes('반박 힌트')) {
-      hintEndpoint = `/api/debate/${discussionId}/rebuttal-hint`;
-      hintType = '반박';
-    }
-
-    if (hintEndpoint) {
+    if (isCounter || isRebuttal) {
+      const hintType = isCounter ? '재반박' : '반박';
       try {
-        const response = await fetch(hintEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = isCounter
+          ? await debateApi.getCounterHint(discussionId)
+          : await debateApi.getRebuttalHint(discussionId);
         setChatbotMessages(prev => [...prev, { sender: 'bot', text: data.hint || `${hintType} 힌트를 생성할 수 없습니다.`, timestamp: formatTime() }]);
       } catch (error) {
         console.error(`Error fetching ${hintType} hint:`, error);
-        const fallback = hintType === '반박' ? MOCK_REBUTTAL_HINT : hintType === '재반박' ? MOCK_COUNTER_HINT : null;
-        const text = fallback ?? `${hintType} 힌트를 가져오는 데 실패했습니다. 다시 시도해주세요.`;
-        setChatbotMessages(prev => [...prev, { sender: 'bot', text, timestamp: formatTime() }]);
+        const fallback = isRebuttal ? MOCK_REBUTTAL_HINT : MOCK_COUNTER_HINT;
+        setChatbotMessages(prev => [...prev, { sender: 'bot', text: fallback ?? `${hintType} 힌트를 가져오는 데 실패했습니다. 다시 시도해주세요.`, timestamp: formatTime() }]);
       } finally {
         setIsHintGenerating(false);
       }
     } else {
-      // Generic response if no specific hint keyword is found
       setChatbotMessages(prev => [...prev, { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"를 눌러보세요.', timestamp: formatTime() }]);
       setIsHintGenerating(false);
     }

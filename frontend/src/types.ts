@@ -91,19 +91,27 @@ export interface SubjectiveEvaluationResponse {
 
 export type MessageRole = 'agent' | 'user';
 export type DebateSide = string;
-export type SpeechType = 'argument' | 'rebuttal' | 'counter-rebuttal';
+/**
+ * 토론 진행 단계 (turn)
+ * 0: 시작 → 주제 설명 생성
+ * 1: 사용자 주장 → 에이전트 반박
+ * 2: 사용자 재반박 → 에이전트 주장 생성
+ * 3: 사용자 반박 → 에이전트 재반박
+ * 3까지 끝나면 1라운드 종료 -> 다시 1부터 반복
+ */
+export type Turn = 0 | 1 | 2 | 3;
 export type Difficulty = 'easy' | 'normal';
 
 export interface DebateMessage {
   id?: number; // 게스트 모드일 경우 백엔드에서 ID가 없을 수 있음
   discussion_id?: number;
-  role: MessageRole;
+  role: MessageRole; // 에이전트, 사용자 구분
   agentName?: string;
-  side?: DebateSide;
-  speechType?: SpeechType; // 주장, 반박, 재반박
+  side?: DebateSide; // 입장 구분
+  turn?: Turn; // 0=시작, 1=에이전트 반박, 2=에이전트 주장 생성, 3=에이전트 재반박
+  round?: number; // ui 표시용(api에 사용 X)
   content: string;
   timestamp: string;
-  round?: number;
   difficulty?: Difficulty; // 쉬운 모드 선택
 }
 

@@ -10,7 +10,7 @@ import {
 
 // --- Types & Services ---
 // --- 타입 및 서비스 ---
-import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep/*, ResponseSpeed*/ } from "./types";
+import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep, Turn/*, ResponseSpeed*/ } from "./types";
 import { debateApi, userApi } from "./services/api";
 import { formatTime } from "./utils";
 
@@ -78,59 +78,33 @@ export default function App() {
   }; // 토론 시작 처리
 
   const startActualDebate = async (initialMessages?: DebateMessage[], receivedDiscussionId?: number) => {
-    // navigate("/debate"); // discussionId가 설정된 후로 이동
     setMessages([]);
-    setIsGenerating(true); // 메시지 생성 중 상태 활성화
     setCurrentRound(1); // 토론 시작 시 현재 라운드를 1로 초기화
     setTotalRounds(2); // 초기 총 라운드 수 2 (계속 진행 시 2씩 증가)
-    setProgress(0); // 진행률을 0으로 초기화 (아직 완료된 라운드가 없으므로)
+    setProgress(0); // 진행률을 0으로 초기화
     setSpeechStep(1); // 발언 단계 초기화
     setWaitingForContinue(false);
 
-    try {
-      // debateApi.start는 이제 discussionId를 반환합니다.
-      let actualDiscussionId: number | null = null;
-      let initialAgentMessage: DebateMessage[] = [];
-
-      if (receivedDiscussionId && initialMessages && initialMessages.length > 0) {
-        // QuizView에서 Mock 데이터로 넘어온 경우
-        actualDiscussionId = receivedDiscussionId;
-        initialAgentMessage = initialMessages;
-      } else {
-        // 실제 API 호출을 통해 토론 시작
-        const data = await debateApi.start(topic, difficulty/*, responseSpeed*/);
-        actualDiscussionId = data.id || Date.now(); // 백엔드에서 안 넘어오면 임시 discussionId 생성
-        initialAgentMessage = [
-          {
-            role: "agent",
-          agentName: data.agentName || "AI 에이전트", 
-          side: data.side || "pro", 
-          content: data.content || `"${topic}"에 대한 토론을 시작합니다.`,
-          timestamp: data.timestamp || formatTime(),
-          round: 1, // 초기 메시지는 1라운드에 속함
-          },
-        ];
-      }
-
-      setMessages(initialAgentMessage); // 초기 메시지 설정
-      setDiscussionId(actualDiscussionId); // discussionId 저장
-
-      navigate("/debate"); // discussionId가 설정된 후 토론 페이지로 이동
-    } catch (error) {
-      console.error("Failed to start debate:", error);
-      // 오류 발생 시 이전 페이지로 돌아가거나 사용자에게 알림
-      navigate("/setup"); 
-    } finally {
-      setIsGenerating(false);
+    // QuizView에서 turn=0인 초기 메시지와 discussionId를 전달받아 사용
+    if (receivedDiscussionId && initialMessages && initialMessages.length > 0) {
+      // turn === 0 인 에이전트 메시지만 추려서 초기 메시지로 설정
+      const turn0Messages = initialMessages.filter(m => m.turn === 0);
+      setMessages(turn0Messages.length > 0 ? turn0Messages : initialMessages);
+      setDiscussionId(receivedDiscussionId);
+      navigate("/debate");
+    } else {
+      // initialMessages가 없으면 설정 페이지로 되돌아감
+      console.error("토론 시작에 필요한 초기 메시지가 없습니다.");
+      navigate("/setup");
     }
   }; // 실제 토론 시작
 
-  // 발언 단계별 speechType 매핑
-  // speechStep: 1=주장, 2=반박, 3=재반박
-  const getSpeechType = (step: number): 'argument' | 'rebuttal' | 'counter-rebuttal' => {
-    if (step === 1) return 'argument';
-    if (step === 2) return 'rebuttal';
-    return 'counter-rebuttal';
+  // 발언 단계별 turn 매핑
+  // speechStep: 1=사용자 주장(turn 1), 2=사용자 반박(turn 2→에이전트 재반박), 3=사용자 재반박(turn 3)
+  const getSpeechTurn = (step: number): Turn => {
+    if (step === 1) return 1;
+    if (step === 2) return 2;
+    return 3;
   };
 
   const handleSendMessage = async (text: string) => {
@@ -139,7 +113,7 @@ export default function App() {
 
     try {
       // 백엔드 API를 통해 메시지 전송
-      const data = await debateApi.sendMessage(topic, text, messages, discussionId, currentRound, difficulty/*, responseSpeed*/);
+      const data = await debateApi.sendMessage(topic, text, messages, discussionId, difficulty/*, responseSpeed*/);
       if (data.used_materials && data.used_materials.length > 0) {
         setUsedMaterials(data.used_materials);
       }
@@ -147,13 +121,13 @@ export default function App() {
         setAgentSteps(data.agent_steps);
       }
 
-      const currentSpeechType = getSpeechType(speechStep);
+      const currentTurn = getSpeechTurn(speechStep);
 
       // 사용자 메시지 객체 생성
       const userMsg: DebateMessage = {
         role: "user",
         side: data.userSide || undefined,
-        speechType: currentSpeechType,
+        turn: currentTurn,
         content: text,
         timestamp: formatTime(),
         round: currentRound,
@@ -169,8 +143,11 @@ export default function App() {
           role: "agent",
           agentName: data.aiResponse.agentName,
           side: data.aiResponse.side || undefined,
-          // 에이전트는 사용자 발언 다음 단계로 응답 (주장→반박, 반박→재반박, 재반박→재반박)
-          speechType: nextSpeechStep === 2 ? 'argument' : nextSpeechStep === 3 ? 'rebuttal' : 'counter-rebuttal',
+          // 에이전트는 사용자 발언 다음 단계로 응답
+          // speechStep 1(사용자 주장) → 에이전트 반박(turn 1)
+          // speechStep 2(사용자 재반박) → 에이전트 주장 생성(turn 2)
+          // speechStep 3(사용자 반박) → 에이전트 재반박(turn 3)
+          turn: getSpeechTurn(nextSpeechStep > 3 ? 3 : nextSpeechStep) as Turn,
           content: data.aiResponse.content,
           timestamp: data.aiResponse.timestamp ? formatTime(data.aiResponse.timestamp) : formatTime(),
           round: currentRound,
