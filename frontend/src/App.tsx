@@ -129,7 +129,7 @@ export default function App() {
     // 1단계: turn=0 주제 요약 메시지 먼저 요청
     setIsGenerating(true);
     try {
-      const data = await debateApi.sendMessage(topic, '', [], null);
+      const data = await debateApi.sendMessage(topic, '', [], null, undefined, 0);
       const initialMsg: DebateMessage = { ...data.aiResponse, turn: 0, round: 1 };
       setMessages([initialMsg]);
       setDiscussionId(initialMsg.discussion_id ?? MOCK_DISCUSSION_ID);
@@ -217,7 +217,8 @@ export default function App() {
     setIsGenerating(true);
 
     try {
-      const data = await debateApi.sendMessage(topic, text, messages, discussionId, difficulty/*, responseSpeed*/);
+      const currentTurn = getSpeechTurn(speechTurn);
+      const data = await debateApi.sendMessage(topic, text, messages, discussionId, difficulty/*, responseSpeed*/, currentTurn);
 
       if (data.used_materials && data.used_materials.length > 0) {
         setUsedMaterials(data.used_materials);
@@ -226,10 +227,9 @@ export default function App() {
         setAgentSteps(data.agent_steps);
       }
 
-      const currentTurn = getSpeechTurn(speechTurn);
-
       // 사용자 메시지 객체 생성
       const userMsg: DebateMessage = {
+        discussion_id: discussionId!, //이미 저장된 discussionId 사용
         role: "user",
         side: data.userSide || undefined,
         turn: currentTurn,
@@ -245,6 +245,7 @@ export default function App() {
         ...prev,
         userMsg,
         {
+          discussion_id: data.aiResponse.discussion_id,
           role: "agent",
           agentName: data.aiResponse.agentName,
           side: data.aiResponse.side || undefined,
