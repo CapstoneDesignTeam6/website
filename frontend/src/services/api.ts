@@ -91,11 +91,11 @@ export const debateApi = {
   // sendMessage 호출 패턴:
   //   turn=0 (주제 요약): message='', history=[], discussionId=null
   //   turn=1~3 (토론):    message=사용자입력, history=누적메시지, discussionId=받은ID
-  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, difficulty?: DebateMessage['difficulty']): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: RelatedMaterial[]; agent_steps?: AgentStep[] }> => {
+  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, difficulty?: DebateMessage['difficulty'], turn?: DebateMessage['turn']): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: RelatedMaterial[]; agent_steps?: AgentStep[] }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, difficulty }),
+      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, difficulty, turn: turn ?? 0 }),
     });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
     return res.json();
