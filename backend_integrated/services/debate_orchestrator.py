@@ -14,7 +14,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 # 사용자 지정 설정을 그대로 유지합니다.
 MODEL_ID = 'gemini-2.5-pro'
 PROJECT_ID = "project-8dcb485c-620f-47a6-bc5"
-LOCATION = "asia-northeast3"
+LOCATION = "us-central1"
 
 # Vertex AI 초기화
 vertexai.init(project=PROJECT_ID, location=LOCATION)
