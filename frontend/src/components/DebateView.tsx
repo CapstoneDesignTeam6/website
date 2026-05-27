@@ -40,7 +40,7 @@ interface DebateViewProps {
   usedMaterials?: RelatedMaterial[];
   agentSteps?: AgentStep[];
   difficulty?: Difficulty;
-  speechStep?: number;
+  speechTurn?: number;
   waitingForContinue?: boolean;
   onContinueDebate?: () => void;
 }
@@ -164,7 +164,7 @@ export const DebateView = ({
   discussionId,
   usedMaterials,
   difficulty = 'normal',
-  speechStep = 1,
+  speechTurn = 1,
   waitingForContinue = false,
   onContinueDebate,
 }: DebateViewProps) => {
@@ -315,42 +315,24 @@ export const DebateView = ({
     setChatbotMessages(prev => [...prev, { sender: 'user', text: userMessage, timestamp: formatTime() }]);
     setIsHintGenerating(true);
 
-    let hintEndpoint = '';
-    let hintType = '';
+    const isCounter = userMessage.includes('재반박 힌트');
+    const isRebuttal = userMessage.includes('반박 힌트');
 
-    if (userMessage.includes('재반박 힌트')) {
-      hintEndpoint = `/api/debate/${discussionId}/counter-hint`;
-      hintType = '재반박';
-    } else if (userMessage.includes('반박 힌트')) {
-      hintEndpoint = `/api/debate/${discussionId}/rebuttal-hint`;
-      hintType = '반박';
-    }
-
-    if (hintEndpoint) {
+    if (isCounter || isRebuttal) {
+      const hintType = isCounter ? '재반박' : '반박';
       try {
-        const response = await fetch(hintEndpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = isCounter
+          ? await debateApi.getCounterHint(discussionId)
+          : await debateApi.getRebuttalHint(discussionId);
         setChatbotMessages(prev => [...prev, { sender: 'bot', text: data.hint || `${hintType} 힌트를 생성할 수 없습니다.`, timestamp: formatTime() }]);
       } catch (error) {
         console.error(`Error fetching ${hintType} hint:`, error);
-        const fallback = hintType === '반박' ? MOCK_REBUTTAL_HINT : hintType === '재반박' ? MOCK_COUNTER_HINT : null;
-        const text = fallback ?? `${hintType} 힌트를 가져오는 데 실패했습니다. 다시 시도해주세요.`;
-        setChatbotMessages(prev => [...prev, { sender: 'bot', text, timestamp: formatTime() }]);
+        const fallback = isRebuttal ? MOCK_REBUTTAL_HINT : MOCK_COUNTER_HINT;
+        setChatbotMessages(prev => [...prev, { sender: 'bot', text: fallback ?? `${hintType} 힌트를 가져오는 데 실패했습니다. 다시 시도해주세요.`, timestamp: formatTime() }]);
       } finally {
         setIsHintGenerating(false);
       }
     } else {
-      // Generic response if no specific hint keyword is found
       setChatbotMessages(prev => [...prev, { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"를 눌러보세요.', timestamp: formatTime() }]);
       setIsHintGenerating(false);
     }
@@ -586,7 +568,7 @@ export const DebateView = ({
       {/* Left Sidebar Toggle Button */}
       <button
         onClick={() => setIsScoreSidebarOpen(!isScoreSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isScoreSidebarOpen ? 'left-75' : 'left-2'}`}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all ${isScoreSidebarOpen ? 'left-75' : 'left-2'}`}
       >
         {isScoreSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
       </button>
@@ -736,7 +718,7 @@ export const DebateView = ({
               <>
                 <div className="px-1 py-2">
                   <span className="text-xs font-bold text-primary flex items-center gap-2">
-                    {SPEECH_GUIDE[speechStep]}
+                    {SPEECH_GUIDE[speechTurn]}
                   </span>
                 </div>
                 <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 gap-2">
@@ -952,7 +934,7 @@ export const DebateView = ({
 
       <button
         onClick={() => setIsRelatedMaterialsSidebarOpen(!isRelatedMaterialsSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isRelatedMaterialsSidebarOpen ? 'right-85' : 'right-2'}`}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all ${isRelatedMaterialsSidebarOpen ? 'right-85' : 'right-2'}`}
       >
         {isRelatedMaterialsSidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
       </button>

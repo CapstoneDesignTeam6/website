@@ -114,6 +114,7 @@ export const MOCK_DEBATE_MESSAGES: DebateMessage[] = [
     id: 1,
     discussion_id: MOCK_DISCUSSION_ID,
     role: 'agent',
+    turn: 0,
     content: '원자력 발전소의 증설 여부는 에너지 생산의 효율성과 환경적 영향을 고려한 복잡한 문제입니다. 지구온난화와 에너지 수요 증가에 대응하기 위해 원자력 에너지가 청정하고 안정적인 대안으로 주목받고 있지만, 방사능 위험과 폐기물 처리 문제 등은 여전히 논란이 되고 있습니다. 이 토론에서는 원자력 발전소의 장단점, 안전성, 경제성 등을 다각도로 살펴보겠습니다.',
     timestamp: '09:59',
     agentName: 'AI 에이전트',
