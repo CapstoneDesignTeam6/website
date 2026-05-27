@@ -76,14 +76,14 @@ class DebateMessageRequest(BaseModel):
     topic: str
     message: str
     history: list = []
-    discussion_id: int = None   # 세션 ID (메시지 저장용)
+    discussion_id: int | None = None
     round_number: int = 1
-    difficulty: str = "normal"  # "easy", "normal"
+    difficulty: str = "normal"
 
 class DebateAnalyzeRequest(BaseModel):
     topic: str
     messages: list = []
-    discussion_id: int = None   # 세션 ID (결과 저장용)
+    discussion_id: int | None = None
 
 
 
