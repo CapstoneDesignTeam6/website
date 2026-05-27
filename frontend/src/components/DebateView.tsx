@@ -568,7 +568,7 @@ export const DebateView = ({
       {/* Left Sidebar Toggle Button */}
       <button
         onClick={() => setIsScoreSidebarOpen(!isScoreSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isScoreSidebarOpen ? 'left-75' : 'left-2'}`}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all ${isScoreSidebarOpen ? 'left-75' : 'left-2'}`}
       >
         {isScoreSidebarOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
       </button>
@@ -934,7 +934,7 @@ export const DebateView = ({
 
       <button
         onClick={() => setIsRelatedMaterialsSidebarOpen(!isRelatedMaterialsSidebarOpen)}
-        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all hidden md:block ${isRelatedMaterialsSidebarOpen ? 'right-85' : 'right-2'}`}
+        className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all ${isRelatedMaterialsSidebarOpen ? 'right-85' : 'right-2'}`}
       >
         {isRelatedMaterialsSidebarOpen ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
       </button>
