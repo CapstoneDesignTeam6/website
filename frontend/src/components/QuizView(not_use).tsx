@@ -10,8 +10,8 @@ import {
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MultipleChoiceQuiz, DebateMessage, BackgroundSummary } from '../types';
-import { debateApi } from '../services/api';
+import { MultipleChoiceQuiz, DebateMessage, BackgroundSummary } from '../types.ts';
+import { debateApi } from '../services/api.ts';
 import {
   MOCK_PRE_QUIZ_MC,
   MOCK_POST_QUIZ_MC,
@@ -244,7 +244,7 @@ const BackgroundSummaryPage = ({ summary, topic, onBack, onStartQuiz }: Backgrou
         className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 editorial-shadow border border-gray-50 mb-8"
       >
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-primary/5 text-primary flex items-center justify-center shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
             <BookOpen size={22} />
           </div>
           <h2 className="text-base md:text-lg font-bold">주제 배경 요약</h2>
@@ -293,7 +293,7 @@ const MCQuizCard = ({ quiz, isLast, isStartingDebate, type, onNext, onShowSummar
     const isCorrectAnswer = quiz.correctIndex === index;
     if (!submitted) {
       return isSelected
-        ? 'border-primary bg-primary/5 text-primary'
+        ? 'border-primary bg-primary/10 text-primary'
         : 'border-gray-100 hover:border-gray-200 text-on-surface';
     }
     if (isCorrectAnswer) return 'border-green-500 bg-green-50 text-green-700';
@@ -318,7 +318,7 @@ const MCQuizCard = ({ quiz, isLast, isStartingDebate, type, onNext, onShowSummar
         )}
       </div>
       <div className="flex items-start gap-4 mb-8">
-        <div className="w-10 h-10 rounded-xl bg-primary/5 text-primary flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
           <HelpCircle size={24} />
         </div>
         <h2 className="text-lg md:text-xl font-bold leading-tight pt-1">{quiz.question}</h2>

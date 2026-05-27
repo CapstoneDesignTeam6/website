@@ -9,9 +9,24 @@ import {
 } from "react-router-dom";
 
 // --- Types & Services ---
-import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep, Turn/*, ResponseSpeed*/ } from "./types";
+import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep, Turn, MultipleChoiceQuiz/*, ResponseSpeed*/ } from "./types";
 import { debateApi, userApi } from "./services/api";
 import { formatTime } from "./utils";
+import {
+  MOCK_PRE_QUIZ_MC,
+  MOCK_POST_QUIZ_MC,
+  MOCK_DISCUSSION_ID,
+  MOCK_DEBATE_MESSAGES,
+} from "./mockData";
+
+/**
+ * 토론 화면 내 진행 단계
+ * intro     : turn=0 주제 요약 메시지 표시 (퀴즈 이전)
+ * pre-quiz  : 사전 퀴즈 풀기  (turn=0 이후)
+ * debating  : 토론 진행 중    (turn=1~3 × N라운드)
+ * post-quiz : 사후 퀴즈 풀기  (마지막 라운드 turn=3 에이전트 메시지 직후)
+ */
+export type DebatePhase = 'intro' | 'pre-quiz' | 'debating' | 'post-quiz';
 
 // --- Components ---
 import { Navbar } from "./components/Navbar";
@@ -25,7 +40,6 @@ import { SearchView } from "./components/SearchView";
 import { LoginView } from "./components/LoginView";
 import { SignupView } from "./components/SignupView";
 import { ProfileView } from "./components/ProfileView";
-import { QuizView } from "./components/QuizView";
 
 export default function App() {
   const location = useLocation();
@@ -75,20 +89,70 @@ export default function App() {
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   // const [responseSpeed, setResponseSpeed] = useState<ResponseSpeed>('fast');
 
-  /** 설정 완료 후 사전 퀴즈 화면으로 이동 */
+  // =========================================================
+  // [4] 토론 화면 내 퀴즈 상태
+  // 사용 위치: DebateView (인라인 렌더링)
+  //
+  // 진행 순서:
+  //   SetupView 완료
+  //     → pre-quiz  (사전 퀴즈 — DebateView 채팅 영역에 인라인 표시)
+  //     → debating  (turn=0 주제요약 채팅 → turn=1~3 토론 → 라운드 추가여부 선택)
+  //     → post-quiz (사후 퀴즈 — 마지막 라운드 turn=3 직후)
+  //     → ResultView
+  // =========================================================
+  const [debatePhase, setDebatePhase] = useState<DebatePhase>('pre-quiz');
+  const [preQuizzes, setPreQuizzes] = useState<MultipleChoiceQuiz[]>([]);
+  const [postQuizzes, setPostQuizzes] = useState<MultipleChoiceQuiz[]>([]);
+  const [isQuizLoading, setIsQuizLoading] = useState(false);
+
+  /**
+   * SetupView 완료 → /debate 로 이동하고 사전 퀴즈 데이터 로드
+   * 사용 위치: SetupView onStart 콜백
+   */
   const handleStartDebate = async () => {
     if (!topic.trim()) return;
-    navigate("/pre-quiz");
+
+    // 토론 관련 상태 초기화
+    setDebatePhase('intro');
+    setPreQuizzes([]);
+    setPostQuizzes([]);
+    setMessages([]);
+    setCurrentRound(1);
+    setTotalRounds(2);
+    setProgress(0);
+    setspeechTurn(1);
+    setWaitingForContinue(false);
+    setDiscussionId(null);
+
+    navigate("/debate");
+
+    // 1단계: turn=0 주제 요약 메시지 먼저 요청
+    setIsGenerating(true);
+    try {
+      const data = await debateApi.sendMessage(topic, '', [], null);
+      const initialMsg: DebateMessage = { ...data.aiResponse, turn: 0, round: 1 };
+      setMessages([initialMsg]);
+      setDiscussionId(initialMsg.discussion_id ?? MOCK_DISCUSSION_ID);
+    } catch {
+      const mockTurn0 = MOCK_DEBATE_MESSAGES.filter(m => m.turn === 0);
+      setMessages(mockTurn0);
+      setDiscussionId(MOCK_DISCUSSION_ID);
+    } finally {
+      setIsGenerating(false);
+    }
+
+    // 2단계: turn=0 표시 후 intro 단계로 전환 → "퀴즈 풀기" 버튼 클릭 시 pre-quiz로 이동
+    setDebatePhase('intro');
   };
 
   // =========================================================
-  // [4] 토론 진행 상태 (Debate)
+  // [5] 토론 진행 상태 (Debate)
   // 사용 위치: DebateView
   // =========================================================
   const [messages, setMessages] = useState<DebateMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentRound, setCurrentRound] = useState(1);
-  const [totalRounds, setTotalRounds] = useState(4);
+  const [totalRounds, setTotalRounds] = useState(2);
   const [progress, setProgress] = useState(0);
   // 라운드 내 발언 단계: 1=사용자 주장, 2=사용자 반박, 3=사용자 재반박
   const [speechTurn, setspeechTurn] = useState(1);
@@ -110,6 +174,37 @@ export default function App() {
     if (step === 1) return 1;
     if (step === 2) return 2;
     return 3;
+  };
+
+  /**
+   * "퀴즈 풀기" 버튼 클릭 → 사전 퀴즈 로드 후 pre-quiz 단계로 전환
+   * intro 단계에서 turn=0 메시지 아래에 보이는 버튼에서 호출됨
+   *
+   * 사용 위치: DebateView onStartQuiz 콜백
+   */
+  const handleStartQuiz = async () => {
+    setIsQuizLoading(true);
+    setDebatePhase('pre-quiz');
+    try {
+      const data = await debateApi.getQuizSet(topic, 'pre');
+      setPreQuizzes(
+        Array.isArray(data) && data.length > 0 ? data : MOCK_PRE_QUIZ_MC
+      );
+    } catch {
+      setPreQuizzes(MOCK_PRE_QUIZ_MC);
+    } finally {
+      setIsQuizLoading(false);
+    }
+  };
+
+  /**
+   * 사전 퀴즈 완료 → debating 단계로 전환
+   * (turn=0 주제 요약은 handleStartDebate에서 이미 처리됨)
+   *
+   * 사용 위치: DebateView 내 인라인 사전퀴즈 완료 콜백
+   */
+  const handlePreQuizComplete = () => {
+    setDebatePhase('debating');
   };
 
   /**
@@ -178,7 +273,7 @@ export default function App() {
       if (speechTurn < 3) {
         setspeechTurn(speechTurn + 1);
       } else {
-        // 재반박 완료: 마지막 라운드면 종료, 아니면 계속 여부 선택 대기
+        // 재반박 완료: 마지막 라운드면 사후퀴즈로 전환, 아니면 계속 여부 선택 대기
         if (currentRound >= totalRounds) {
           handleFinishDebate();
         } else {
@@ -205,57 +300,36 @@ export default function App() {
   };
 
   /**
-   * 토론 종료: 사후 퀴즈 화면으로 이동
+   * 토론 종료 → 사후 퀴즈 로드 후 post-quiz 단계로 전환
+   * 마지막 라운드 turn=3 에이전트 메시지 직후 호출됨
    *
    * 사용 위치: DebateView, handleSendMessage(마지막 라운드 완료 시)
    */
   const handleFinishDebate = async () => {
-    navigate("/post-quiz");
-  };
-
-  // =========================================================
-  // [5] 퀴즈 & 토론 초기화 (Quiz / Debate Init)
-  // 사용 위치: QuizView(pre), QuizView(post) → DebateView, ResultView
-  // =========================================================
-
-  /**
-   * 사전 퀴즈 완료 후 실제 토론 시작
-   * QuizView에서 turn=0인 초기 에이전트 메시지와 discussionId를 전달받아 세팅
-   *
-   * 사용 위치: QuizView(type="pre") onComplete 콜백
-   */
-  const startActualDebate = async (
-    initialMessages?: DebateMessage[],
-    receivedDiscussionId?: number
-  ) => {
-    setMessages([]);
-    setCurrentRound(1);
-    setTotalRounds(2);
-    setProgress(0);
-    setspeechTurn(1);
-    setWaitingForContinue(false);
-
-    if (receivedDiscussionId && initialMessages && initialMessages.length > 0) {
-      const turn0Messages = initialMessages.filter((m) => m.turn === 0);
-      setMessages(turn0Messages.length > 0 ? turn0Messages : initialMessages);
-      setDiscussionId(receivedDiscussionId);
-      navigate("/debate");
-    } else {
-      console.error("토론 시작에 필요한 초기 메시지가 없습니다.");
-      navigate("/setup");
+    setIsQuizLoading(true);
+    try {
+      const data = await debateApi.getQuizSet(topic, 'post');
+      setPostQuizzes(
+        Array.isArray(data) && data.length > 0 ? data : MOCK_POST_QUIZ_MC
+      );
+    } catch {
+      setPostQuizzes(MOCK_POST_QUIZ_MC);
+    } finally {
+      setIsQuizLoading(false);
     }
+    setDebatePhase('post-quiz');
   };
 
   // =========================================================
   // [6] 결과 분석 (Result)
-  // 사용 위치: QuizView(post) → ResultView
+  // 사용 위치: DebateView(post-quiz 완료) → ResultView
   // =========================================================
   const [debateResult, setDebateResult] = useState<DiscussionSummaryResponse | string>("");
 
   /**
    * 사후 퀴즈 완료 후 토론 결과 분석 요청 및 결과 화면 이동
    *
-   * 사용 위치: QuizView(type="post") onComplete 콜백
+   * 사용 위치: DebateView 내 인라인 사후퀴즈 완료 콜백
    */
   const showResult = async () => {
     navigate("/result");
@@ -307,29 +381,13 @@ export default function App() {
                 }
               />
 
-              {/* 사전 퀴즈 */}
-              <Route
-                path="/pre-quiz"
-                element={
-                  <QuizView
-                    topic={topic}
-                    type="pre"
-                    onComplete={startActualDebate}
-                  />
-                }
-              />
-
-              {/* 사후 퀴즈 */}
-              <Route
-                path="/post-quiz"
-                element={<QuizView topic={topic} type="post" onComplete={showResult} />}
-              />
-
-              {/* 토론 화면 - discussionId 없으면 설정 페이지로 리다이렉트 */}
+              {/* 토론 화면
+                  - pre-quiz / debating / post-quiz 단계를 DebateView 채팅 영역에서 인라인 처리
+                  - topic이 없으면 setup으로 리다이렉트 */}
               <Route
                 path="/debate"
                 element={
-                  discussionId ? (
+                  topic ? (
                     <DebateView
                       topic={topic}
                       messages={messages}
@@ -339,7 +397,7 @@ export default function App() {
                       currentRound={currentRound}
                       totalRounds={totalRounds}
                       progress={progress}
-                      discussionId={discussionId}
+                      discussionId={discussionId ?? 0}
                       setFullScreenMode={setFullScreenMode}
                       usedMaterials={usedMaterials}
                       agentSteps={agentSteps}
@@ -347,6 +405,15 @@ export default function App() {
                       speechTurn={speechTurn}
                       waitingForContinue={waitingForContinue}
                       onContinueDebate={handleContinueDebate}
+                      // ── 인라인 퀴즈 관련 props ──
+                      debatePhase={debatePhase}
+                      onPhaseChange={setDebatePhase}
+                      preQuizzes={preQuizzes}
+                      postQuizzes={postQuizzes}
+                      isQuizLoading={isQuizLoading}
+                      onStartQuiz={handleStartQuiz}
+                      onPreQuizComplete={handlePreQuizComplete}
+                      onPostQuizComplete={showResult}
                     />
                   ) : (
                     <Navigate to="/setup" replace />

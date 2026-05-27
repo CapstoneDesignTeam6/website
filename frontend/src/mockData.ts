@@ -125,6 +125,7 @@ export const MOCK_DEBATE_MESSAGES: DebateMessage[] = [
     id: 2,
     discussion_id: MOCK_DISCUSSION_ID,
     role: 'user',
+    turn: 1,
     content: '원자력 발전소를 증설해야 한다는게 내 주장이야. 그 이유는 원자력 발전이 탄소 배출이 없고 안정적인 전력 공급원이라서야.',
     timestamp: '10:00',
     agentName: '나 (사용자)',
@@ -135,6 +136,7 @@ export const MOCK_DEBATE_MESSAGES: DebateMessage[] = [
     id: 3,
     discussion_id: MOCK_DISCUSSION_ID,
     role: 'agent',
+    turn: 2,
     content: // 에이전트 응답 내용: 주요 주장 부분을 임의로 볼드 처리함
     /* [참조 문헌]\n[1] IRENA, Renewable Power Generation Costs in 2022, 2023.\n[2] IAEA, Fukushima Daiichi Accident Technical Volume 2, 2015.\n[3] IAEA, Decommissioning of Nuclear Facilities, 2020." */
     `
