@@ -51,53 +51,6 @@ def _normalize_history(history: Optional[List[Dict]]) -> List[Dict]:
 class AgentService:
 
     @staticmethod
-    def generate_response(
-        agent_name: str,
-        agent_role: str,
-        topic: str,
-        conversation_history: List[Dict],
-        max_tokens: int = settings.MAX_NEW_TOKENS,
-        temperature: float = settings.TEMPERATURE,
-        stage: str = "easy",
-        discussion_id: Optional[int] = None,
-        now_turn: int = 1,
-    ) -> dict:
-        """토론 AI 응답 생성.
-        1차: start_new_turn (Vertex AI Gemini 멀티에이전트), 실패 시 GPT 폴백.
-        """
-        try:
-            from services.debate_orchestrator import start_new_turn
-
-            user_message = ""
-            for m in reversed(conversation_history):
-                if m.get("role") == "user":
-                    user_message = m.get("content", "")
-                    break
-            if not user_message:
-                user_message = f"{topic}에 대해 토론해주세요."
-
-            text = start_new_turn(
-                now_turn=now_turn,
-                raw_user_message=user_message,
-                topic_str=topic,
-                stage_str=stage,
-                discussion_id=discussion_id,
-            )
-            if text:
-                logger.info(f"✅ [{agent_name}] DebateOrchestrator 응답 완료")
-                return {
-                    "response": text,
-                    "agent": agent_name,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                    "source": "orchestrator",
-                }
-            logger.warning("⚠️ DebateOrchestrator가 빈 응답 반환 → GPT 폴백")
-        except Exception as e:
-            logger.warning(f"⚠️ DebateOrchestrator 실패({e}), GPT 폴백")
-
-        return _gpt_debate_response(agent_name, topic, conversation_history, max_tokens)
-
-    @staticmethod
     def get_trending_topics() -> list:
         """네이버 뉴스 API + GPT로 트렌딩 토론 주제 생성."""
         search_queries = ["사회이슈", "정치논란", "기술AI", "경제정책", "국제분쟁"]
