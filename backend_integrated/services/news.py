@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
 from database import get_supabase_client
@@ -10,24 +11,16 @@ logger = logging.getLogger(__name__)
 
 DAUM_NEWS_URL = "https://news.daum.net/"
 
-# 총 3페이지 → 수집 3번, 새로고침 버튼 클릭 2번
 TOTAL_PAGES = 3
+DAILY_NEWS_COUNT = 4
+RETENTION_DAYS = 7
 
-# content-article > group_btn > link_refresh (a 태그)
 REFRESH_BTN_SELECTOR = "article.content-article .group_btn a.link_refresh"
 
 
 def _parse_headline_items(html: str) -> list[dict]:
     """
     HTML 문자열에서 ul.list_newsheadline2 항목을 파싱한다.
-
-    구조:
-      article.content-article
-        > ... > ul.list_newsheadline2
-          > li
-            > a.item_newsheadline2 [href]
-              > div.cont_thumb
-                  > .tit_txt  ← 제목
     """
     from bs4 import BeautifulSoup
     soup = BeautifulSoup(html, "lxml")
@@ -65,7 +58,6 @@ def _find_refresh_btn(page):
     try:
         btn = page.locator(REFRESH_BTN_SELECTOR).first
         if btn.count() > 0:
-            logger.info(f"다음 탭 버튼 발견: {REFRESH_BTN_SELECTOR}")
             return btn
     except Exception:
         pass
@@ -73,56 +65,57 @@ def _find_refresh_btn(page):
     return None
 
 
-# v.daum.net 기사 본문 셀렉터 (우선순위 순)
 ARTICLE_CONTENT_SELECTORS = [
-    "div.article_view",       # 다음 뉴스 본문 (주요)
-    "div#mArticle",           # 모바일 뷰
-    "div.news_view",          # 일부 언론사
-    "div#newsct",             # 일부 언론사
-    "section.article_body",   # 기타
+    "div.article_view",
+    "div#mArticle",
+    "div.news_view",
+    "div#newsct",
+    "section.article_body",
 ]
 
 
 def _fetch_article_content(page, url: str) -> str:
     """
     기사 URL에 접속해 본문 텍스트를 추출한다.
-    실패하면 빈 문자열 반환.
+    타임아웃 발생 시 1회 재시도. 최종 실패 시 빈 문자열 반환.
     """
-    try:
-        page.goto(url, wait_until="domcontentloaded", timeout=15000)
-        page.wait_for_timeout(1000)  # JS 렌더링 대기
+    for attempt in range(2):
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            page.wait_for_timeout(1500)
 
-        for selector in ARTICLE_CONTENT_SELECTORS:
-            el = page.locator(selector).first
-            if el.count() > 0:
-                text = el.inner_text().strip()
-                if text:
-                    return text
+            for selector in ARTICLE_CONTENT_SELECTORS:
+                el = page.locator(selector).first
+                if el.count() > 0:
+                    text = el.inner_text().strip()
+                    if text:
+                        return text
 
-        logger.warning(f"본문 셀렉터 미매칭: {url}")
-        return ""
-    except Exception as e:
-        logger.warning(f"본문 수집 실패 ({url}): {e}")
-        return ""
+            logger.warning(f"본문 셀렉터 미매칭: {url}")
+            return ""
+        except Exception as e:
+            if attempt == 0:
+                logger.warning(f"본문 수집 재시도 중 ({url}): {e}")
+                page.wait_for_timeout(3000)
+                continue
+            logger.warning(f"본문 수집 최종 실패 ({url}): {e}")
+            return ""
+    return ""
 
 
 def _crawl_sync() -> tuple[list[dict], str]:
     """
-    sync_playwright로 다음 뉴스 헤드라인을 수집한다.
-    Windows asyncio 호환을 위해 동기 버전으로 구현.
+    sync_playwright로 다음 뉴스 헤드라인을 수집하고
+    랜덤으로 DAILY_NEWS_COUNT개를 선택해 본문까지 수집한다.
     """
     import sys
 
-    # Windows SelectorEventLoop는 subprocess를 지원하지 않으므로
-    # 전역 policy를 ProactorEventLoop로 변경
-    # (set_event_loop은 현재 스레드만 바꾸지만, playwright는 내부에서
-    #  asyncio.new_event_loop()를 새로 생성하기 때문에 policy 변경이 필요)
     if sys.platform == "win32":
         asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
     crawled_at = datetime.now(timezone.utc).isoformat()
     seen_urls: set[str] = set()
-    news_rows: list[dict] = []
+    all_items: list[dict] = []
 
     from playwright.sync_api import sync_playwright
 
@@ -151,17 +144,10 @@ def _crawl_sync() -> tuple[list[dict], str]:
                 if item["url"] in seen_urls:
                     continue
                 seen_urls.add(item["url"])
-                news_rows.append(
-                    {
-                        "title": item["title"],
-                        "url": item["url"],
-                        "content": "",          # 2단계에서 채움
-                        "crawled_at": crawled_at,
-                    }
-                )
+                all_items.append(item)
                 new_count += 1
 
-            logger.info(f"  → 신규 {new_count}건 (누적: {len(news_rows)}건)")
+            logger.info(f"  → 신규 {new_count}건 (누적: {len(all_items)}건)")
 
             if page_num < TOTAL_PAGES:
                 refresh_btn = _find_refresh_btn(page)
@@ -172,11 +158,24 @@ def _crawl_sync() -> tuple[list[dict], str]:
                     logger.warning(f"새로고침 버튼 없음 → {page_num}페이지에서 수집 종료")
                     break
 
-        # ── 2단계: 각 기사 URL 방문해서 본문 수집 ──
-        logger.info(f"기사 본문 수집 시작 (총 {len(news_rows)}건)...")
-        for i, row in enumerate(news_rows):
-            logger.info(f"  [{i+1}/{len(news_rows)}] {row['url']}")
-            row["content"] = _fetch_article_content(page, row["url"])
+        # ── 2단계: 랜덤으로 DAILY_NEWS_COUNT개 선택 ──
+        pick_count = min(DAILY_NEWS_COUNT, len(all_items))
+        selected_items = random.sample(all_items, pick_count)
+        logger.info(f"랜덤 선택: {pick_count}건 / 전체 {len(all_items)}건")
+
+        # ── 3단계: 선택된 기사만 본문 수집 ──
+        news_rows: list[dict] = []
+        for i, item in enumerate(selected_items):
+            logger.info(f"  [{i+1}/{pick_count}] 본문 수집: {item['url']}")
+            content = _fetch_article_content(page, item["url"])
+            news_rows.append(
+                {
+                    "title": item["title"],
+                    "url": item["url"],
+                    "content": content,
+                    "crawled_at": crawled_at,
+                }
+            )
 
         browser.close()
 
@@ -214,8 +213,7 @@ def is_news_expired() -> bool:
 async def crawl_and_replace_news() -> dict:
     """
     ThreadPoolExecutor에서 sync_playwright 크롤링을 실행하고
-    news 테이블 전체를 새 데이터로 교체한다.
-    (Windows asyncio SelectorEventLoop의 subprocess 제한 우회)
+    7일 초과 뉴스를 삭제한 뒤 오늘 수집한 4건을 누적 삽입한다.
     """
     loop = asyncio.get_event_loop()
     with ThreadPoolExecutor(max_workers=1) as pool:
@@ -227,23 +225,37 @@ async def crawl_and_replace_news() -> dict:
 
     supabase = get_supabase_client()
 
-    # 기존 데이터 전체 삭제
+    # 7일 초과 데이터 삭제
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)).isoformat()
     try:
-        supabase.table("news").delete().neq("id", 0).execute()
-        logger.info("기존 news 테이블 데이터 삭제 완료")
+        supabase.table("news").delete().lt("crawled_at", cutoff).execute()
+        logger.info(f"7일 초과 뉴스 삭제 완료 (기준: {cutoff})")
     except Exception as e:
-        logger.error(f"기존 데이터 삭제 실패: {e}")
-        return {"success": False, "message": str(e), "count": 0}
+        logger.error(f"오래된 뉴스 삭제 실패: {e}")
 
-    # 새 데이터 삽입
+    # 기존 URL 조회 (중복 삽입 방지)
+    existing_urls: set[str] = set()
     try:
-        supabase.table("news").insert(news_rows).execute()
-        logger.info(f"✅ 뉴스 크롤링 완료: 총 {len(news_rows)}건 저장 ({crawled_at})")
+        resp = supabase.table("news").select("url").execute()
+        existing_urls = {row["url"] for row in resp.data}
+    except Exception as e:
+        logger.warning(f"기존 URL 조회 실패 (중복 체크 건너뜀): {e}")
+
+    new_rows = [row for row in news_rows if row["url"] not in existing_urls]
+
+    if not new_rows:
+        logger.info("수집된 뉴스가 모두 중복입니다. 추가 없음.")
+        return {"success": True, "message": "중복 뉴스로 추가 없음", "count": 0}
+
+    # 새 데이터 누적 삽입
+    try:
+        supabase.table("news").insert(new_rows).execute()
+        logger.info(f"뉴스 크롤링 완료: {len(new_rows)}건 저장 ({crawled_at})")
     except Exception as e:
         logger.error(f"뉴스 삽입 실패: {e}")
         return {"success": False, "message": str(e), "count": 0}
 
-    return {"success": True, "message": "뉴스 크롤링 완료", "count": len(news_rows)}
+    return {"success": True, "message": "뉴스 크롤링 완료", "count": len(new_rows)}
 
 
 def get_news_list(limit: int = 50) -> list[dict]:
