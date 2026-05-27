@@ -186,13 +186,6 @@ def _call_llm(news_data: list[dict]) -> list[dict]:
 def _replace_topics(topics: list[dict]) -> int:
     supabase = get_supabase_client()
 
-    try:
-        supabase.table("discussion_topics").delete().neq("id", 0).execute()
-        logger.info("기존 discussion_topics 삭제 완료")
-    except Exception as e:
-        logger.error(f"기존 토론 주제 삭제 실패: {e}")
-        return 0
-
     rows = []
     for t in topics:
         title = t.get("title", "").strip()
@@ -211,7 +204,6 @@ def _replace_topics(topics: list[dict]) -> int:
             "side_a": t.get("side_a", "").strip(),
             "side_b": t.get("side_b", "").strip(),
             "related_news": t.get("related_news", []),
-            "views": 0,
             "participants": 0,
         })
 
@@ -219,13 +211,31 @@ def _replace_topics(topics: list[dict]) -> int:
         logger.warning("저장할 토론 주제가 없습니다.")
         return 0
 
+    # 기존 ID 목록 저장
+    try:
+        existing = supabase.table("discussion_topics").select("id").execute()
+        old_ids = [r["id"] for r in existing.data]
+    except Exception as e:
+        logger.error(f"기존 ID 조회 실패: {e}")
+        old_ids = []
+
+    # 삽입 먼저 시도 — 성공한 경우에만 기존 데이터 삭제
     try:
         supabase.table("discussion_topics").insert(rows).execute()
-        logger.info(f"✅ 토론 주제 {len(rows)}개 저장 완료")
-        return len(rows)
     except Exception as e:
-        logger.error(f"토론 주제 삽입 실패: {e}")
+        logger.error(f"토론 주제 삽입 실패 — 기존 데이터 유지: {e}")
         return 0
+
+    # 기존 ID만 삭제 (새로 삽입된 행은 건드리지 않음)
+    if old_ids:
+        try:
+            supabase.table("discussion_topics").delete().in_("id", old_ids).execute()
+            logger.info("기존 discussion_topics 삭제 완료")
+        except Exception as e:
+            logger.error(f"기존 토론 주제 삭제 실패: {e}")
+
+    logger.info(f"✅ 토론 주제 {len(rows)}개 저장 완료")
+    return len(rows)
 
 
 def generate_and_save_topics(force: bool = False) -> dict:
