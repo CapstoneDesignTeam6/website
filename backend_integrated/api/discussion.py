@@ -86,10 +86,6 @@ class DebateAnalyzeRequest(BaseModel):
     discussion_id: int = None   # 세션 ID (결과 저장용)
 
 
-def _get_supabase():
-    from database import get_supabase_client
-    return get_supabase_client()
-
 
 @router.post("/message")
 async def send_message(
@@ -100,8 +96,10 @@ async def send_message(
     from datetime import datetime as dt
     from services.debate_orchestrator import start_new_turn
 
+    discussion_id = body.discussion_id or int(dt.now().timestamp() * 1000)
+
     response_text = start_new_turn(
-        discussion_id=body.discussion_id,
+        discussion_id=discussion_id,
         now_turn=body.round_number,
         raw_user_message=body.message,
         topic_str=body.topic,
@@ -109,6 +107,7 @@ async def send_message(
     )
 
     return {
+        "discussion_id": discussion_id,
         "userSide": "pro",
         "aiResponse": {
             "side": "con",
@@ -145,20 +144,6 @@ async def analyze_debate(
         f"[논리 피드백]\n{summary.get('logic_feedback', '')}",
         f"[추가 정보]\n{summary.get('extra_info', '')}",
     ])
-
-    # Supabase 세션에 결과 저장 및 완료 처리
-    if body.discussion_id:
-        try:
-            from datetime import datetime as dt
-            sb = _get_supabase()
-            sb.table("discussion_sessions").update({
-                "status": "completed",
-                "result_text": result_text,
-                "completed_at": dt.utcnow().isoformat(),
-            }).eq("id", body.discussion_id).execute()
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"세션 완료 저장 실패: {e}")
 
     return {"result": result_text}
 

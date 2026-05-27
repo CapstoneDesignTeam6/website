@@ -87,42 +87,15 @@ export default function App() {
     setSpeechStep(1); // 발언 단계 초기화
     setWaitingForContinue(false);
 
-    try {
-      // debateApi.start는 이제 discussionId를 반환합니다.
-      let actualDiscussionId: number | null = null;
-      let initialAgentMessage: DebateMessage[] = [];
-
-      if (receivedDiscussionId && initialMessages && initialMessages.length > 0) {
-        // QuizView에서 Mock 데이터로 넘어온 경우
-        actualDiscussionId = receivedDiscussionId;
-        initialAgentMessage = initialMessages;
-      } else {
-        // 실제 API 호출을 통해 토론 시작
-        const data = await debateApi.start(topic, difficulty/*, responseSpeed*/);
-        actualDiscussionId = data.id || Date.now(); // 백엔드에서 안 넘어오면 임시 discussionId 생성
-        initialAgentMessage = [
-          {
-            role: "agent",
-          agentName: data.agentName || "AI 에이전트", 
-          side: data.side || "pro", 
-          content: data.content || `"${topic}"에 대한 토론을 시작합니다.`,
-          timestamp: data.timestamp || formatTime(),
-          round: 1, // 초기 메시지는 1라운드에 속함
-          },
-        ];
-      }
-
-      setMessages(initialAgentMessage); // 초기 메시지 설정
-      setDiscussionId(actualDiscussionId); // discussionId 저장
-
-      navigate("/debate"); // discussionId가 설정된 후 토론 페이지로 이동
-    } catch (error) {
-      console.error("Failed to start debate:", error);
-      // 오류 발생 시 이전 페이지로 돌아가거나 사용자에게 알림
-      navigate("/setup"); 
-    } finally {
-      setIsGenerating(false);
+    if (receivedDiscussionId && initialMessages && initialMessages.length > 0) {
+      setMessages(initialMessages);
+      setDiscussionId(receivedDiscussionId);
+    } else {
+      setMessages([]);
     }
+
+    navigate("/debate");
+    setIsGenerating(false);
   }; // 실제 토론 시작
 
   // 발언 단계별 speechType 매핑
@@ -140,6 +113,9 @@ export default function App() {
     try {
       // 백엔드 API를 통해 메시지 전송
       const data = await debateApi.sendMessage(topic, text, messages, discussionId, currentRound, difficulty/*, responseSpeed*/);
+      if (data.discussion_id && !discussionId) {
+        setDiscussionId(data.discussion_id);
+      }
       if (data.used_materials && data.used_materials.length > 0) {
         setUsedMaterials(data.used_materials);
       }
@@ -276,7 +252,7 @@ export default function App() {
               <Route
                 path="/debate"
                 element={
-                  discussionId ? ( // discussionId가 있을 때만 DebateView 렌더링
+                  topic ? ( // topic이 있을 때만 DebateView 렌더링
                     <DebateView // DebateView 컴포넌트 렌더링
                       topic={topic}
                       messages={messages}
