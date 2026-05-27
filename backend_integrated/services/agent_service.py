@@ -14,7 +14,7 @@ import os
 import json
 import logging
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any
 
 from config import settings
@@ -59,43 +59,41 @@ class AgentService:
         max_tokens: int = settings.MAX_NEW_TOKENS,
         temperature: float = settings.TEMPERATURE,
         stage: str = "easy",
+        discussion_id: Optional[int] = None,
+        now_turn: int = 1,
     ) -> dict:
         """토론 AI 응답 생성.
-        1차: DebateOrchestrator (Vertex AI), 실패 시 GPT 폴백.
+        1차: start_new_turn (Vertex AI Gemini 멀티에이전트), 실패 시 GPT 폴백.
         """
-        if VERTEX_PROJECT_ID:
-            try:
-                from services.debate_orchestrator import DebateOrchestrator
-                orch = DebateOrchestrator(
-                    project_id=VERTEX_PROJECT_ID,
-                    location=VERTEX_LOCATION,
-                    model_id=VERTEX_MODEL_ID,
-                    tavily_api_key=TAVILY_API_KEY,
-                )
-                user_message = ""
-                for m in reversed(conversation_history):
-                    if m.get("role") == "user":
-                        user_message = m.get("content", "")
-                        break
-                if not user_message:
-                    user_message = f"{topic}에 대해 토론해주세요."
+        try:
+            from services.debate_orchestrator import start_new_turn
 
-                prior_history = conversation_history[:-1] if conversation_history else []
-                text = orch.run(
-                    topic=topic,
-                    user_input=user_message,
-                    stage=stage,
-                    history=prior_history,
-                )
+            user_message = ""
+            for m in reversed(conversation_history):
+                if m.get("role") == "user":
+                    user_message = m.get("content", "")
+                    break
+            if not user_message:
+                user_message = f"{topic}에 대해 토론해주세요."
+
+            text = start_new_turn(
+                now_turn=now_turn,
+                raw_user_message=user_message,
+                topic_str=topic,
+                stage_str=stage,
+                discussion_id=discussion_id,
+            )
+            if text:
                 logger.info(f"✅ [{agent_name}] DebateOrchestrator 응답 완료")
                 return {
                     "response": text,
                     "agent": agent_name,
-                    "timestamp": datetime.utcnow().isoformat(),
-                    "source": "hongcheol",
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "source": "orchestrator",
                 }
-            except Exception as e:
-                logger.warning(f"⚠️ DebateOrchestrator 실패({e}), GPT 폴백")
+            logger.warning("⚠️ DebateOrchestrator가 빈 응답 반환 → GPT 폴백")
+        except Exception as e:
+            logger.warning(f"⚠️ DebateOrchestrator 실패({e}), GPT 폴백")
 
         return _gpt_debate_response(agent_name, topic, conversation_history, max_tokens)
 
