@@ -9,7 +9,6 @@ import {
 } from "react-router-dom";
 
 // --- Types & Services ---
-// --- 타입 및 서비스 ---
 import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep, Turn/*, ResponseSpeed*/ } from "./types";
 import { debateApi, userApi } from "./services/api";
 import { formatTime } from "./utils";
@@ -22,7 +21,7 @@ import { SetupView } from "./components/SetupView";
 import { DebateView } from "./components/DebateView";
 import { ResultView } from "./components/ResultView";
 import { FAQView } from "./components/FAQView";
-import { SearchView } from "./components/SearchView"; // SearchView 임포트
+import { SearchView } from "./components/SearchView";
 import { LoginView } from "./components/LoginView";
 import { SignupView } from "./components/SignupView";
 import { ProfileView } from "./components/ProfileView";
@@ -31,25 +30,15 @@ import { QuizView } from "./components/QuizView";
 export default function App() {
   const location = useLocation();
   const navigate = useNavigate();
+
+  // =========================================================
+  // [1] 인증 상태 (Auth)
+  // 사용 위치: Navbar, LoginView, SignupView, ProfileView
+  // =========================================================
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
-  const [topic, setTopic] = useState("");
-  const [difficulty, setDifficulty] = useState<Difficulty>('normal');
-  // const [responseSpeed, setResponseSpeed] = useState<ResponseSpeed>('fast');
-  const [messages, setMessages] = useState<DebateMessage[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [debateResult, setDebateResult] = useState<DiscussionSummaryResponse | string>(""); // debateResult 타입 변경
-  const [currentRound, setCurrentRound] = useState(1);
-  const [totalRounds, setTotalRounds] = useState(4);
-  const [progress, setProgress] = useState(0);
-  // 라운드 내 발언 단계: 1=사용자주장, 2=사용자반박, 3=사용자재반박, 4=에이전트재반박완료(계속여부선택)
-  const [speechStep, setSpeechStep] = useState(1);
-  const [waitingForContinue, setWaitingForContinue] = useState(false);
-  const [fullScreenMode, setFullScreenMode] = useState(false); // 전체 화면 모드 상태 추가
-  const [discussionId, setDiscussionId] = useState<number | null>(null); // discussionId 상태
-  const [usedMaterials, setUsedMaterials] = useState<import('./types').RelatedMaterial[]>([]); // AI 주장에 사용된 자료 목록
-  const [agentSteps, setAgentSteps] = useState<AgentStep[]>([]); // 에이전트 사고과정 단계
 
+  /** 앱 초기 로드 시 토큰으로 로그인 상태 복원 */
   useEffect(() => {
     const initAuth = async () => {
       const token = userApi.getToken();
@@ -68,52 +57,73 @@ export default function App() {
     initAuth();
   }, []);
 
+  // =========================================================
+  // [2] 페이지 전환 (Navigation)
+  // 사용 위치: 모든 Route 전환 시
+  // =========================================================
+
+  /** 경로 변경 시 스크롤 위치를 최상단으로 초기화 */
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [location.pathname]); // 경로 변경 시 스크롤 상단으로 이동
+  }, [location.pathname]);
 
+  // =========================================================
+  // [3] 토론 주제 & 난이도 설정 (Setup)
+  // 사용 위치: HomeView, SetupView, SearchView → DebateView, ResultView
+  // =========================================================
+  const [topic, setTopic] = useState("");
+  const [difficulty, setDifficulty] = useState<Difficulty>("normal");
+  // const [responseSpeed, setResponseSpeed] = useState<ResponseSpeed>('fast');
+
+  /** 설정 완료 후 사전 퀴즈 화면으로 이동 */
   const handleStartDebate = async () => {
     if (!topic.trim()) return;
     navigate("/pre-quiz");
-  }; // 토론 시작 처리
+  };
 
-  const startActualDebate = async (initialMessages?: DebateMessage[], receivedDiscussionId?: number) => {
-    setMessages([]);
-    setCurrentRound(1); // 토론 시작 시 현재 라운드를 1로 초기화
-    setTotalRounds(2); // 초기 총 라운드 수 2 (계속 진행 시 2씩 증가)
-    setProgress(0); // 진행률을 0으로 초기화
-    setSpeechStep(1); // 발언 단계 초기화
-    setWaitingForContinue(false);
+  // =========================================================
+  // [4] 토론 진행 상태 (Debate)
+  // 사용 위치: DebateView
+  // =========================================================
+  const [messages, setMessages] = useState<DebateMessage[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [currentRound, setCurrentRound] = useState(1);
+  const [totalRounds, setTotalRounds] = useState(4);
+  const [progress, setProgress] = useState(0);
+  // 라운드 내 발언 단계: 1=사용자 주장, 2=사용자 반박, 3=사용자 재반박
+  const [speechTurn, setspeechTurn] = useState(1);
+  const [waitingForContinue, setWaitingForContinue] = useState(false);
+  const [fullScreenMode, setFullScreenMode] = useState(false);
+  const [discussionId, setDiscussionId] = useState<number | null>(null);
+  const [usedMaterials, setUsedMaterials] = useState<import("./types").RelatedMaterial[]>([]);
+  const [agentSteps, setAgentSteps] = useState<AgentStep[]>([]);
 
-    // QuizView에서 turn=0인 초기 메시지와 discussionId를 전달받아 사용
-    if (receivedDiscussionId && initialMessages && initialMessages.length > 0) {
-      // turn === 0 인 에이전트 메시지만 추려서 초기 메시지로 설정
-      const turn0Messages = initialMessages.filter(m => m.turn === 0);
-      setMessages(turn0Messages.length > 0 ? turn0Messages : initialMessages);
-      setDiscussionId(receivedDiscussionId);
-      navigate("/debate");
-    } else {
-      // initialMessages가 없으면 설정 페이지로 되돌아감
-      console.error("토론 시작에 필요한 초기 메시지가 없습니다.");
-      navigate("/setup");
-    }
-  }; // 실제 토론 시작
-
-  // 발언 단계별 turn 매핑
-  // speechStep: 1=사용자 주장(turn 1), 2=사용자 반박(turn 2→에이전트 재반박), 3=사용자 재반박(turn 3)
+  /**
+   * 발언 단계(speechTurn)를 API turn 값으로 변환
+   * - step 1 → turn 1 (사용자 주장)
+   * - step 2 → turn 2 (사용자 반박)
+   * - step 3 → turn 3 (사용자 재반박)
+   *
+   * 사용 위치: handleSendMessage
+   */
   const getSpeechTurn = (step: number): Turn => {
     if (step === 1) return 1;
     if (step === 2) return 2;
     return 3;
   };
 
+  /**
+   * 사용자 메시지를 API로 전송하고 AI 응답을 받아 메시지 목록에 추가
+   * 진행률·발언 단계를 업데이트하고, 라운드 종료 시 계속 여부를 결정
+   *
+   * 사용 위치: DebateView
+   */
   const handleSendMessage = async (text: string) => {
-    // 메시지 전송 시 로딩 상태 활성화
     setIsGenerating(true);
 
     try {
-      // 백엔드 API를 통해 메시지 전송
       const data = await debateApi.sendMessage(topic, text, messages, discussionId, difficulty/*, responseSpeed*/);
+
       if (data.used_materials && data.used_materials.length > 0) {
         setUsedMaterials(data.used_materials);
       }
@@ -121,7 +131,7 @@ export default function App() {
         setAgentSteps(data.agent_steps);
       }
 
-      const currentTurn = getSpeechTurn(speechStep);
+      const currentTurn = getSpeechTurn(speechTurn);
 
       // 사용자 메시지 객체 생성
       const userMsg: DebateMessage = {
@@ -133,9 +143,9 @@ export default function App() {
         round: currentRound,
       };
 
-      const nextSpeechStep = speechStep + 1; // 에이전트 응답 후 다음 단계
+      const nextspeechTurn = speechTurn + 1;
 
-      // AI 응답 메시지 객체 생성
+      // AI 응답 메시지 객체 생성 후 목록에 추가
       setMessages((prev) => [
         ...prev,
         userMsg,
@@ -143,30 +153,32 @@ export default function App() {
           role: "agent",
           agentName: data.aiResponse.agentName,
           side: data.aiResponse.side || undefined,
-          // 에이전트는 사용자 발언 다음 단계로 응답
-          // speechStep 1(사용자 주장) → 에이전트 반박(turn 1)
-          // speechStep 2(사용자 재반박) → 에이전트 주장 생성(turn 2)
-          // speechStep 3(사용자 반박) → 에이전트 재반박(turn 3)
-          turn: getSpeechTurn(nextSpeechStep > 3 ? 3 : nextSpeechStep) as Turn,
+          /*
+          토론 진행 단계 (turn)
+          0: 시작 → 주제 설명 생성
+          1: 사용자 주장 → 에이전트 반박
+          2: 사용자 재반박 → 에이전트 주장 생성
+          3: 사용자 반박 → 에이전트 재반박
+          turn이 3이 되면 1라운드 종료 -> 다시 1부터 반복
+          */
+          turn: getSpeechTurn(nextspeechTurn > 3 ? 3 : nextspeechTurn) as Turn,
           content: data.aiResponse.content,
-          timestamp: data.aiResponse.timestamp ? formatTime(data.aiResponse.timestamp) : formatTime(),
+          timestamp: data.aiResponse.timestamp
+            ? formatTime(data.aiResponse.timestamp)
+            : formatTime(),
           round: currentRound,
         },
       ]);
 
-      // 발언 단계 진행
       // 진행률 계산: 각 라운드는 에이전트 설명(+1) + 주장/반박/재반박(3) = 4스텝
-      // 완료 스텝 = (이전 라운드 * 4) + (에이전트 설명 1 + 현재 speechStep)
       const totalSteps = totalRounds * 4;
-      const completedSteps = (currentRound - 1) * 4 + 1 + speechStep;
+      const completedSteps = (currentRound - 1) * 4 + 1 + speechTurn;
       setProgress(Math.min(100, Math.round((completedSteps / totalSteps) * 100)));
 
-      if (speechStep < 3) {
-        // 아직 재반박 전: 다음 발언 단계로
-        setSpeechStep(speechStep + 1);
+      if (speechTurn < 3) {
+        setspeechTurn(speechTurn + 1);
       } else {
-        // 재반박 완료: 계속 진행 여부 선택 대기
-
+        // 재반박 완료: 마지막 라운드면 종료, 아니면 계속 여부 선택 대기
         if (currentRound >= totalRounds) {
           handleFinishDebate();
         } else {
@@ -178,34 +190,91 @@ export default function App() {
     } finally {
       setIsGenerating(false);
     }
-  }; // 메시지 전송 처리
+  };
 
+  /**
+   * 다음 라운드 계속 진행: totalRounds를 2씩 늘리고 라운드 상태 초기화
+   *
+   * 사용 위치: DebateView
+   */
   const handleContinueDebate = () => {
-    setTotalRounds(prev => prev + 2);
-    setCurrentRound(prev => prev + 1);
-    setSpeechStep(1);
+    setTotalRounds((prev) => prev + 2);
+    setCurrentRound((prev) => prev + 1);
+    setspeechTurn(1);
     setWaitingForContinue(false);
-  }; // 다음 라운드 계속 진행 (totalRounds 2씩 증가)
+  };
 
+  /**
+   * 토론 종료: 사후 퀴즈 화면으로 이동
+   *
+   * 사용 위치: DebateView, handleSendMessage(마지막 라운드 완료 시)
+   */
   const handleFinishDebate = async () => {
     navigate("/post-quiz");
-  }; // 토론 종료 처리
+  };
 
+  // =========================================================
+  // [5] 퀴즈 & 토론 초기화 (Quiz / Debate Init)
+  // 사용 위치: QuizView(pre), QuizView(post) → DebateView, ResultView
+  // =========================================================
+
+  /**
+   * 사전 퀴즈 완료 후 실제 토론 시작
+   * QuizView에서 turn=0인 초기 에이전트 메시지와 discussionId를 전달받아 세팅
+   *
+   * 사용 위치: QuizView(type="pre") onComplete 콜백
+   */
+  const startActualDebate = async (
+    initialMessages?: DebateMessage[],
+    receivedDiscussionId?: number
+  ) => {
+    setMessages([]);
+    setCurrentRound(1);
+    setTotalRounds(2);
+    setProgress(0);
+    setspeechTurn(1);
+    setWaitingForContinue(false);
+
+    if (receivedDiscussionId && initialMessages && initialMessages.length > 0) {
+      const turn0Messages = initialMessages.filter((m) => m.turn === 0);
+      setMessages(turn0Messages.length > 0 ? turn0Messages : initialMessages);
+      setDiscussionId(receivedDiscussionId);
+      navigate("/debate");
+    } else {
+      console.error("토론 시작에 필요한 초기 메시지가 없습니다.");
+      navigate("/setup");
+    }
+  };
+
+  // =========================================================
+  // [6] 결과 분석 (Result)
+  // 사용 위치: QuizView(post) → ResultView
+  // =========================================================
+  const [debateResult, setDebateResult] = useState<DiscussionSummaryResponse | string>("");
+
+  /**
+   * 사후 퀴즈 완료 후 토론 결과 분석 요청 및 결과 화면 이동
+   *
+   * 사용 위치: QuizView(type="post") onComplete 콜백
+   */
   const showResult = async () => {
     navigate("/result");
-    setDebateResult("토론 결과를 분석 중입니다..."); // 로딩 메시지
+    setDebateResult("토론 결과를 분석 중입니다...");
 
     try {
       const data = await debateApi.analyze(topic, messages, discussionId);
-      setDebateResult(data); // DiscussionSummaryResponse 객체를 직접 저장
+      setDebateResult(data);
     } catch (error) {
       console.error("토론 분석에 실패했습니다:", error);
       setDebateResult("결과 분석에 실패했습니다.");
     }
-  }; // 결과 표시
+  };
 
+  // =========================================================
+  // [7] 렌더링 (Layout & Routes)
+  // =========================================================
   return (
-    <div className={`min-h-screen flex flex-col font-sans ${fullScreenMode ? 'overflow-hidden' : ''}`}>
+    <div className={`min-h-screen flex flex-col font-sans ${fullScreenMode ? "overflow-hidden" : ""}`}>
       {/* 전체 화면 모드가 아닐 때만 Navbar 렌더링 */}
       {!fullScreenMode && <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}
 
@@ -219,7 +288,10 @@ export default function App() {
             transition={{ duration: 0.3, ease: "easeOut" }}
           >
             <Routes location={location}>
+              {/* 홈 */}
               <Route path="/" element={<HomeView setTopic={setTopic} />} />
+
+              {/* 토론 설정 */}
               <Route
                 path="/setup"
                 element={
@@ -234,27 +306,31 @@ export default function App() {
                   />
                 }
               />
+
+              {/* 사전 퀴즈 */}
               <Route
                 path="/pre-quiz"
                 element={
                   <QuizView
                     topic={topic}
                     type="pre"
-                    onComplete={startActualDebate} // 수정된 onComplete 함수 전달
+                    onComplete={startActualDebate}
                   />
                 }
               />
+
+              {/* 사후 퀴즈 */}
               <Route
                 path="/post-quiz"
-                element={
-                  <QuizView topic={topic} type="post" onComplete={showResult} />
-                }
+                element={<QuizView topic={topic} type="post" onComplete={showResult} />}
               />
+
+              {/* 토론 화면 - discussionId 없으면 설정 페이지로 리다이렉트 */}
               <Route
                 path="/debate"
                 element={
-                  discussionId ? ( // discussionId가 있을 때만 DebateView 렌더링
-                    <DebateView // DebateView 컴포넌트 렌더링
+                  discussionId ? (
+                    <DebateView
                       topic={topic}
                       messages={messages}
                       onSendMessage={handleSendMessage}
@@ -268,42 +344,41 @@ export default function App() {
                       usedMaterials={usedMaterials}
                       agentSteps={agentSteps}
                       difficulty={difficulty}
-                      speechStep={speechStep}
+                      speechTurn={speechTurn}
                       waitingForContinue={waitingForContinue}
                       onContinueDebate={handleContinueDebate}
                     />
                   ) : (
-                    <Navigate to="/setup" replace /> // discussionId가 없으면 설정 페이지로 리다이렉트
+                    <Navigate to="/setup" replace />
                   )
                 }
               />
+
+              {/* 결과 */}
               <Route
                 path="/result"
                 element={<ResultView topic={topic} result={debateResult} />}
               />
+
+              {/* FAQ */}
               <Route path="/faq" element={<FAQView />} />
-              <Route
-                path="/search"
-                element={<SearchView setTopic={setTopic} />}
-              />
+
+              {/* 토론 주제 검색 */}
+              <Route path="/search" element={<SearchView setTopic={setTopic} />} />
+
+              {/* 로그인 */}
               <Route
                 path="/login"
-                element={
-                  <LoginView
-                    setIsLoggedIn={setIsLoggedIn}
-                    setUserData={setUserData}
-                  />
-                }
+                element={<LoginView setIsLoggedIn={setIsLoggedIn} setUserData={setUserData} />}
               />
+
+              {/* 회원가입 */}
               <Route
                 path="/signup"
-                element={
-                  <SignupView
-                    setIsLoggedIn={setIsLoggedIn}
-                    setUserData={setUserData}
-                  />
-                }
+                element={<SignupView setIsLoggedIn={setIsLoggedIn} setUserData={setUserData} />}
               />
+
+              {/* 프로필 - 비로그인 시 로그인 페이지로 리다이렉트 */}
               <Route
                 path="/profile"
                 element={
@@ -319,11 +394,14 @@ export default function App() {
                   )
                 }
               />
+
+              {/* 404 - 홈으로 리다이렉트 */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </motion.div>
         </AnimatePresence>
       </main>
+
       {/* 전체 화면 모드가 아닐 때만 Footer 렌더링 */}
       {!fullScreenMode && <Footer />}
     </div>
