@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { 
-  Search, 
-  MessageSquare, 
-  ArrowRight, 
+import {
+  Search,
+  MessageSquare,
+  ArrowRight,
   Loader2
 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api';
 import type { DebateTopic } from '../types';
@@ -14,11 +14,108 @@ interface SearchViewProps {
   setTopic: (t: string) => void;
 }
 
+// 카드 컴포넌트 — 호버 시 1.2배 확대, 나머지는 흐려짐
+const DebateCard = ({
+  debate,
+  onSelect,
+  isHovered,
+  isAnyHovered,
+  onHoverStart,
+  onHoverEnd,
+}: {
+  debate: DebateTopic;
+  onSelect: () => void;
+  isHovered: boolean;
+  isAnyHovered: boolean;
+  onHoverStart: () => void;
+  onHoverEnd: () => void;
+}) => {
+  return (
+    // 그리드 셀 자리 유지용 wrapper
+    <div className="relative">
+      <motion.div
+        className="bg-white border border-gray-100 rounded-2xl p-6 md:p-8 cursor-pointer flex flex-col w-full absolute top-0 left-0"
+        style={{ transformOrigin: 'center center', zIndex: isHovered ? 40 : 0 }}
+        animate={{
+          scale: isHovered ? 1.1 : 1,
+          opacity: isAnyHovered && !isHovered ? 0.45 : 1,
+          boxShadow: isHovered
+            ? '0 24px 48px rgba(0,0,0,0.18)'
+            : '0 1px 3px rgba(0,0,0,0.05)',
+        }}
+        transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+        onHoverStart={onHoverStart}
+        onHoverEnd={onHoverEnd}
+        onClick={onSelect}
+      >
+        <div className="flex gap-2 mb-4">
+          <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-outline rounded uppercase">{debate.category}</span>
+          {debate.isHot && <span className="px-2 py-0.5 bg-red-50 text-[10px] font-bold text-secondary rounded uppercase tracking-widest">Hot</span>}
+        </div>
+        <h3 className={`text-lg md:text-xl font-bold mb-3 md:mb-4 transition-colors ${isHovered ? 'text-primary' : ''}`}>{debate.title}</h3>
+
+        {/* 기본: 3줄 clamp, 호버: AnimatePresence로 전체 텍스트 fade-in */}
+        <div className="mb-6 md:mb-8">
+          <AnimatePresence mode="wait">
+            {isHovered ? (
+              <motion.p
+                key="full"
+                className="text-xs md:text-sm text-outline leading-relaxed"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.2 }}
+              >
+                {debate.description}
+              </motion.p>
+            ) : (
+              <motion.p
+                key="clamp"
+                className="text-xs md:text-sm text-outline leading-relaxed line-clamp-3"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+              >
+                {debate.description}
+              </motion.p>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="pt-4 md:pt-6 border-t border-gray-50 flex justify-between items-center">
+          <div className="flex items-center gap-2 text-outline text-[10px] md:text-xs">
+            <MessageSquare size={14} /> {debate.participants}명 참여 중
+          </div>
+          <motion.span
+            className="text-[10px] md:text-xs font-bold text-primary flex items-center gap-1"
+            animate={{ x: isHovered ? 4 : 0 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          >
+            참여하기 <ArrowRight size={14} />
+          </motion.span>
+        </div>
+      </motion.div>
+
+      {/* 그리드 공간 유지용 invisible placeholder — 항상 3줄 clamp 높이 */}
+      <div className="invisible p-6 md:p-8 flex flex-col" aria-hidden="true">
+        <div className="flex gap-2 mb-4">
+          <span className="px-2 py-0.5 text-[10px]">{debate.category}</span>
+        </div>
+        <div className="text-lg md:text-xl font-bold mb-3 md:mb-4">{debate.title}</div>
+        <p className="text-xs md:text-sm leading-relaxed line-clamp-3 mb-6 md:mb-8">{debate.description}</p>
+        <div className="pt-4 md:pt-6 border-t border-transparent text-[10px] md:text-xs">placeholder</div>
+      </div>
+    </div>
+  );
+};
+
 export const SearchView = ({ setTopic }: SearchViewProps) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [debates, setDebates] = useState<DebateTopic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hoveredId, setHoveredId] = useState<number | null>(null);
 
   useEffect(() => {
     const fetchDebates = async () => {
@@ -67,30 +164,18 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
           </div>
         ) : debates.length > 0 ? (
           debates.map(debate => (
-            <motion.div 
-              layout
-              key={debate.id} 
-              className="group bg-white border border-gray-100 rounded-2xl p-6 md:p-8 card-hover cursor-pointer flex flex-col"
-              onClick={() => {
+            <DebateCard
+              key={debate.id}
+              debate={debate}
+              onSelect={() => {
                 setTopic(debate.title);
                 navigate('/setup');
               }}
-            >
-              <div className="flex gap-2 mb-4">
-                <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-outline rounded uppercase">{debate.category}</span>
-                {debate.isHot && <span className="px-2 py-0.5 bg-red-50 text-[10px] font-bold text-secondary rounded uppercase tracking-widest">Hot</span>}
-              </div>
-              <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4 group-hover:text-primary transition-colors">{debate.title}</h3>
-              <p className="text-xs md:text-sm text-outline mb-6 md:mb-8 line-clamp-3 leading-relaxed flex-1">{debate.description}</p>
-              <div className="pt-4 md:pt-6 border-t border-gray-50 flex justify-between items-center">
-                <div className="flex items-center gap-2 text-outline text-[10px] md:text-xs">
-                  <MessageSquare size={14} /> {debate.participants}명 참여 중
-                </div>
-                <span className="text-[10px] md:text-xs font-bold text-primary group-hover:translate-x-1 transition-transform flex items-center gap-1">
-                  참여하기 <ArrowRight size={14} />
-                </span>
-              </div>
-            </motion.div>
+              isHovered={hoveredId === debate.id}
+              isAnyHovered={hoveredId !== null}
+              onHoverStart={() => setHoveredId(debate.id)}
+              onHoverEnd={() => setHoveredId(null)}
+            />
           ))
         ) : (
           <div className="col-span-full text-center ">
