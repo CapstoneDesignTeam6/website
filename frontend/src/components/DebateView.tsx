@@ -134,11 +134,11 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
               </motion.div>
               {i < steps.length - 1 && (
                 <motion.span
-                  className={`text-[10px] font-bold ${i < activeStep ? 'text-secondary' : 'text-gray-300'}`}
+                  className={`${i < activeStep ? 'text-primary' : 'text-gray-300'}`}
                   animate={i === activeStep - 1 ? { opacity: [0.4, 1, 0.4] } : {}}
                   transition={{ duration: 1, repeat: Infinity }}
                 >
-                  →
+                  <ArrowRight size={12} />
                 </motion.span>
               )}
             </React.Fragment>
