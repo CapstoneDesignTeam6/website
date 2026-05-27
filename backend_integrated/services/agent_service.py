@@ -21,14 +21,6 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-# ── Vertex AI 설정 ────────────────────────────────────────────────────────
-
-VERTEX_PROJECT_ID = os.getenv("VERTEX_PROJECT_ID", "")
-VERTEX_LOCATION = os.getenv("VERTEX_LOCATION", "global")
-VERTEX_MODEL_ID = os.getenv("VERTEX_MODEL_ID", "gemini-2.5-pro")
-TAVILY_API_KEY = os.getenv("TAVILY_API_KEY", "")
-
-
 
 # ── 내부 헬퍼 ─────────────────────────────────────────────────────────────
 
@@ -130,10 +122,8 @@ class AgentService:
     def health_check() -> dict:
         """OpenAI API 키 설정 여부만 확인."""
         openai_ok = bool(settings.OPENAI_API_KEY)
-        vertex_ok = bool(VERTEX_PROJECT_ID)
         return {
             "openai": openai_ok,
-            "vertex": vertex_ok,
             "all_healthy": openai_ok,
         }
 

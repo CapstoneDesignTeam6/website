@@ -124,10 +124,6 @@ async def startup_event():
     else:
         logger.warning("⚠️ OpenAI API 키 미설정 — 토론 응답 생성 불가")
 
-    if health["vertex"]:
-        logger.info("✅ Vertex AI 활성화 (DebateOrchestrator 우선 사용)")
-    else:
-        logger.info("ℹ️ Vertex AI 미설정 — GPT 폴백만 사용")
 
 @app.on_event("shutdown")
 async def shutdown_event():
