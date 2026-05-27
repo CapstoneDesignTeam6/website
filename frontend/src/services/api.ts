@@ -86,6 +86,7 @@ export const debateApi = {
       headers: getHeaders(),
       body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, difficulty }),
     });
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
     return res.json();
   },
   getCounterHint: async (discussionId: number) => {
