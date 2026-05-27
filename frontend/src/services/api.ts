@@ -1,7 +1,7 @@
-import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, RelatedMaterial, DiscussionHistoryItem, BackgroundSummary, MultipleChoiceQuiz } from '../types';
+import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, RelatedMaterial, DiscussionHistoryItem, MultipleChoiceQuiz, BackgroundSummary } from '../types';
 import type { DebateTopic } from '../types';
 import type { AgentStep } from '../types';
-import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE, MOCK_BACKGROUND_SUMMARY } from '../mockData';
+import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE, MOCK_PRE_QUIZ_MC, MOCK_POST_QUIZ_MC } from '../mockData';
 
 // 로컬 스토리지에 저장되는 인증 토큰 키
 const TOKEN_KEY = 'agora_token';
@@ -56,7 +56,8 @@ export const debateApi = {
     return query ? MOCK_TOPICS.filter(d => d.title.includes(query)) : MOCK_TOPICS;
   },
 
-  // ─── 배경 요약 관련 (BackgroundSummary) ──────────────────────────────────────
+  // ─── 배경 요약 관련 (BackgroundSummary) — QuizView 전용, 현재 미사용 ──────────
+  // QuizView.tsx는 라우팅에서 제외되어 사용되지 않으므로 주석 처리
   getBackgroundSummary: async (topic: string): Promise<BackgroundSummary> => {
     try {
       const res = await fetch(`/api/debate/background?topic=${encodeURIComponent(topic)}`, {
@@ -65,21 +66,31 @@ export const debateApi = {
       if (!res.ok) throw new Error(`API error: ${res.statusText}`);
       return res.json();
     } catch (_) {
-      return MOCK_BACKGROUND_SUMMARY;
+      return { topic, summary: '' };
     }
   },
 
   // ─── 퀴즈 관련 (Quiz) ────────────────────────────────────────────────────────
   getQuizSet: async (topic: string, phase: 'pre' | 'post'): Promise<MultipleChoiceQuiz[]> => {
-    const res = await fetch(
-      `/api/debate/quiz/set?topic=${encodeURIComponent(topic)}&phase=${phase}`,
-      { headers: getHeaders() },
-    );
-    if (!res.ok) throw new Error(`API error: ${res.statusText}`);
-    return res.json();
+    try {
+      const res = await fetch(
+        `/api/debate/quiz/set?topic=${encodeURIComponent(topic)}&phase=${phase}`,
+        { headers: getHeaders() },
+      );
+      if (!res.ok) throw new Error(`API error: ${res.statusText}`);
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) return data;
+      return phase === 'pre' ? MOCK_PRE_QUIZ_MC : MOCK_POST_QUIZ_MC;
+    } catch (_) {
+      return phase === 'pre' ? MOCK_PRE_QUIZ_MC : MOCK_POST_QUIZ_MC;
+    }
   },
 
   // ─── 토론 관련 (DebateMessage, AgentStep, RelatedMaterial, UserEvaluationScore) ──
+  //
+  // sendMessage 호출 패턴:
+  //   turn=0 (주제 요약): message='', history=[], discussionId=null
+  //   turn=1~3 (토론):    message=사용자입력, history=누적메시지, discussionId=받은ID
   sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId?: number | null, difficulty?: DebateMessage['difficulty']): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: RelatedMaterial[]; agent_steps?: AgentStep[] }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',

@@ -12,11 +12,12 @@
   --color-surface: #f8f9fa;
   --color-surface-container: #f3f4f5;
   --color-outline: #737686;
+  --color-on-surface: #191c1d;
 }
 
 @layer base {
   body {
-    @apply bg-surface text-[#191c1d] antialiased;
+    @apply bg-surface text-on-surface antialiased;
   }
   
   button:not(:disabled) {
