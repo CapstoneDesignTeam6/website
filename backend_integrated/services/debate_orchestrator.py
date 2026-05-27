@@ -14,7 +14,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 # 사용자 지정 설정을 그대로 유지합니다.
 MODEL_ID = 'gemini-2.5-pro'
 PROJECT_ID = "project-8dcb485c-620f-47a6-bc5"
-LOCATION = "asia-northeast3"
+LOCATION = "us-central1"
 
 # Vertex AI 초기화
 vertexai.init(project=PROJECT_ID, location=LOCATION)
@@ -289,12 +289,15 @@ def run_explorer_agent(input_json_str):
         print(f"🌐 [Agent 0] 검색 수행: {q}")
         search_results = search_tool.invoke({"query": q})
         for res in search_results:
-            doc = {
-                "source_query": q,
-                "title": res.get("title", "No Title"),
-                "url": res.get("url", ""),
-                "content": res.get("content", "")
-            }
+            if isinstance(res, dict):
+                doc = {
+                    "source_query": q,
+                    "title": res.get("title", "No Title"),
+                    "url": res.get("url", ""),
+                    "content": res.get("content", "")
+                }
+            else:
+                doc = {"source_query": q, "title": "No Title", "url": "", "content": str(res)}
             collected_documents.append(doc)
 
     # 검색 결과를 Supabase에 영구 저장
@@ -439,11 +442,14 @@ def make_topic_explanation_agent(input_json_str):
         print(f"🌐 [Agent 2] 배경 정보 검색: {q}")
         search_results = search_tool.invoke({"query": q})
         for res in search_results:
-            doc = {
-                "source": res.get("url", "unknown"),
-                "title": res.get("title", "No Title"),
-                "content": res.get("content", "")
-            }
+            if isinstance(res, dict):
+                doc = {
+                    "source": res.get("url", "unknown"),
+                    "title": res.get("title", "No Title"),
+                    "content": res.get("content", "")
+                }
+            else:
+                doc = {"source": "unknown", "title": "No Title", "content": str(res)}
             collected_context.append(doc)
 
     explanation_prompt = f"""
