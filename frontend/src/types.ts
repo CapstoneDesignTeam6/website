@@ -91,13 +91,13 @@ export interface SubjectiveEvaluationResponse {
 
 export type MessageRole = 'agent' | 'user';
 export type DebateSide = string;
-/**
- * 토론 진행 단계 (turn)
- * 0: 시작 → 주제 설명 생성
- * 1: 사용자 주장 → 에이전트 반박
- * 2: 사용자 재반박 → 에이전트 주장 생성
- * 3: 사용자 반박 → 에이전트 재반박
- * 3까지 끝나면 1라운드 종료 -> 다시 1부터 반복
+/*
+토론 진행 단계 (turn)
+0: 시작 → 주제 설명 생성
+1: 사용자 주장 → 에이전트 반박
+2: 사용자 재반박 → 에이전트 주장 생성
+3: 사용자 반박 → 에이전트 재반박
+turn이 3이 되면 1라운드 종료 -> 다시 1부터 반복
  */
 export type Turn = 0 | 1 | 2 | 3;
 export type Difficulty = 'easy' | 'normal';

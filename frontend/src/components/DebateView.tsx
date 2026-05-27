@@ -40,7 +40,7 @@ interface DebateViewProps {
   usedMaterials?: RelatedMaterial[];
   agentSteps?: AgentStep[];
   difficulty?: Difficulty;
-  speechStep?: number;
+  speechTurn?: number;
   waitingForContinue?: boolean;
   onContinueDebate?: () => void;
 }
@@ -164,7 +164,7 @@ export const DebateView = ({
   discussionId,
   usedMaterials,
   difficulty = 'normal',
-  speechStep = 1,
+  speechTurn = 1,
   waitingForContinue = false,
   onContinueDebate,
 }: DebateViewProps) => {
@@ -718,7 +718,7 @@ export const DebateView = ({
               <>
                 <div className="px-1 py-2">
                   <span className="text-xs font-bold text-primary flex items-center gap-2">
-                    {SPEECH_GUIDE[speechStep]}
+                    {SPEECH_GUIDE[speechTurn]}
                   </span>
                 </div>
                 <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 gap-2">
