@@ -5,7 +5,7 @@ import os
 import datetime
 import vertexai
 from langchain_google_vertexai import ChatVertexAI
-from langchain_community.tools.tavily_search import TavilySearchResults
+from langchain_tavily import TavilySearch
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -14,7 +14,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 # 사용자 지정 설정을 그대로 유지합니다.
 MODEL_ID = 'gemini-2.5-pro'
 PROJECT_ID = "project-8dcb485c-620f-47a6-bc5"
-LOCATION = "global"
+LOCATION = "asia-northeast3"
 
 # Vertex AI 초기화
 vertexai.init(project=PROJECT_ID, location=LOCATION)
@@ -28,7 +28,7 @@ llm = ChatVertexAI(
 )
 
 # 검색 툴 설정
-search_tool = TavilySearchResults(max_results=1)
+search_tool = TavilySearch(max_results=1)
 
 # 현재 시간 설정
 current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -328,6 +328,8 @@ def run_explorer_agent(input_json_str):
         "stage": input_data.get("stage", "normal"),
     }
     return run_step(input_json)
+
+# 사전 퀴즈 에이전트 추가
 
 def make_refute_agent(input_json_str):
     input_data = input_json_str
