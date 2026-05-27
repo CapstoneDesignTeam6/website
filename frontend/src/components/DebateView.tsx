@@ -80,17 +80,29 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
     simplify: Lightbulb,
   };
 
+  // step → 기본 label/desc 매핑 (data가 없을 때 폴백)
+  const STEP_META: Record<string, { label: string; desc: string }> = {
+    orchestrator: { label: '오케스트레이터', desc: '전략 수립 중' },
+    search:       { label: '자료 탐색',      desc: '관련 자료 검색 중' },
+    generate:     { label: '주장 생성',      desc: '논거 구성 중' },
+    simplify:     { label: '쉬운 설명',      desc: '표현 변환 중' },
+  };
+
   const backendSteps = agentSteps && agentSteps.length > 0
-    ? agentSteps.map(s => ({
-        icon: STEP_TYPE_TO_ICON[s.step] ?? Bot,
-        label: s.label,
-        desc: s.description,
-        status: s.status,
-      }))
+    ? agentSteps.map(s => {
+        const meta = STEP_META[s.step] ?? { label: s.step, desc: '' };
+        return {
+          icon:   STEP_TYPE_TO_ICON[s.step] ?? Bot,
+          label:  meta.label,
+          desc:   s.data?.workspace_summary || meta.desc,
+          status: s.status,
+          data:   s.data,
+        };
+      })
     : null;
 
   const fallbackSteps = isEasy ? AGENT_STEPS_EASY : AGENT_STEPS_NORMAL;
-  const steps = backendSteps ?? fallbackSteps.map(s => ({ ...s, status: 'pending' as const }));
+  const steps = backendSteps ?? fallbackSteps.map(s => ({ ...s, status: 'pending' as const, data: undefined }));
 
   const initialActive = backendSteps
     ? Math.max(0, backendSteps.findIndex(s => s.status === 'running'))
@@ -108,6 +120,8 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
     }, 1800);
     return () => clearInterval(interval);
   }, [agentSteps, steps.length]);
+
+  const activeStepData = steps[activeStep]?.data;
 
   return (
     <div className="flex items-start gap-4">
@@ -160,6 +174,12 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
           </motion.div>
           <span className="text-[11px] text-outline">{steps[activeStep].desc}</span>
         </div>
+        {/* data.instruction이 있으면 현재 단계의 지시사항을 부가 정보로 표시 */}
+        {activeStepData?.instruction && (
+          <p className="text-[10px] text-gray-400 px-1 leading-relaxed max-w-xs line-clamp-2">
+            {activeStepData.instruction}
+          </p>
+        )}
       </div>
     </div>
   );

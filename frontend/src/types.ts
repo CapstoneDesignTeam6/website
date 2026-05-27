@@ -118,12 +118,21 @@ export interface DebateMessage {
 export type AgentStepType = 'orchestrator' | 'search' | 'generate' | 'simplify';
 export type AgentStepStatus = 'pending' | 'running' | 'done';
 
+export interface AgentStepData {
+  // _steps_cache 엔트리의 원본 데이터
+  agent_id: number;           // last_action.agent_id
+  instruction?: string;       // 오케스트레이터가 내린 지시
+  workspace_summary?: string; // 해당 스텝 작업 요약
+  context_summary?: string;   // 누적 맥락 요약
+  next_agent_id?: number;     // 오케스트레이터 판단 결과
+  reference?: string[];       // 참조 문서 목록
+}
+
 export interface AgentStep {
   // 에이전트 사고 과정
   step: AgentStepType;
-  label: string;
-  description: string;
   status: AgentStepStatus;
+  data?: AgentStepData;       // _steps_cache에서 온 상세 데이터
 }
 
 export interface RelatedMaterial {
