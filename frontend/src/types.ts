@@ -107,7 +107,7 @@ export interface DebateMessage {
   discussion_id: number; // 게스트 모드여도 토론 세션 식별을 위해 필요
   role: MessageRole; // 에이전트, 사용자 구분
   agentName?: string;
-  side: DebateSide; // 입장 구분
+  side?: DebateSide; // 입장 구분
   turn: Turn; // 0=시작, 1=에이전트 반박, 2=에이전트 주장 생성, 3=에이전트 재반박
   round?: number; // ui 표시용(api에 사용 X)
   content: string;
