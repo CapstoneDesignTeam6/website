@@ -130,6 +130,7 @@ export default function App() {
     setIsGenerating(true);
     setAgentSteps([]);
     try {
+      console.log('[sendMessage] topic:', topic);
       const data = await debateApi.sendMessage(
         topic, `${topic}에 대한 토론을 수행할거야. 주제에 대한 설명을 해줘`, [], null, undefined, 0,
         (step) => setAgentSteps(prev => {
