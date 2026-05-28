@@ -9,7 +9,8 @@ export const MOCK_RELATED_MATERIALS = [
     title: "정부, 원전 비중 확대 정책 추진... 에너지 안보 강화", // 제목: 원전 비중 확대 정책
     description: "정부가 안정적인 전력 공급과 탄소 중립 목표 달성을 위해 원자력 발전 비중을 확대하는 정책을 추진하고 있습니다. 이는 에너지 자립도를 높이고 국제 에너지 시장 변동성에 대응하기 위한 전략의 일환입니다.", // 설명: 정부의 원전 확대 정책 배경
     source: "연합뉴스", // 출처: 연합뉴스
-    url: "https://www.yonhapnews.co.kr/mock-nuclear-policy" // 가상 URL
+    url: "https://www.yonhapnews.co.kr/mock-nuclear-policy", // 가상 URL
+    used: true, // 사용된 자료 표시
   },
   {
     category: "환경", // 카테고리: 환경
@@ -17,7 +18,8 @@ export const MOCK_RELATED_MATERIALS = [
     title: "원자력 발전, 탄소 배출 없는 친환경 에너지인가? 논쟁 가열", // 제목: 원자력 발전의 친환경성 논쟁
     description: "원자력 발전은 운영 과정에서 온실가스 배출이 거의 없어 기후 변화 대응에 기여할 수 있다는 주장이 있지만, 건설 및 폐기물 처리 과정에서의 환경 영향과 안전 문제에 대한 우려도 큽니다.", // 설명: 원자력 발전의 환경적 장단점
     source: "환경일보", // 출처: 환경일보
-    url: "https://www.ecomedia.co.kr/mock-nuclear-environment" // 가상 URL
+    url: "https://www.ecomedia.co.kr/mock-nuclear-environment", // 가상 URL
+    used: false,
   },
   {
     category: "안전", // 카테고리: 안전
@@ -25,7 +27,8 @@ export const MOCK_RELATED_MATERIALS = [
     title: "후쿠시마 사고 10년, 원전 안전성 강화와 주민 수용성 과제", // 제목: 후쿠시마 사고 이후 원전 안전성
     description: "후쿠시마 원전 사고 10주년을 맞아 전 세계적으로 원전 안전 기준이 강화되었지만, 여전히 주민들의 수용성 확보와 사고 발생 시의 위험 관리는 중요한 과제로 남아있습니다.", // 설명: 원전 안전성 및 주민 수용성 문제
     source: "BBC News", // 출처: BBC News
-    url: "https://www.bbc.com/korean/mock-fukushima-safety" // 가상 URL
+    url: "https://www.bbc.com/korean/mock-fukushima-safety", // 가상 URL
+    used: false,
   },
   {
     category: "경제", // 카테고리: 경제
@@ -33,7 +36,8 @@ export const MOCK_RELATED_MATERIALS = [
     title: "원전 건설 비용 및 기간, 재생에너지 대비 경제성 분석", // 제목: 원전의 경제성 분석
     description: "대규모 초기 투자와 긴 건설 기간이 필요한 원자력 발전이 장기적인 전력 생산 비용 측면에서 재생에너지보다 경제적인지에 대한 심층 분석이 진행되고 있습니다. 금융 비용과 운영 비용이 주요 쟁점입니다.", // 설명: 원전 건설 및 운영 비용 분석
     source: "한국경제", // 출처: 한국경제
-    url: "https://www.hankyung.com/mock-nuclear-economy" // 가상 URL
+    url: "https://www.hankyung.com/mock-nuclear-economy", // 가상 URL
+    used: false,
   },
   {
     category: "기술", // 카테고리: 기술
@@ -41,7 +45,8 @@ export const MOCK_RELATED_MATERIALS = [
     title: "차세대 소형모듈원전(SMR), 원전 산업의 새로운 대안으로 부상", // 제목: SMR 기술의 부상
     description: "안전성과 효율성을 획기적으로 높인 소형모듈원전(SMR) 기술이 개발되면서, 기존 대형 원전의 단점을 보완하고 분산형 전원으로서의 가능성을 제시하며 원자력 발전의 새로운 미래를 열고 있습니다.", // 설명: SMR 기술의 장점 및 미래 전망
     source: "과학기술정보통신부", // 출처: 과학기술정보통신부
-    url: "https://www.msit.go.kr/mock-smr-tech" // 가상 URL
+    url: "https://www.msit.go.kr/mock-smr-tech", // 가상 URL
+    used: false,
   },
 ];
 

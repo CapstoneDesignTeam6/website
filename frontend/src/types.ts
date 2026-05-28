@@ -142,7 +142,7 @@ export interface RelatedMaterial {
   title: string;
   description: string;
   source: string;
-  url?: string;
+  url: string;
   used?: boolean; // 에이전트 주장 생성 사용 여부
 }
 

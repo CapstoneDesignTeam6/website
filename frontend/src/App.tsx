@@ -159,7 +159,7 @@ export default function App() {
   const [waitingForContinue, setWaitingForContinue] = useState(false);
   const [fullScreenMode, setFullScreenMode] = useState(false);
   const [discussionId, setDiscussionId] = useState<number | null>(null);
-  const [usedMaterials, setUsedMaterials] = useState<import("./types").RelatedMaterial[]>([]);
+  const [usedMaterials, setUsedMaterials] = useState<string[]>([]);
   const [agentSteps, setAgentSteps] = useState<AgentStep[]>([]);
 
   /**

@@ -42,7 +42,7 @@ interface DebateViewProps {
   progress?: number;
   discussionId: number;
   setFullScreenMode: (isFullScreen: boolean) => void;
-  usedMaterials?: RelatedMaterial[];
+  usedMaterials?: string[];
   agentSteps?: AgentStep[];
   difficulty?: Difficulty;
   speechTurn?: number;
@@ -304,10 +304,11 @@ export const DebateView = ({
     fetchRelatedMaterials();
   }, [topic]); // 토론 주제가 변경될 때마다 다시 불러옴
 
-  // 백엔드에서 사용 여부가 포함된 자료 목록을 받으면 used 자료를 위로 재배치
+  // 주장 생성 응답으로 받은 사용된 자료 링크를 기존 목록과 매칭해 used 자료를 위로 재배치
   useEffect(() => {
     if (!usedMaterials || usedMaterials.length === 0) return;
-    const usedUrls = new Set(usedMaterials.filter(m => m.used && m.url).map(m => m.url!));
+    // used_materials는 URL 문자열 배열이므로 그대로 Set으로 변환
+    const usedUrls = new Set(usedMaterials.filter(url => !!url));
     setRelatedMaterials(prev => {
       const used = prev.filter(m => m.url && usedUrls.has(m.url)).map(m => ({ ...m, used: true }));
       const unused = prev.filter(m => !m.url || !usedUrls.has(m.url)).map(m => ({ ...m, used: false }));
