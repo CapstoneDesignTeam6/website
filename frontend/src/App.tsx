@@ -110,7 +110,6 @@ export default function App() {
    * 사용 위치: SetupView onStart 콜백
    */
   const handleStartDebate = async () => {
-    console.log('[handleStartDebate] topic:', topic); // 여기 추가
     if (!topic.trim()) return;
 
     // 토론 관련 상태 초기화 — API 응답 전 로딩 화면을 위해 intro로 먼저 전환
