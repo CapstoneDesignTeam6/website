@@ -128,8 +128,20 @@ export default function App() {
 
     // 1단계: turn=0 주제 요약 메시지 먼저 요청
     setIsGenerating(true);
+    setAgentSteps([]);
     try {
-      const data = await debateApi.sendMessage(topic, '', [], null, undefined, 0);
+      const data = await debateApi.sendMessage(
+        topic, '', [], null, undefined, 0,
+        (step) => setAgentSteps(prev => {
+          const idx = prev.findIndex(s => s.step === step.step);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = step;
+            return next;
+          }
+          return [...prev, step];
+        }),
+      );
       const initialMsg: DebateMessage = { ...data.aiResponse, turn: 0, round: 1 };
       setMessages([initialMsg]);
       setDiscussionId(initialMsg.discussion_id ?? MOCK_DISCUSSION_ID);
@@ -215,10 +227,22 @@ export default function App() {
    */
   const handleSendMessage = async (text: string) => {
     setIsGenerating(true);
+    setAgentSteps([]);
 
     try {
       const currentTurn = getSpeechTurn(speechTurn);
-      const data = await debateApi.sendMessage(topic, text, messages, discussionId, difficulty/*, responseSpeed*/, currentTurn);
+      const data = await debateApi.sendMessage(
+        topic, text, messages, discussionId, difficulty, currentTurn,
+        (step) => setAgentSteps(prev => {
+          const idx = prev.findIndex(s => s.step === step.step);
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = step;
+            return next;
+          }
+          return [...prev, step];
+        }),
+      );
 
       if (data.used_materials && data.used_materials.length > 0) {
         setUsedMaterials(data.used_materials);

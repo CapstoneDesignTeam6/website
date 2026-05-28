@@ -91,13 +91,67 @@ export const debateApi = {
   // sendMessage 호출 패턴:
   //   turn=0 (주제 요약): message='', history=[], discussionId=null
   //   turn=1~3 (토론):    message=사용자입력, history=누적메시지, discussionId=받은ID
-  sendMessage: async (topic: string, message: string, history: DebateMessage[], discussionId: number | null, difficulty?: DebateMessage['difficulty'], turn?: DebateMessage['turn']): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: string[]; agent_steps?: AgentStep[] }> => {
+  sendMessage: async (
+    topic: string,
+    message: string,
+    history: DebateMessage[],
+    discussionId: number | null,
+    difficulty?: DebateMessage['difficulty'],
+    turn?: DebateMessage['turn'],
+    onStep?: (step: AgentStep) => void,
+  ): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: string[]; agent_steps?: AgentStep[] }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, difficulty, turn: turn ?? 0 }),
     });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+    const contentType = res.headers.get('content-type') ?? '';
+
+    // SSE 스트림 처리
+    if (contentType.includes('text/event-stream')) {
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let result: { userSide: string; aiResponse: DebateMessage; used_materials?: string[]; agent_steps?: AgentStep[] } | null = null;
+      const steps: AgentStep[] = [];
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') break;
+          try {
+            const event = JSON.parse(raw);
+            if (event.type === 'step') {
+              const step: AgentStep = { step: event.step, status: event.status, data: event.data };
+              steps.push(step);
+              onStep?.(step);
+            } else if (event.type === 'result') {
+              result = {
+                userSide: event.userSide,
+                aiResponse: event.aiResponse,
+                used_materials: event.used_materials,
+                agent_steps: steps,
+              };
+            }
+          } catch { /* JSON 파싱 실패 시 무시 */ }
+        }
+      }
+
+      if (!result) throw new Error('SSE stream ended without result');
+      return result;
+    }
+
+    // 기존 JSON 응답 (백엔드 미전환 시 폴백)
     return res.json();
   },
   getCounterHint: async (discussionId: number) => {
