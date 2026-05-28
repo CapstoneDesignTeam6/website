@@ -146,13 +146,28 @@ export interface RelatedMaterial {
   used?: boolean; // 에이전트 주장 생성 사용 여부
 }
 
+export interface MetricScore {
+  score: number;       // 1~5 점수
+  reason: string;      // 점수 이유
+  evidence: string;    // 발언에서 근거가 된 실제 문구
+}
+
+export interface DomainBreadthScore extends MetricScore {
+  domain_keywords: string[]; // 발언에서 등장한 도메인 키워드 (1~3개)
+}
+
+export interface ConceptualAccuracyScore extends MetricScore {
+  errors: string | null; // 오용된 개념 설명 (없으면 null)
+}
+
+// 사용자 발언 실시간 평가 점수 (scoring_agent 반환값)
 export interface UserEvaluationScore {
-  // 사용자 평가 점수
-  specificity: number;
-  understanding: number;
-  logic: number;
-  informativeness: number;
-  bias: number;
+  specificity: MetricScore;           // 발언 구체성: 수치·사례·출처의 정밀도
+  causality: MetricScore;             // 인과 연결: 원인-결과-함의 연결 깊이
+  domain_breadth: DomainBreadthScore; // 도메인 폭: 한 발언 안에서 넘나드는 영역의 수
+  information_autonomy: MetricScore;  // 정보 자립도: 스스로 구성한 정보 비율
+  conceptual_accuracy: ConceptualAccuracyScore; // 개념 정확도: 전문용어·고유명사의 정확한 사용
+  total?: number;                     // 5개 지표 합계 (5~25)
 }
 
 // ─── 결과 보고서 관련 ─────────────────────────────────────────────────────────

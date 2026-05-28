@@ -442,32 +442,27 @@ export const DebateView = ({
     {
       key: 'specificity' as const,
       label: '발언 구체성',
-      desc: '불확실한 발언의 비율에 따른 점수',
-      tip: '구체적인 수치, 날짜, 이름 등을 발언에 포함해보세요. "많다", "크다" 같은 막연한 표현 대신 정확한 데이터를 인용하면 점수가 올라갑니다.',
+      desc: '수치·사례·출처의 정밀도',
     },
     {
-      key: 'understanding' as const,
-      label: '상황 이해도',
-      desc: '현재 주제와 관련 있는 주장과 발언을 하는지에 따른 점수',
-      tip: '토론 주제의 핵심 쟁점을 파악하고 발언이 항상 그 맥락과 연결되도록 유지하세요. 상대방의 논점에 직접 반응하는 것도 도움이 됩니다.',
+      key: 'causality' as const,
+      label: '인과 연결',
+      desc: '원인-결과-함의 연결 깊이',
     },
     {
-      key: 'logic' as const,
-      label: '논리력',
-      desc: '근거의 품질, 주장의 검증 가능성과 신뢰성, 반례의 고려 유무 등 전반적인 논리력에 따른 점수',
-      tip: '주장마다 검증 가능한 근거를 제시하고, 반례도 먼저 언급해 논리를 강화하세요. "왜냐하면 ~이기 때문입니다" 구조를 의식적으로 활용하세요.',
+      key: 'domain_breadth' as const,
+      label: '도메인 폭',
+      desc: '한 발언 안에서 넘나드는 영역의 수',
     },
     {
-      key: 'informativeness' as const,
-      label: '정보 주도성',
-      desc: 'AI의 발언 외의 새로운 정보를 추가적으로 언급했는지에 따른 점수',
-      tip: 'AI가 제시한 내용을 반복하기보다, 직접 알고 있는 사례·연구·통계를 새롭게 추가하세요. 독자적인 정보를 도입할수록 점수가 올라갑니다.',
+      key: 'information_autonomy' as const,
+      label: '정보 자립도',
+      desc: '스스로 구성한 정보 비율',
     },
     {
-      key: 'bias' as const,
-      label: '편향도',
-      desc: '유리한 통계만 사용하는지, 반례를 무시하는지, 감정적인 선동만을 무기로 하는지에 따른 점수',
-      tip: '자신에게 불리한 데이터도 인정하되 반박하세요. 감정적 호소보다는 사실 기반 논거를 사용하고, 다양한 관점을 균형 있게 다루면 편향도 점수가 낮아집니다.',
+      key: 'conceptual_accuracy' as const,
+      label: '개념 정확도',
+      desc: '전문용어·고유명사의 정확한 사용',
     },
   ];
 
@@ -482,7 +477,7 @@ export const DebateView = ({
     const n = 5;
     const angles = Array.from({ length: n }, (_, i) => -(Math.PI * 2 * i) / n - Math.PI / 2);
     const toXY = (r: number, angle: number) => ({ x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) });
-    const values = [score.specificity, score.understanding, score.logic, score.informativeness, 5 - score.bias];
+    const values = [score.specificity.score, score.causality.score, score.domain_breadth.score, score.information_autonomy.score, score.conceptual_accuracy.score];
     const gridLevels = [1, 2, 3, 4, 5];
     const gridPolygon = (ratio: number) => angles.map(a => { const p = toXY(maxR * ratio, a); return `${p.x},${p.y}`; }).join(' ');
     const dataPolygon = angles.map((a, i) => { const p = toXY(maxR * (values[i] / 5), a); return `${p.x},${p.y}`; }).join(' ');
@@ -589,7 +584,7 @@ export const DebateView = ({
                     <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
                       <p className="text-sm font-black text-primary">{scoreLabels[activeTooltip].label}</p>
                       <p className="text-base font-black text-primary">
-                        {(() => { const k = scoreLabels[activeTooltip].key; const v = evaluationScore[k]; return k === 'bias' ? 5 - v : v; })()} / 5
+                        {evaluationScore[scoreLabels[activeTooltip].key].score} / 5
                       </p>
                       <button onClick={() => setActiveTooltip(null)} className="text-outline hover:text-on-surface">
                         <X size={14} />
@@ -597,27 +592,23 @@ export const DebateView = ({
                     </div>
                     <p className="text-[11px] text-on-surface leading-relaxed mt-1">{scoreLabels[activeTooltip].desc}</p>
                     <div className="flex flex-col gap-1 border-t border-indigo-200 mt-2 pt-2">
-                      <p className="text-[11px] font-bold text-primary">점수 올리는 팁</p>
-                      <p className="text-[10px] text-outline leading-relaxed">{scoreLabels[activeTooltip].tip}</p>
+                      <p className="text-[11px] font-bold text-primary">평가 이유</p>
+                      <p className="text-[10px] text-outline leading-relaxed">{evaluationScore[scoreLabels[activeTooltip].key].reason}</p>
                     </div>
                   </motion.div>
                 )}
               </AnimatePresence>
               <div className="flex flex-col gap-2">
-                {scoreLabels.map(({ key, label }, idx) => {
-                  const raw = evaluationScore[key];
-                  const displayValue = key === 'bias' ? 5 - raw : raw;
-                  return (
-                    <div
-                      key={key}
-                      className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 cursor-pointer hover:bg-indigo-50 transition-colors"
-                      onClick={() => setActiveTooltip(activeTooltip === idx ? null : idx)}
-                    >
-                      <span className="text-xs font-bold text-on-surface">{label}</span>
-                      <span className="text-xs font-black text-primary">{displayValue} / 5</span>
-                    </div>
-                  );
-                })}
+                {scoreLabels.map(({ key, label }, idx) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 cursor-pointer hover:bg-indigo-50 transition-colors"
+                    onClick={() => setActiveTooltip(activeTooltip === idx ? null : idx)}
+                  >
+                    <span className="text-xs font-bold text-on-surface">{label}</span>
+                    <span className="text-xs font-black text-primary">{evaluationScore[key].score} / 5</span>
+                  </div>
+                ))}
               </div>
             </>
           ) : (

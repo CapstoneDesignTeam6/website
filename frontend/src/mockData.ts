@@ -151,11 +151,12 @@ export const MOCK_DEBATE_MESSAGES: DebateMessage[] = [
 
 // 목(mock) 사용자 평가 점수 데이터 (백엔드 실패 시 사용)
 export const MOCK_USER_EVALUATION_SCORE: UserEvaluationScore = {
-  specificity: 4,     // 발언 구체성 (0~5)
-  understanding: 3,   // 상황 이해도 (0~5)
-  logic: 3,           // 논리력 (0~5)
-  informativeness: 2, // 정보 주도성 (0~5)
-  bias: 1,            // 편향도 (0~5, 낮을수록 좋음)
+  specificity: { score: 4, reason: '구체적인 수치와 사례를 포함한 발언입니다.', evidence: '' },
+  causality: { score: 3, reason: '원인과 결과를 연결했으나 함의까지는 이어지지 않았습니다.', evidence: '' },
+  domain_breadth: { score: 3, reason: '단일 도메인 내에서 두 가지 이상의 세부 논점을 구분해 사용했습니다.', evidence: '', domain_keywords: ['경제', '환경'] },
+  information_autonomy: { score: 2, reason: '외부 발언을 자신의 언어로 재구성하는 수준에 그쳤습니다.', evidence: '' },
+  conceptual_accuracy: { score: 4, reason: '전문 용어를 정확하게 사용했습니다.', evidence: '', errors: null },
+  total: 16,
 };
 
 // 목(mock) 반박 힌트 데이터
