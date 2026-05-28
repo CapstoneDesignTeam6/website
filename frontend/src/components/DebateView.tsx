@@ -347,6 +347,11 @@ export const DebateView = ({
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    if (!inputText) {
+      el.style.height = '2rem';
+      el.style.overflowY = 'hidden';
+      return;
+    }
     el.style.height = '2rem';
     const newHeight = Math.min(el.scrollHeight, 256);
     el.style.height = `${newHeight}px`;
