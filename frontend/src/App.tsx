@@ -112,7 +112,7 @@ export default function App() {
   const handleStartDebate = async () => {
     if (!topic.trim()) return;
 
-    // 토론 관련 상태 초기화
+    // 토론 관련 상태 초기화 — API 응답 전 로딩 화면을 위해 intro로 먼저 전환
     setDebatePhase('intro');
     setPreQuizzes([]);
     setPostQuizzes([]);
@@ -131,7 +131,7 @@ export default function App() {
     setAgentSteps([]);
     try {
       const data = await debateApi.sendMessage(
-        topic, '', [], null, undefined, 0,
+        topic, `${topic}에 대한 토론을 수행할거야. 주제에 대한 설명을 해줘`, [], null, undefined, 0,
         (step) => setAgentSteps(prev => {
           const idx = prev.findIndex(s => s.step === step.step);
           if (idx >= 0) {
@@ -153,7 +153,7 @@ export default function App() {
       setIsGenerating(false);
     }
 
-    // 2단계: turn=0 표시 후 intro 단계로 전환 → "퀴즈 풀기" 버튼 클릭 시 pre-quiz로 이동
+    // API 완료 후 intro 단계 재확인 (try/catch 중 phase가 바뀐 경우 대비)
     setDebatePhase('intro');
   };
 
