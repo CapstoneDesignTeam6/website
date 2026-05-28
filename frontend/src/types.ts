@@ -20,6 +20,7 @@ export interface DebateTopic {
   title: string;
   description: string;
   participants: number;
+  createdAt?: string;
   side_a?: string;
   side_b?: string;
   related_news?: string[];

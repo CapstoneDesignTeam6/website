@@ -84,8 +84,14 @@ const DebateCard = ({
         </div>
 
         <div className="pt-4 md:pt-6 border-t border-gray-50 flex justify-between items-center">
-          <div className="flex items-center gap-2 text-outline text-[10px] md:text-xs">
-            <MessageSquare size={14} /> {debate.participants}명 참여 중
+          <div className="flex flex-col gap-1 text-outline text-[10px] md:text-xs">
+            <div className="flex items-center gap-2">
+              <MessageSquare size={14} /> {debate.participants}명 참여 중
+            </div>
+            {/* 시간 뜨는 지 확인하고 삭제 */}
+            {debate.createdAt && (
+              <span>{new Date(debate.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            )}
           </div>
           <motion.span
             className="text-[10px] md:text-xs font-bold text-primary flex items-center gap-1"
@@ -110,12 +116,15 @@ const DebateCard = ({
   );
 };
 
+type SortOrder = 'latest' | 'popular';
+
 export const SearchView = ({ setTopic }: SearchViewProps) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [debates, setDebates] = useState<DebateTopic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
+  const [sortOrder, setSortOrder] = useState<SortOrder>('latest');
 
   useEffect(() => {
     const fetchDebates = async () => {
@@ -134,6 +143,11 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
+  const sortedDebates = [...debates].sort((a, b) => {
+    if (sortOrder === 'popular') return b.participants - a.participants;
+    return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+  });
+
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20">
       <header className="text-center mb-10 md:mb-12">
@@ -141,19 +155,36 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
         <p className="text-sm md:text-base text-outline max-w-2xl mx-auto">관심 있는 시사 이슈를 검색하고 토론에 참여해보세요.</p>
       </header>
 
-      <div className="max-w-3xl mx-auto mb-12 md:mb-16">
+      <div className="max-w-3xl mx-auto mb-6 md:mb-8">
         <div className="relative group">
-          <div className="absolute inset-y-0 left-5 md:left-6 flex items-center pointer-events-none text-outline group-focus-within:text-primary transition-colors">
-            <Search size={20} className="md:w-6 md:h-6" />
+          <div className="absolute inset-y-0 left-3 md:left-4 flex items-center pointer-events-none text-outline group-focus-within:text-primary transition-colors">
+            <Search size={16} />
           </div>
-          <input 
+          <input
             type="text"
             placeholder="주제, 키워드, 카테고리 등으로 검색해보세요"
-            className="w-full bg-white border-2 border-gray-100 rounded-3xl md:rounded-4xl py-4 md:py-6 pl-12 md:pl-16 pr-6 md:pr-8 text-base md:text-lg outline-none focus:outline-none focus:ring-0 transition-all shadow-sm hover:shadow-md"
+            className="w-full bg-white border border-gray-100 rounded-2xl md:rounded-3xl py-4 pl-10 md:pl-12 pr-4 md:pr-6 text-sm outline-none focus:outline-none focus:ring-0 transition-all shadow-xl"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+      </div>
+
+      <div className="mb-4 md:mb-6 flex gap-4 justify-end">
+        {(['latest', 'popular'] as SortOrder[]).map((order) => (
+          <button
+            key={order}
+            onClick={() => setSortOrder(order)}
+            className={`flex items-center gap-1.5 text-xs font-bold transition-colors ${
+              sortOrder === order ? 'text-primary' : 'text-gray-300'
+            }`}
+          >
+            <span className={`w-2 h-2 rounded-full border ${
+              sortOrder === order ? 'bg-primary border-primary' : 'bg-transparent border-gray-300'
+            }`} />
+            {order === 'latest' ? '최신순' : '날짜별'}
+          </button>
+        ))}
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
@@ -162,8 +193,8 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
             <Loader2 size={48} className="animate-spin mx-auto text-primary mb-4" />
             <p className="text-outline">검색 중...</p>
           </div>
-        ) : debates.length > 0 ? (
-          debates.map(debate => (
+        ) : sortedDebates.length > 0 ? (
+          sortedDebates.map(debate => (
             <DebateCard
               key={debate.id}
               debate={debate}

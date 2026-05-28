@@ -39,16 +39,17 @@ export const debateApi = {
       if (res.ok) {
         const json = await res.json();
         // 백엔드가 { code, message, data: [...] } 형태로 반환하는 경우 처리
-        const rows: { id?: number; topic?: string; title?: string; description?: string; category?: string; createdAt?: string }[] =
+        const rows: { id?: number; topic?: string; title?: string; description?: string; category?: string; isHot?: boolean; participants?: number; createdAt?: string }[] =
           Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : []);
         if (rows.length > 0) {
           return rows.map((row, i) => ({
             id: row.id ?? i,
             category: row.category ?? '사회',
-            isHot: i < 3,
+            isHot: row.isHot ?? false,
             title: row.title ?? row.topic ?? '',
             description: row.description ?? '',
-            participants: 0,
+            participants: row.participants ?? 0,
+            createdAt: row.createdAt ?? '',
           }));
         }
       }
@@ -89,7 +90,7 @@ export const debateApi = {
   // ─── 토론 관련 (DebateMessage, AgentStep, RelatedMaterial, UserEvaluationScore) ──
   //
   // sendMessage 호출 패턴:
-  //   turn=0 (주제 요약): message='', history=[], discussionId=null
+  //   turn=0 (주제 요약): message='{topic}에 대한 토론을 수행할거야. 주제에 대한 설명을 해줘', history=[], discussionId=null
   //   turn=1~3 (토론):    message=사용자입력, history=누적메시지, discussionId=받은ID
   sendMessage: async (
     topic: string,
