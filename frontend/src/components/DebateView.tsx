@@ -350,6 +350,11 @@ export const DebateView = ({
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
+    if (!inputText) {
+      el.style.height = '2rem';
+      el.style.overflowY = 'hidden';
+      return;
+    }
     el.style.height = '2rem';
     const newHeight = Math.min(el.scrollHeight, 256);
     el.style.height = `${newHeight}px`;
@@ -829,7 +834,7 @@ export const DebateView = ({
                   <textarea
                     ref={textareaRef}
                     className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-xs md:text-sm resize-none custom-scrollbar"
-                    style={{ minHeight: '2rem', maxHeight: '16rem', overflowY: 'hidden', padding: '0.375rem' }}
+                    style={{ height: '2rem', minHeight: '2rem', maxHeight: '16rem', overflowY: 'hidden', padding: '0.375rem' }}
                     placeholder={placeholder}
                     value={inputText}
                     onChange={(e) => {
