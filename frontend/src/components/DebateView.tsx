@@ -349,24 +349,33 @@ export const DebateView = ({
     fetchScore();
   }, [messages.length, discussionId]);
 
-  // 관련 자료를 백엔드에서 불러오는 useEffect
-  // AI 응답(agent 메시지)이 새로 추가될 때마다 재조회 — 새 검색 결과가 Supabase에 저장된 직후
-  const lastAgentMsgCount = messages.filter(m => m.role === 'agent').length;
+  // 관련 자료 fetch + 참고문헌 매칭을 한 번에 처리
+  // messages.length를 트리거로 사용 — 어떤 메시지(turn=0 포함)가 추가돼도 재실행
   useEffect(() => {
     if (!discussionId) return;
-    const fetchRelatedMaterials = async () => {
+    const fetchAndMatch = async () => {
       setIsLoadingRelatedMaterials(true);
       try {
         const data = await debateApi.getRelatedMaterials(topic, discussionId || null);
-        setRelatedMaterials(data);
+        // fetch 완료 후 현재 messages 기준으로 참고문헌 매칭
+        const nonUserMessages = messages.filter(m => m.role !== 'user');
+        console.log('[fetchAndMatch] messages 전체:', messages.map(m => ({ role: m.role, turn: m.turn })));
+        console.log('[fetchAndMatch] 비사용자 메시지 수:', nonUserMessages.length, '| 자료 수:', data.length);
+        const allUrls = nonUserMessages.flatMap(m => extractReferencedUrls(m.content));
+        console.log('[fetchAndMatch] 추출 URL:', allUrls);
+        const matched = matchReferencesToMaterials(allUrls, data);
+        const used = matched.filter(m => m.used);
+        const unused = matched.filter(m => !m.used);
+        setRelatedMaterials([...used, ...unused]);
       } catch (error) {
         console.error("Failed to fetch related materials:", error);
       } finally {
         setIsLoadingRelatedMaterials(false);
       }
     };
-    fetchRelatedMaterials();
-  }, [topic, discussionId, lastAgentMsgCount]); // AI 메시지 추가 시 재조회
+    fetchAndMatch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topic, discussionId, messages.length]);
 
   // 주장 생성 응답으로 받은 사용된 자료 링크를 기존 목록과 매칭해 used 자료를 위로 재배치
   useEffect(() => {
@@ -378,23 +387,6 @@ export const DebateView = ({
       return [...used, ...unused];
     });
   }, [usedMaterials]);
-
-  // 에이전트 메시지 본문의 참고문헌 섹션에서 URL을 추출해 relatedMaterials와 매칭
-  // relatedMaterials도 의존성에 포함: fetch 완료 후에도 재매칭 되도록
-  useEffect(() => {
-    const agentMessages = messages.filter(m => m.role !== 'user');
-    console.log('[refMatch useEffect] messages 전체:', messages.map(m => ({ role: m.role, turn: m.turn })));
-    console.log('[refMatch useEffect] agentMessages 수:', agentMessages.length, '| 현재 자료 수:', relatedMaterials.length);
-    if (agentMessages.length === 0 || relatedMaterials.length === 0) return;
-    const allUrls = agentMessages.flatMap(m => extractReferencedUrls(m.content));
-    console.log('[refMatch useEffect] 전체 추출 URL:', allUrls);
-    if (allUrls.length === 0) return;
-    const updated = matchReferencesToMaterials(allUrls, relatedMaterials);
-    const used = updated.filter(m => m.used);
-    const unused = updated.filter(m => !m.used);
-    setRelatedMaterials([...used, ...unused]);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, relatedMaterials.length]);
 
 
   const prevMessageCountRef = useRef(0);
