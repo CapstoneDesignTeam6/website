@@ -220,35 +220,44 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
   );
 };
 
-// 에이전트 메시지 content에서 참조문헌 섹션 내 URL 추출
-const extractReferencedUrls = (content: string): string[] => {
+// 에이전트 메시지에서 참조문헌 섹션 텍스트 추출
+// 지원 형태: ## 참고문헌, **참고문헌**, [참조 문헌], 참고자료: 등
+const extractRefSection = (content: string): string | null => {
   const normalized = content.replace(/\\n/g, '\n');
-  const refSectionMatch = normalized.match(
-    /(?:^|\n)(?:#{1,6}\s*)?(?:\*{0,2})(?:참조문헌|참조\s*자료|출처|References?)(?:\*{0,2})\s*[:：]?\s*\n([\s\S]*?)(?:\n(?:#{1,6}\s|\n#{1,6}\s)|$)/i
+  const match = normalized.match(
+    /(?:^|\n)(?:#{1,6}\s*)?(?:\[|\*{0,2})(?:참고\s*문헌|참조\s*문헌|참고\s*자료|참조\s*자료|출처|References?)(?:\]|\*{0,2})\s*[:：]?\s*\n?([\s\S]*?)(?:\n#{1,6}\s|$)/i
   );
-  console.log('[extractReferencedUrls] 참조문헌 섹션 매칭:', refSectionMatch ? '성공' : '실패 (섹션 없음)');
-  if (refSectionMatch) {
-    console.log('[extractReferencedUrls] 섹션 원문:\n', refSectionMatch[1]);
-  }
-  if (!refSectionMatch) return [];
-  const urlRegex = /https?:\/\/[^\s\)\],"']+/g;
-  const urls = [...new Set(refSectionMatch[1].match(urlRegex) ?? [])];
-  console.log('[extractReferencedUrls] 추출된 URL 목록:', urls);
+  return match ? match[1].trim() : null;
+};
+
+// 참조문헌 섹션에서 URL 목록 추출
+const extractReferencedUrls = (content: string): string[] => {
+  const section = extractRefSection(content);
+  console.log('[extractReferencedUrls] 섹션 매칭:', section ? '성공' : '실패');
+  if (section) console.log('[extractReferencedUrls] 섹션 원문:\n', section);
+  if (!section) return [];
+  const urls = [...new Set(section.match(/https?:\/\/[^\s\)\],"']+/g) ?? [])];
+  console.log('[extractReferencedUrls] 추출된 URL:', urls);
   return urls;
 };
 
-// 추출된 URL과 relatedMaterials를 매칭해 used 플래그 업데이트
-const matchReferencesToMaterials = (referencedUrls: string[], materials: RelatedMaterial[]): RelatedMaterial[] => {
-  if (referencedUrls.length === 0) return materials;
-  const urlSet = new Set(referencedUrls);
-  console.log('[matchReferencesToMaterials] 매칭 시도 — URL 수:', urlSet.size, '자료 수:', materials.length);
+// 참조문헌 섹션 전체 텍스트(서지정보 포함)와 자료 title을 매칭해 used 플래그 업데이트
+const matchReferencesToMaterials = (content: string, materials: RelatedMaterial[]): RelatedMaterial[] => {
+  const section = extractRefSection(content);
+  const urls = extractReferencedUrls(content);
+  console.log('[matchReferencesToMaterials] 섹션:', section ? section.slice(0, 120) : '없음');
+  console.log('[matchReferencesToMaterials] URL 수:', urls.length, '| 자료 수:', materials.length);
+  const urlSet = new Set(urls);
   const result = materials.map(m => {
-    const matched = !!m.url && urlSet.has(m.url);
-    if (matched) console.log('[matchReferencesToMaterials] 매칭됨:', m.title, '|', m.url);
+    const byUrl = !!m.url && urlSet.has(m.url);
+    // title 키워드 매칭: 자료 제목의 주요 단어(4글자 이상)가 섹션 텍스트에 포함되는지 확인
+    const byTitle = !!section && !!m.title &&
+      m.title.split(/\s+/).filter(w => w.length >= 4).some(w => section.includes(w));
+    const matched = byUrl || byTitle;
+    if (matched) console.log('[matchReferencesToMaterials] 매칭됨:', m.title, '| byUrl:', byUrl, '| byTitle:', byTitle);
     return { ...m, used: m.used || matched };
   });
-  const matchedCount = result.filter(m => m.used).length;
-  console.log('[matchReferencesToMaterials] 매칭된 자료 수:', matchedCount);
+  console.log('[matchReferencesToMaterials] 매칭된 자료 수:', result.filter(m => m.used).length);
   return result;
 };
 
@@ -368,9 +377,11 @@ export const DebateView = ({
         const nonUserMessages = messages.filter(m => m.role !== 'user');
         console.log('[fetchAndMatch] messages 전체:', messages.map(m => ({ role: m.role, turn: m.turn })));
         console.log('[fetchAndMatch] 비사용자 메시지 수:', nonUserMessages.length, '| 자료 수:', data.length);
-        const allUrls = nonUserMessages.flatMap(m => extractReferencedUrls(m.content));
-        console.log('[fetchAndMatch] 추출 URL:', allUrls);
-        const matched = matchReferencesToMaterials(allUrls, data);
+        // 메시지별로 순차 매칭 (각 content에서 섹션 추출 후 매칭)
+        const matched = nonUserMessages.reduce(
+          (acc, m) => matchReferencesToMaterials(m.content, acc),
+          data
+        );
         const used = matched.filter(m => m.used);
         const unused = matched.filter(m => !m.used);
         setRelatedMaterials([...used, ...unused]);
