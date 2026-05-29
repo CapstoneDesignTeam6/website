@@ -234,8 +234,13 @@ const extractRefSection = (content: string): string | null => {
     const stripped = line.replace(/^[#*\[\]\s]+|[#*\[\]\s]+$/g, '').trim();
     if (!REF_HEADER_RE.test(stripped) || stripped.length > 60) continue;
 
-    // 같은 줄에 헤더 뒤로 내용이 있는 경우 (예: [참조 문헌] URL1 URL2)
-    const inlineContent = line.replace(/^.*?(?:\]|\*{0,2})\s*[:：]?\s*/, '').trim();
+    // 같은 줄에 헤더 뒤로 내용이 있는 경우 (예: [참조 문헌] URL1 URL2 / **참조문헌** 내용)
+    // [헤더] 형태: ] 이후, **헤더** 형태: 마지막 ** 이후, 그 외: : 이후
+    const inlineContent = line
+      .replace(/^\[.*?\]\s*[:：]?\s*/, '')   // [헤더] 제거
+      .replace(/^\*{1,2}.*?\*{1,2}\s*[:：]?\s*/, '')  // **헤더** 제거
+      .replace(/^[#\s]*\S+\s*[:：]\s*/, '')  // 헤더: 형태 제거
+      .trim();
     if (inlineContent.length > 0) return inlineContent;
 
     // 다음 줄부터 내용 수집 — 빈 줄 2개 연속이거나 새 헤더가 나오면 종료
