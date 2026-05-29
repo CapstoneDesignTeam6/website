@@ -69,15 +69,13 @@ const STEP_META: Record<string, { icon: React.ElementType; label: string; desc: 
 const NORMAL_STEP_KEYS = ['orchestrator', 'search', 'generate'];
 const EASY_STEP_KEYS   = ['orchestrator', 'search', 'generate', 'simplify'];
 
-// instruction 텍스트를 단어 단위로 약 2줄 분량씩 잘라 순차 전환하는 컴포넌트
+// instruction 텍스트를 문장 단위로 잘라 순차 전환하는 컴포넌트
 // 청크가 1개면 전환 없이 그냥 표시
-const WORDS_PER_CHUNK = 60; // 한 청크당 단어 수 (약 2줄 분량)
 const InstructionScroller = ({ text }: { text: string }) => {
-  const words = text.split(/\s+/).filter(Boolean);
-  const chunks: string[] = [];
-  for (let i = 0; i < words.length; i += WORDS_PER_CHUNK) {
-    chunks.push(words.slice(i, i + WORDS_PER_CHUNK).join(' '));
-  }
+  const chunks: string[] = text
+    .split(/(?<=[.!?])\s+/)
+    .map(s => s.trim())
+    .filter(Boolean);
 
   const [idx, setIdx] = useState(0);
 
