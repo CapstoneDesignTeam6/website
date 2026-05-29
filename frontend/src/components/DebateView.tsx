@@ -536,10 +536,17 @@ export const DebateView = ({
       .replace(/^#{1,6}\s+.+$/gm, '')
       .replace(/\[\d+\]/g, '');
     if (isAgent) {
-      processed = processed.replace(
-        /\n?(?:\*{0,2})(?:참조문헌|참조\s*자료|출처|References?)(?:\*{0,2})\s*[:：]?\s*\n[\s\S]*/i,
-        ''
-      );
+      // extractRefSection과 동일한 줄 파싱으로 섹션 시작 위치를 찾아 잘라냄
+      const lines = processed.split('\n');
+      let cutIdx = -1;
+      for (let i = 0; i < lines.length; i++) {
+        const stripped = lines[i].replace(/^[#*\[\]\s]+|[#*\[\]\s]+$/g, '').trim();
+        if (REF_HEADER_RE.test(stripped) && stripped.length <= 60) {
+          cutIdx = i;
+          break;
+        }
+      }
+      if (cutIdx !== -1) processed = lines.slice(0, cutIdx).join('\n');
     }
     return processed.trim();
   };
