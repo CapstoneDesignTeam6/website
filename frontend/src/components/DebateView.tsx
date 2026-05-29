@@ -69,22 +69,29 @@ const STEP_META: Record<string, { icon: React.ElementType; label: string; desc: 
 const NORMAL_STEP_KEYS = ['orchestrator', 'search', 'generate'];
 const EASY_STEP_KEYS   = ['orchestrator', 'search', 'generate', 'simplify'];
 
-// instruction 텍스트를 단어 단위로 약 2줄 분량씩 잘라 순차 전환하는 컴포넌트
-// 청크가 1개면 전환 없이 그냥 표시
-const WORDS_PER_CHUNK = 30; // 한 청크당 단어 수 (약 2줄 분량)
-const InstructionScroller = ({ text }: { text: string }) => {
-  const words = text.split(/\s+/).filter(Boolean);
-  const chunks: string[] = [];
-  for (let i = 0; i < words.length; i += WORDS_PER_CHUNK) {
-    chunks.push(words.slice(i, i + WORDS_PER_CHUNK).join(' '));
+// instruction 텍스트 순차 전환하는 컴포넌트
+// 문장 단위로 분리하되, 한 문장이 MAX_WORDS_PER_CHUNK 단어를 초과하면 단어 청크로 재분리
+const MAX_WORDS_PER_CHUNK = 30;
+
+const splitIntoChunks = (text: string): string[] => {
+  const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+  const result: string[] = [];
+  for (const sentence of sentences) {
+    const words = sentence.split(/\s+/).filter(Boolean);
+    if (words.length <= MAX_WORDS_PER_CHUNK) {
+      result.push(sentence);
+    } else {
+      for (let i = 0; i < words.length; i += MAX_WORDS_PER_CHUNK) {
+        result.push(words.slice(i, i + MAX_WORDS_PER_CHUNK).join(' '));
+      }
+    }
   }
-  
-  /* 문장 단위
-  const chunks: string[] = text
-    .split(/(?<=[.!?])\s+/)
-    .map(s => s.trim())
-    .filter(Boolean);
-  */
+  return result;
+};
+
+const InstructionScroller = ({ text }: { text: string }) => {
+  const chunks = splitIntoChunks(text);
+
 
   const [idx, setIdx] = useState(0);
 
