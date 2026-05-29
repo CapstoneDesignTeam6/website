@@ -1,29 +1,30 @@
-fastapi==0.104.1
-uvicorn==0.24.0
+# 웹 프레임워크 — 버전 고정 X, pip가 google-cloud-aiplatform 의존성과 함께 자동 해결
+fastapi>=0.111.0
+uvicorn[standard]>=0.24.0
+starlette>=0.37.0
 sqlalchemy==2.0.23
-pydantic==2.13.4
-pydantic-settings==2.14.1
+pydantic>=2.7.0
+pydantic-settings>=2.4.0
 python-jose[cryptography]==3.3.0
 bcrypt>=4.0.0
-python-multipart==0.0.6
-pyjwt==2.8.0
-email-validator==2.1.0
-requests==2.31.0
+python-multipart>=0.0.6
+pyjwt>=2.8.0
+email-validator>=2.1.0
+requests>=2.31.0
 
-# Database - Supabase SDK
+# Database
 supabase==2.13.0
 
 # Utils
-python-dotenv==1.0.0
-openai==1.109.1
+python-dotenv>=1.0.0
+openai>=1.30.0
 
 # Web scraping
-beautifulsoup4==4.12.3
-lxml==5.2.2
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
 
-# Vertex AI / DebateOrchestrator
+# Vertex AI / DebateOrchestrator — 핵심 패키지는 고정
 google-cloud-aiplatform==1.153.1
 langchain-google-vertexai==3.2.3
 langchain-core==1.4.0
 tavily-python>=0.5.0
-# langchain-tavily는 Dockerfile에서 --no-deps로 별도 설치 (langchain-core 상한 메타데이터 버그)
