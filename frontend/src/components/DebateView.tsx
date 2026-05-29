@@ -185,6 +185,24 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
   );
 };
 
+// 에이전트 메시지 content에서 참고문헌 섹션 내 URL 추출
+const extractReferencedUrls = (content: string): string[] => {
+  const normalized = content.replace(/\\n/g, '\n');
+  const refSectionMatch = normalized.match(
+    /(?:^|\n)(?:#{1,6}\s*)?(?:\*{0,2})(?:참고문헌|참고\s*자료|출처|References?)(?:\*{0,2})\s*[:：]?\s*\n([\s\S]*?)(?:\n(?:#{1,6}\s|\n#{1,6}\s)|$)/i
+  );
+  if (!refSectionMatch) return [];
+  const urlRegex = /https?:\/\/[^\s\)\],"']+/g;
+  return [...new Set(refSectionMatch[1].match(urlRegex) ?? [])];
+};
+
+// 추출된 URL과 relatedMaterials를 매칭해 used 플래그 업데이트
+const matchReferencesToMaterials = (referencedUrls: string[], materials: RelatedMaterial[]): RelatedMaterial[] => {
+  if (referencedUrls.length === 0) return materials;
+  const urlSet = new Set(referencedUrls);
+  return materials.map(m => ({ ...m, used: m.used || (!!m.url && urlSet.has(m.url)) }));
+};
+
 export const DebateView = ({
   topic,
   messages,
@@ -311,7 +329,6 @@ export const DebateView = ({
   // 주장 생성 응답으로 받은 사용된 자료 링크를 기존 목록과 매칭해 used 자료를 위로 재배치
   useEffect(() => {
     if (!usedMaterials || usedMaterials.length === 0) return;
-    // used_materials는 URL 문자열 배열이므로 그대로 Set으로 변환
     const usedUrls = new Set(usedMaterials.filter(url => !!url));
     setRelatedMaterials(prev => {
       const used = prev.filter(m => m.url && usedUrls.has(m.url)).map(m => ({ ...m, used: true }));
@@ -319,6 +336,20 @@ export const DebateView = ({
       return [...used, ...unused];
     });
   }, [usedMaterials]);
+
+  // 에이전트 메시지 본문의 참고문헌 섹션에서 URL을 추출해 relatedMaterials와 매칭
+  useEffect(() => {
+    const agentMessages = messages.filter(m => m.role === 'agent');
+    if (agentMessages.length === 0) return;
+    const allUrls = agentMessages.flatMap(m => extractReferencedUrls(m.content));
+    if (allUrls.length === 0) return;
+    setRelatedMaterials(prev => {
+      const updated = matchReferencesToMaterials(allUrls, prev);
+      const used = updated.filter(m => m.used);
+      const unused = updated.filter(m => !m.used);
+      return [...used, ...unused];
+    });
+  }, [lastAgentMsgCount]);
 
 
   const prevMessageCountRef = useRef(0);
@@ -415,16 +446,24 @@ export const DebateView = ({
   // 1. \n 이스케이프 문자열을 실제 줄바꿈으로 변환 (백엔드/목데이터 혼용 대응)
   // 2. ## / ### 헤더 줄 제거
   // 3. [1], [2] 등 인라인 각주 번호 제거
-  const preprocessContent = (content: string): string =>
-    content
+  // 4. 참고문헌 섹션 제거 (에이전트 메시지)
+  const preprocessContent = (content: string, isAgent = false): string => {
+    let processed = content
       .replace(/\\n/g, '\n')
       .replace(/^#{1,6}\s+.+$/gm, '')
-      .replace(/\[\d+\]/g, '')
-      .trim();
+      .replace(/\[\d+\]/g, '');
+    if (isAgent) {
+      processed = processed.replace(
+        /\n?(?:\*{0,2})(?:참고문헌|참고\s*자료|출처|References?)(?:\*{0,2})\s*[:：]?\s*\n[\s\S]*/i,
+        ''
+      );
+    }
+    return processed.trim();
+  };
 
-  // **레이블**: 형태의 섹션 레이블을 children 배열에서 제거하는 함수
+  // **레이블**: 형태의 섹션 레이블을 제거하고, 일반 **볼드** 는 <strong> 으로 유지하는 함수
   // ReactMarkdown은 **foo**: bar 를 [<strong>foo</strong>, ": bar"] 로 파싱함
-  // strong 커스텀 컴포넌트를 쓰지 않으므로 type === 'strong' 문자열 비교가 정확히 작동함
+  // 뒤따르는 문자열이 ':' 로 시작하면 섹션 레이블로 간주해 제거, 아니면 볼드 유지
   const stripSectionLabels = (children: React.ReactNode): React.ReactNode[] => {
     const nodes = Array.isArray(children) ? children : [children];
     const result: React.ReactNode[] = [];
@@ -440,6 +479,11 @@ export const DebateView = ({
         const rest = (next as string).replace(/^\s*[:：]\s*/, '');
         if (rest) result.push(rest);
         i++;
+      } else if (
+        React.isValidElement(node) &&
+        (node as React.ReactElement).type === 'strong'
+      ) {
+        result.push(<strong className="font-bold">{(node as React.ReactElement<{ children?: React.ReactNode }>).props.children}</strong>);
       } else {
         result.push(node);
       }
@@ -740,7 +784,7 @@ export const DebateView = ({
                                 },
                               }}
                             >
-                              {preprocessContent(msg.content)}
+                              {preprocessContent(msg.content, msg.role === 'agent')}
                             </ReactMarkdown>
                           </div>
                         </div>
