@@ -221,13 +221,41 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
 };
 
 // 에이전트 메시지에서 참조문헌 섹션 텍스트 추출
-// 지원 형태: ## 참고문헌, **참고문헌**, [참조 문헌], 참고자료: 등
+// "참고/참조/출처/source/ref/reference" 계열 단어가 들어간 줄을 헤더로 인식
+// 헤더와 내용이 같은 줄이거나 다음 줄에 오는 모든 형태를 처리
+const REF_HEADER_RE = /참고|참조|출처|레퍼런스|reference|source/i;
 const extractRefSection = (content: string): string | null => {
   const normalized = content.replace(/\\n/g, '\n');
-  const match = normalized.match(
-    /(?:^|\n)(?:#{1,6}\s*)?(?:\[|\*{0,2})(?:참고\s*문헌|참조\s*문헌|참고\s*자료|참조\s*자료|출처|References?)(?:\]|\*{0,2})\s*[:：]?\s*\n?([\s\S]*?)(?:\n#{1,6}\s|$)/i
-  );
-  return match ? match[1].trim() : null;
+  const lines = normalized.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // 헤더 줄 판별: REF_HEADER_RE 매칭 + 본문 내용이 아닌 짧은 줄(60자 이하)
+    const stripped = line.replace(/^[#*\[\]\s]+|[#*\[\]\s]+$/g, '').trim();
+    if (!REF_HEADER_RE.test(stripped) || stripped.length > 60) continue;
+
+    // 같은 줄에 헤더 뒤로 내용이 있는 경우 (예: [참조 문헌] URL1 URL2)
+    const inlineContent = line.replace(/^.*?(?:\]|\*{0,2})\s*[:：]?\s*/, '').trim();
+    if (inlineContent.length > 0) return inlineContent;
+
+    // 다음 줄부터 내용 수집 — 빈 줄 2개 연속이거나 새 헤더가 나오면 종료
+    const bodyLines: string[] = [];
+    let blankCount = 0;
+    for (let j = i + 1; j < lines.length; j++) {
+      const bodyLine = lines[j];
+      if (bodyLine.trim() === '') {
+        blankCount++;
+        if (blankCount >= 2) break;
+      } else {
+        blankCount = 0;
+        // 새 섹션 헤더(##, ** 등)가 나오면 종료
+        if (/^#{1,6}\s|^\*{2}[^*]/.test(bodyLine)) break;
+        bodyLines.push(bodyLine);
+      }
+    }
+    if (bodyLines.length > 0) return bodyLines.join('\n').trim();
+  }
+  return null;
 };
 
 // 참조문헌 섹션에서 URL 목록 추출
