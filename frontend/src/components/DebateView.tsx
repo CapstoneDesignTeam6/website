@@ -71,7 +71,7 @@ const EASY_STEP_KEYS   = ['orchestrator', 'search', 'generate', 'simplify'];
 
 // instruction 텍스트 순차 전환하는 컴포넌트
 // 문장 단위로 분리하되, 한 문장이 MAX_WORDS_PER_CHUNK 단어를 초과하면 단어 청크로 재분리
-const MAX_WORDS_PER_CHUNK = 30;
+const MAX_WORDS_PER_CHUNK = 50;
 
 const splitIntoChunks = (text: string): string[] => {
   const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
