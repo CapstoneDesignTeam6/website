@@ -176,7 +176,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
         </div>
         {/* data.instruction이 있으면 현재 단계의 지시사항을 부가 정보로 표시 */}
         {activeStepData?.instruction && (
-          <p className="text-[10px] text-gray-400 px-1 leading-relaxed max-w-xs line-clamp-2">
+          <p className="text-[10px] text-gray-400 px-1 leading-relaxed wrap-break-word whitespace-pre-wrap">
             {activeStepData.instruction}
           </p>
         )}
