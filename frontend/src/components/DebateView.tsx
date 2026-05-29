@@ -59,18 +59,15 @@ interface DebateViewProps {
   onPostQuizComplete?: () => void;  // 사후 퀴즈 완료 → ResultView 이동
 }
 
-const AGENT_STEPS_NORMAL = [
-  { icon: Bot,    label: '오케스트레이터', desc: '전략 수립 중' },
-  { icon: Search, label: '자료 탐색',      desc: '관련 자료 검색 중' },
-  { icon: Brain,  label: '주장 생성',      desc: '논거 구성 중' },
-];
+const STEP_META: Record<string, { icon: React.ElementType; label: string; desc: string }> = {
+  orchestrator: { icon: Bot,       label: '오케스트레이터', desc: '전략 수립 중' },
+  search:       { icon: Search,    label: '자료 탐색',      desc: '관련 자료 검색 중' },
+  generate:     { icon: Brain,     label: '주장 생성',      desc: '논거 구성 중' },
+  simplify:     { icon: Lightbulb, label: '난이도 조정',    desc: '표현 변환 중' },
+};
 
-const AGENT_STEPS_EASY = [
-  { icon: Bot,      label: '오케스트레이터', desc: '전략 수립 중' },
-  { icon: Search,   label: '자료 탐색',      desc: '관련 자료 검색 중' },
-  { icon: Brain,    label: '주장 생성',      desc: '논거 구성 중' },
-  { icon: Lightbulb, label: '난이도 조정',    desc: '표현 변환 중' },
-];
+const NORMAL_STEP_KEYS = ['orchestrator', 'search', 'generate'];
+const EASY_STEP_KEYS   = ['orchestrator', 'search', 'generate', 'simplify'];
 
 // instruction 텍스트를 2줄씩 잘라 순차 전환하는 컴포넌트
 // 2줄 이하(청크 1개)면 전환 없이 그냥 표시
@@ -114,26 +111,11 @@ const InstructionScroller = ({ text }: { text: string }) => {
 };
 
 const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agentSteps?: AgentStep[] }) => {
-  const STEP_TYPE_TO_ICON: Record<string, React.ElementType> = {
-    orchestrator: Bot,
-    search: Search,
-    generate: Brain,
-    simplify: Lightbulb,
-  };
-
-  // step → 기본 label/desc 매핑 (data가 없을 때 폴백)
-  const STEP_META: Record<string, { label: string; desc: string }> = {
-    orchestrator: { label: '오케스트레이터', desc: '전략 수립 중' },
-    search:       { label: '자료 탐색',      desc: '관련 자료 검색 중' },
-    generate:     { label: '주장 생성',      desc: '논거 구성 중' },
-    simplify:     { label: '쉬운 설명',      desc: '표현 변환 중' },
-  };
-
   const backendSteps = agentSteps && agentSteps.length > 0
     ? agentSteps.map(s => {
-        const meta = STEP_META[s.step] ?? { label: s.step, desc: '' };
+        const meta = STEP_META[s.step] ?? { icon: Bot, label: s.step, desc: '' };
         return {
-          icon:   STEP_TYPE_TO_ICON[s.step] ?? Bot,
+          icon:   meta.icon,
           label:  meta.label,
           desc:   s.data?.workspace_summary || meta.desc,
           status: s.status,
@@ -142,8 +124,8 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
       })
     : null;
 
-  const fallbackSteps = isEasy ? AGENT_STEPS_EASY : AGENT_STEPS_NORMAL;
-  const steps = backendSteps ?? fallbackSteps.map(s => ({ ...s, status: 'pending' as const, data: undefined }));
+  const fallbackKeys = isEasy ? EASY_STEP_KEYS : NORMAL_STEP_KEYS;
+  const steps = backendSteps ?? fallbackKeys.map(key => ({ ...STEP_META[key], status: 'pending' as const, data: undefined }));
 
   const initialActive = backendSteps
     ? Math.max(0, backendSteps.findIndex(s => s.status === 'running'))
@@ -171,7 +153,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
       </div>
       <div className="flex flex-col gap-3 py-1">
         <div className="flex items-center gap-1.5">
-          {steps.map((_, i) => (
+          {steps.map((_: unknown, i: number) => (
             <React.Fragment key={i}>
               <motion.div
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors ${
