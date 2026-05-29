@@ -375,8 +375,9 @@ export const DebateView = ({
   // 에이전트 메시지 본문의 참고문헌 섹션에서 URL을 추출해 relatedMaterials와 매칭
   // relatedMaterials도 의존성에 포함: fetch 완료 후에도 재매칭 되도록
   useEffect(() => {
-    const agentMessages = messages.filter(m => m.role === 'agent');
-    console.log('[refMatch useEffect] 에이전트 메시지 수:', agentMessages.length, '| 현재 자료 수:', relatedMaterials.length);
+    const agentMessages = messages.filter(m => m.role !== 'user');
+    console.log('[refMatch useEffect] messages 전체:', messages.map(m => ({ role: m.role, turn: m.turn })));
+    console.log('[refMatch useEffect] agentMessages 수:', agentMessages.length, '| 현재 자료 수:', relatedMaterials.length);
     if (agentMessages.length === 0 || relatedMaterials.length === 0) return;
     const allUrls = agentMessages.flatMap(m => extractReferencedUrls(m.content));
     console.log('[refMatch useEffect] 전체 추출 URL:', allUrls);
@@ -386,7 +387,7 @@ export const DebateView = ({
     const unused = updated.filter(m => !m.used);
     setRelatedMaterials([...used, ...unused]);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lastAgentMsgCount, relatedMaterials.length]);
+  }, [messages.length, relatedMaterials.length]);
 
 
   const prevMessageCountRef = useRef(0);
