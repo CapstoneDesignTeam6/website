@@ -69,8 +69,49 @@ const AGENT_STEPS_EASY = [
   { icon: Bot,      label: '오케스트레이터', desc: '전략 수립 중' },
   { icon: Search,   label: '자료 탐색',      desc: '관련 자료 검색 중' },
   { icon: Brain,    label: '주장 생성',      desc: '논거 구성 중' },
-  { icon: Lightbulb, label: '쉬운 설명',    desc: '표현 변환 중' },
+  { icon: Lightbulb, label: '난이도 조정',    desc: '표현 변환 중' },
 ];
+
+// instruction 텍스트를 2줄씩 잘라 순차 전환하는 컴포넌트
+// 2줄 이하(청크 1개)면 전환 없이 그냥 표시
+const CHARS_PER_CHUNK = 60; // 한 청크당 글자 수 (약 2줄 분량)
+const InstructionScroller = ({ text }: { text: string }) => {
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += CHARS_PER_CHUNK) {
+    chunks.push(text.slice(i, i + CHARS_PER_CHUNK));
+  }
+
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    setIdx(0);
+  }, [text]);
+
+  useEffect(() => {
+    if (chunks.length <= 1) return;
+    const timer = setTimeout(() => {
+      setIdx(prev => (prev + 1) % chunks.length);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [idx, chunks.length]);
+
+  return (
+    <div className="overflow-hidden h-8 px-1">
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={idx}
+          className="text-[10px] text-gray-400 leading-relaxed line-clamp-2"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.3 }}
+        >
+          {chunks[idx]}
+        </motion.p>
+      </AnimatePresence>
+    </div>
+  );
+};
 
 const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agentSteps?: AgentStep[] }) => {
   const STEP_TYPE_TO_ICON: Record<string, React.ElementType> = {
@@ -174,11 +215,8 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
           </motion.div>
           <span className="text-[11px] text-outline">{steps[activeStep].desc}</span>
         </div>
-        {/* data.instruction이 있으면 현재 단계의 지시사항을 부가 정보로 표시 */}
         {activeStepData?.instruction && (
-          <p className="text-[10px] text-gray-400 px-1 leading-relaxed wrap-break-word whitespace-pre-wrap">
-            {activeStepData.instruction}
-          </p>
+          <InstructionScroller text={activeStepData.instruction} />
         )}
       </div>
     </div>
