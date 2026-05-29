@@ -77,17 +77,43 @@ info_query_prompt = ChatPromptTemplate.from_template("""
 """)
 
 # ── 인메모리 스토어 ──────────────────────────────────────────────────
-# discussion_id 단위로 파일 상태를 보존: 같은 토론의 여러 턴이 이전 파일을 참조 가능.
-# (Render 에피머럴 파일시스템에서 디스크 I/O 없이 동작)
+import queue as _queue_module
+
 json_num_count: int = 0
 _current_discussion_id: str = "local"
-# {discussion_id: {filename: merged_dict}}
 _discussion_stores: dict[str, dict[str, dict]] = {}
+# SSE 이벤트 큐: {discussion_id: Queue}
+_event_queues: dict[str, _queue_module.Queue] = {}
+
+# agent_id → SSE step 타입
+_AGENT_STEP_TYPE: dict[int, str] = {
+    0: "search",
+    1: "generate",
+    2: "generate",
+    3: "generate",
+    4: "simplify",
+    5: "simplify",
+    6: "orchestrator",
+}
 
 
 def _store() -> dict[str, dict]:
-    """현재 토론의 파일 스토어 반환 (없으면 생성)."""
     return _discussion_stores.setdefault(_current_discussion_id, {})
+
+
+def _emit(event: dict) -> None:
+    """현재 토론의 SSE 큐에 이벤트를 넣는다."""
+    q = _event_queues.get(_current_discussion_id)
+    if q is not None:
+        q.put(event)
+
+
+def set_event_queue(discussion_id, q: _queue_module.Queue) -> None:
+    _event_queues[str(discussion_id or "local")] = q
+
+
+def clear_event_queue(discussion_id) -> None:
+    _event_queues.pop(str(discussion_id or "local"), None)
 
 
 # ── 턴 관리 함수 ────────────────────────────────────────────────────
@@ -359,6 +385,9 @@ def run_explorer_agent(input_json_str):
         "stage": input_data.get("stage", "normal"),
         "refutation_turn": input_data.get("refutation_turn", 0),
     }
+    _emit({"type": "step", "step": "search", "status": "done",
+           "data": {"agent_id": 0,
+                    "workspace_summary": f"검색 결과 {len(collected_documents)}건 수집 완료"}})
     return run_step(input_json)
 
 
@@ -447,6 +476,8 @@ def make_refute_agent(input_json_str):
         "stage": input_data.get("stage", "normal"),
         "refutation_turn": input_data.get("refutation_turn", 0),
     }
+    _emit({"type": "step", "step": "generate", "status": "done",
+           "data": {"agent_id": 3, "workspace_summary": "반론 생성 완료"}})
     return run_step(output_json)
 
 
@@ -569,6 +600,8 @@ def make_topic_explanation_agent(input_json_str):
         "stage": input_data.get("stage", "normal"),
         "refutation_turn": input_data.get("refutation_turn", 0),
     }
+    _emit({"type": "step", "step": "generate", "status": "done",
+           "data": {"agent_id": 2, "workspace_summary": "주제 설명 생성 완료"}})
     return run_step(output_json)
 
 
@@ -669,6 +702,8 @@ def make_opinion_agent(input_json_str):
     """
     response = llm.invoke(opinion_prompt)
     result = response.content
+    _emit({"type": "step", "step": "generate", "status": "done",
+           "data": {"agent_id": 1, "workspace_summary": "주장 생성 완료"}})
     input_json = {
         "discussion_id": discussion_id,
         "topic": topic,
@@ -760,6 +795,8 @@ def simplify_output_agent(input_json_str):
 
     raw_msg = extract_current_message(user_input)
     save_turn_file(raw_msg, result, discussion_id=discussion_id, turn_number=turn_number)
+    _emit({"type": "step", "step": "simplify", "status": "done",
+           "data": {"agent_id": 4, "workspace_summary": "쉬운 설명 변환 완료"}})
     return result
 
 
@@ -846,6 +883,8 @@ def normally_output_agent(input_json_str):
 
     raw_msg = extract_current_message(user_input)
     save_turn_file(raw_msg, result, discussion_id=discussion_id, turn_number=turn_number)
+    _emit({"type": "step", "step": "simplify", "status": "done",
+           "data": {"agent_id": 5, "workspace_summary": "보통 설명 변환 완료"}})
     return result
 
 
@@ -873,7 +912,7 @@ def get_system_prompt(refutation_count=0):
 0번 (자료탐색): 질문 기반 검색어 생성 및 정보 수집
 1번 (주장 생성): 구조화된 데이터를 바탕으로 논리적 주장 구축
 2번 (주제 설명): 토론 주제에 대한 정의, 배경 정보, 핵심 쟁점을 구조적으로 정리하여 제공(유저의 요청시에만 호출)
-3번 (반박 생성): 이미 존재하는 '상대 주장'을 반박해야 할 때만 사용, 반박 대상이 명확히 존재해야 함(유저의 요청시에만 호출). ⚠️ 반드시 0번(자료탐색)을 먼저 호출하여 근거 자료를 수집한 후에만 호출할 수 있습니다. 현재 턴에서 0번이 아직 호출되지 않았다면 3번 대신 0번을 먼저 호출하세요.
+3번 (반박 생성): 이미 존재하는 '상대 주장'을 반박해야 할 때만 사용, 반박 대상이 명확히 존재해야 함(유저의 요청시에만 호출)
 4번 (쉬운 설명 변환): stage가 "easy"일 때만 호출. 1번/2번/3번 결과가 완성된 후 -1(최종 출력) 직전에 반드시 한 번 호출하여 내용을 전문 지식이 없는 사람도 이해할 수 있도록 쉽고 친근하게 변환.
 5번 (보통 설명 변환): stage가 "normal"일 때만 호출. 1번/2번/3번 결과가 완성된 후 -1(최종 출력) 직전에 반드시 한 번 호출하여 내용을 일반 뉴스 기사 수준으로 쉽게 변환.
 
@@ -950,6 +989,9 @@ def run_step(context_json):
     print(f"⚙️  [Step {json_num_count}] 오케스트레이터 호출 시작")
     print(f"📊 [Orchestrator] 현재 반박 완료 횟수(refutation_turn): {refutation_turn}")
 
+    _emit({"type": "step", "step": "orchestrator", "status": "running",
+           "data": {"agent_id": 6}})
+
     messages = [
         SystemMessage(content=get_system_prompt(refutation_turn)),
         HumanMessage(content=json.dumps(context_json, ensure_ascii=False, default=str))
@@ -966,6 +1008,15 @@ def run_step(context_json):
         print(f"\n[Orchestrator Decision]:\n{json.dumps(result, indent=2, ensure_ascii=False)}")
 
         make_json_file(filename, context_json, result)
+
+        _emit({"type": "step", "step": "orchestrator", "status": "done", "data": {
+            "agent_id": 6,
+            "next_agent_id": result.get("next_agent_id"),
+            "instruction": result.get("instruction", "")[:300],
+            "workspace_summary": result.get("workspace_summary", ""),
+            "context_summary": result.get("context_summary", "")[:200],
+            "reference": result.get("reference", []),
+        }})
     except Exception as e:
         print(f"❌ 오케스트레이터가 유효한 JSON을 반환하지 않았습니다. 오류: {e}")
         print(response.content)
@@ -1010,6 +1061,11 @@ def run_orchestrator_test(result):
     if user_cmd == "stop":
         print("🛑 실행을 중단합니다.")
         return
+
+    step_type = _AGENT_STEP_TYPE.get(agent_id, "generate")
+    _emit({"type": "step", "step": step_type, "status": "running",
+           "data": {"agent_id": agent_id,
+                    "instruction": result2.get("instruction", "")[:300]}})
 
     if agent_id == 0:
         print("🔄 Agent 0 (Explorer) 실행 중...")

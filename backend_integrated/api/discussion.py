@@ -94,35 +94,81 @@ async def send_message(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
+    import asyncio
+    import queue as _q
+    import json as _json
     from datetime import datetime as dt
-    from services.debate_orchestrator import start_new_turn
+    from fastapi.responses import StreamingResponse
+    from services.debate_orchestrator import start_new_turn, set_event_queue, clear_event_queue
 
     discussion_id = body.discussion_id or int(dt.now().timestamp() * 1000)
+    event_queue: _q.Queue = _q.Queue()
+    set_event_queue(discussion_id, event_queue)
 
-    response_text = start_new_turn(
-        discussion_id=discussion_id,
-        now_turn=body.round_number,
-        raw_user_message=body.message,
-        topic_str=body.topic,
-        stage_str=body.difficulty,
-    )
+    async def generate():
+        # get_running_loop(): 현재 실행 중인 루프를 정확히 가져옴 (Python 3.10+ 호환)
+        loop = asyncio.get_running_loop()
+        future = loop.run_in_executor(None, lambda: start_new_turn(
+            discussion_id=discussion_id,
+            now_turn=body.round_number,
+            raw_user_message=body.message,
+            topic_str=body.topic,
+            stage_str=body.difficulty,
+        ))
 
-    # [참조 문헌] 섹션의 URL을 추출해 프론트 관련 자료 하이라이트에 사용
-    used_materials = list(dict.fromkeys(
-        re.findall(r'https?://[^\s\]\)\'"]+', response_text or '')
-    ))
+        # 스레드가 완료될 때까지 큐에서 이벤트를 꺼내 실시간 스트리밍
+        while not future.done():
+            try:
+                event = event_queue.get_nowait()
+                yield f"data: {_json.dumps(event, ensure_ascii=False)}\n\n"
+            except _q.Empty:
+                await asyncio.sleep(0.05)
 
-    return {
-        "discussion_id": discussion_id,
-        "used_materials": used_materials,
-        "userSide": "pro",
-        "aiResponse": {
+        # future 완료 후에도 큐에 남은 이벤트를 모두 소진
+        await asyncio.sleep(0)  # 이벤트 루프에 한 번 양보해 큐에 모든 이벤트가 들어올 시간 확보
+        while not event_queue.empty():
+            try:
+                event = event_queue.get_nowait()
+                yield f"data: {_json.dumps(event, ensure_ascii=False)}\n\n"
+            except _q.Empty:
+                break
+
+        try:
+            response_text = await future
+        except Exception as e:
+            response_text = None
+            print(f"❌ [SSE] start_new_turn 오류: {e}")
+        finally:
+            clear_event_queue(discussion_id)
+
+        used_materials = list(dict.fromkeys(
+            re.findall(r'https?://[^\s\]\)\'"]+', response_text or '')
+        ))
+
+        result_event = {
+            "type": "result",
             "discussion_id": discussion_id,
-            "side": "con",
-            "content": response_text or "응답을 생성할 수 없습니다.",
-            "timestamp": dt.now().strftime("%H:%M"),
+            "used_materials": used_materials,
+            "userSide": "pro",
+            "aiResponse": {
+                "discussion_id": discussion_id,
+                "side": "con",
+                "content": response_text or "응답을 생성할 수 없습니다.",
+                "timestamp": dt.now().strftime("%H:%M"),
+            },
         }
-    }
+        yield f"data: {_json.dumps(result_event, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",          # 브라우저/프록시 버퍼링 방지
+            "X-Accel-Buffering": "no",             # Render/nginx 버퍼링 방지
+            "Connection": "keep-alive",
+        },
+    )
 
 
     

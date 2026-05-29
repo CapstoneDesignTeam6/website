@@ -1,8 +1,8 @@
 fastapi==0.104.1
 uvicorn==0.24.0
 sqlalchemy==2.0.23
-pydantic>=2.7.0
-pydantic-settings>=2.4.0
+pydantic==2.13.4
+pydantic-settings==2.14.1
 python-jose[cryptography]==3.3.0
 bcrypt>=4.0.0
 python-multipart==0.0.6
@@ -15,21 +15,16 @@ supabase==2.13.0
 
 # Utils
 python-dotenv==1.0.0
-openai>=1.30.0,<2
+openai==1.109.1
 
 # Web scraping
 beautifulsoup4==4.12.3
 lxml==5.2.2
-playwright==1.44.0
 
-# Vertex AI / hongcheol DebateOrchestrator
-google-cloud-aiplatform>=1.69.0,<2.0.0
-langchain-google-vertexai==2.0.4
-langchain-community>=0.3.0,<1.0.0
-langchain-core>=0.3.0,<1.0.0
+# Vertex AI / DebateOrchestrator
+google-cloud-aiplatform==1.153.1
+langchain-google-vertexai==3.2.3
+langchain-community==0.3.12
+langchain-core==1.4.0
 tavily-python>=0.5.0
-langchain-tavily>=0.1.0
-
-# Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
+langchain-tavily==0.1.5

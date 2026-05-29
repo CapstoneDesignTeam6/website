@@ -197,6 +197,7 @@ export const DebateView = ({
   progress = 25,
   discussionId,
   usedMaterials,
+  agentSteps,
   difficulty = 'normal',
   speechTurn = 1,
   waitingForContinue = false,
@@ -680,7 +681,7 @@ export const DebateView = ({
 
           {/* ── intro 단계: turn=0 로딩 스피너 ── */}
           {debatePhase === 'intro' && isGenerating && (
-            <AgentThinkingIndicator isEasy={difficulty === 'easy'} />
+            <AgentThinkingIndicator isEasy={difficulty === 'easy'} agentSteps={agentSteps} />
           )}
 
           {/* ── 메시지 목록: intro / pre-quiz / debating / post-quiz 모두 표시 ── */}
@@ -784,7 +785,7 @@ export const DebateView = ({
               )}
 
               {isGenerating && debatePhase === 'debating' && (
-                <AgentThinkingIndicator isEasy={difficulty === 'easy'} />
+                <AgentThinkingIndicator isEasy={difficulty === 'easy'} agentSteps={agentSteps} />
               )}
             </>
           )}
