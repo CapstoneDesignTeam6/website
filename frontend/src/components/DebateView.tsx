@@ -71,7 +71,7 @@ const EASY_STEP_KEYS   = ['orchestrator', 'search', 'generate', 'simplify'];
 
 // instruction 텍스트를 단어 단위로 약 2줄 분량씩 잘라 순차 전환하는 컴포넌트
 // 청크가 1개면 전환 없이 그냥 표시
-const WORDS_PER_CHUNK = 12; // 한 청크당 단어 수 (약 2줄 분량)
+const WORDS_PER_CHUNK = 60; // 한 청크당 단어 수 (약 2줄 분량)
 const InstructionScroller = ({ text }: { text: string }) => {
   const words = text.split(/\s+/).filter(Boolean);
   const chunks: string[] = [];
