@@ -26,4 +26,4 @@ google-cloud-aiplatform==1.153.1
 langchain-google-vertexai==3.2.3
 langchain-core==1.4.0
 tavily-python>=0.5.0
-langchain-tavily==0.1.5
+# langchain-tavily는 Dockerfile에서 --no-deps로 별도 설치 (langchain-core 상한 메타데이터 버그)
