@@ -1,8 +1,9 @@
 import os
-os.environ['TAVILY_API_KEY'] = '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'
+os.environ['TAVILY_API_KEY'] = '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'
 import json
 import os
 import datetime
+
 import vertexai
 from langchain_google_vertexai import ChatVertexAI
 from langchain_tavily import TavilySearch
@@ -10,16 +11,12 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.messages import HumanMessage, SystemMessage
 
-# --- Google Vertex AI 설정 ---
-# 사용자 지정 설정을 그대로 유지합니다.
 MODEL_ID = 'gemini-2.5-pro'
 PROJECT_ID = "project-8dcb485c-620f-47a6-bc5"
-LOCATION = "us-central1"
-
-# Vertex AI 초기화
+#LOCATION = "us-central1"
+LOCATION = "global"
 vertexai.init(project=PROJECT_ID, location=LOCATION)
 
-# LangChain용 LLM 설정 (Gemini 호출을 위해 ChatVertexAI 사용)
 llm = ChatVertexAI(
     model_name=MODEL_ID,
     project=PROJECT_ID,
@@ -27,15 +24,11 @@ llm = ChatVertexAI(
     temperature=0.3
 )
 
-# 검색 툴 설정
 search_tool = TavilySearch(max_results=1)
-
-# 현재 시간 설정
 current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 global topic, user_input
 
-# 2. 쿼리 생성 프롬프트 (수정 절대 금지)
 info_query_prompt = ChatPromptTemplate.from_template("""
 당신은 **문제 이해 및 자료탐색 에이전트**입니다.
 [지시사항]을 분석하여, 사용자의 주장을 뒷받침하거나 반박할 수 있는 정교한 검색 쿼리 **2**개를 생성하십시오.
@@ -83,15 +76,23 @@ info_query_prompt = ChatPromptTemplate.from_template("""
 결과:
 """)
 
-# 턴 내 에이전트 간 데이터를 메모리에서 관리 (output_N.json 대체)
-_steps_cache: dict = {}  # {filename_key: merged_data}
-_step_count: int = 0
+# ── 인메모리 스토어 ──────────────────────────────────────────────────
+# discussion_id 단위로 파일 상태를 보존: 같은 토론의 여러 턴이 이전 파일을 참조 가능.
+# (Render 에피머럴 파일시스템에서 디스크 I/O 없이 동작)
+json_num_count: int = 0
+_current_discussion_id: str = "local"
+# {discussion_id: {filename: merged_dict}}
+_discussion_stores: dict[str, dict[str, dict]] = {}
 
-# ── 턴 관리 함수들 ────────────────────────────────────────────────────
+
+def _store() -> dict[str, dict]:
+    """현재 토론의 파일 스토어 반환 (없으면 생성)."""
+    return _discussion_stores.setdefault(_current_discussion_id, {})
+
+
+# ── 턴 관리 함수 ────────────────────────────────────────────────────
 
 def extract_current_message(user_input_field):
-    """user_input 필드에서 현재 사용자 메시지만 추출합니다.
-    build_compact_user_input()이 삽입한 헤더가 있으면 그 아래 부분만 반환합니다."""
     for marker in ("[현재 사용자 요청]\n", "[현재 사용자 입력]\n"):
         if marker in user_input_field:
             return user_input_field.split(marker, 1)[1].strip()
@@ -99,7 +100,6 @@ def extract_current_message(user_input_field):
 
 
 def save_turn_file(raw_user_message, ai_response, discussion_id=None, turn_number=0):
-    """완료된 턴을 Supabase discussion_turns 테이블에 저장합니다."""
     summary_prompt = (
         f"아래 토론 발언을 핵심 주장 위주로 2~3문장으로 요약하십시오. "
         f"불필요한 수식어 없이 간결하게 작성하십시오.\n\n"
@@ -128,8 +128,6 @@ def save_turn_file(raw_user_message, ai_response, discussion_id=None, turn_numbe
 
 
 def build_compact_user_input(nowturn, raw_message, discussion_id=None, max_recent_turns=5):
-    """Supabase discussion_turns에서 이전 턴을 읽어 요약된 맥락 + 현재 메시지를 반환합니다.
-    discussion_id가 없거나 저장된 턴이 없으면 raw_message를 그대로 반환합니다."""
     now_turn = nowturn
     todo_instruction = ""
     if now_turn == 0:
@@ -161,11 +159,11 @@ def build_compact_user_input(nowturn, raw_message, discussion_id=None, max_recen
     if not past_turns:
         return raw_message
 
+    sep = "=" * 55
     total_turns = len(past_turns)
     recent = past_turns[-max_recent_turns:]
     older_count = total_turns - len(recent)
 
-    sep = "=" * 55
     lines = [
         sep,
         f"[토론 현황]  주제: {topic}  |  진행 턴: {total_turns}회",
@@ -192,19 +190,40 @@ def build_compact_user_input(nowturn, raw_message, discussion_id=None, max_recen
     return "\n".join(lines)
 
 
+def clear_discussion_store(discussion_id) -> None:
+    """토론 종료 후 해당 discussion_id의 인메모리 파일 스토어를 해제."""
+    key = str(discussion_id or "local")
+    _discussion_stores.pop(key, None)
+    print(f"🗑️ [Store] discussion_id={discussion_id} 스토어 해제 완료")
+
+
 def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", discussion_id=None):
-    """외부에서 새 사용자 발화를 받아 한 턴을 실행하는 진입점입니다.
-    user_input을 압축된 형태로 만들어 run_step에 전달합니다."""
-    global topic, user_input, _steps_cache, _step_count
+    global topic, user_input, json_num_count, _current_discussion_id
     topic = topic_str
     user_input = raw_user_message
 
-    # 턴마다 메모리 캐시 초기화 (이전 턴 데이터와 섞이지 않도록)
-    _steps_cache = {}
-    _step_count = 0
-    print(f"🆕 [Turn {now_turn}] 캐시 초기화 완료 | topic={topic_str} | discussion_id={discussion_id}")
+    _current_discussion_id = str(discussion_id or "local")
+    # 이전 턴 파일을 보존하기 위해 스토어를 지우지 않음.
+    # json_num_count는 이 토론에서 마지막으로 사용한 번호부터 이어감.
+    existing = _store()
+    if existing:
+        json_num_count = max(
+            (int(k.replace("output_", "").replace(".json", ""))
+             for k in existing if k.startswith("output_") and k.endswith(".json")),
+            default=0,
+        )
+    else:
+        json_num_count = 0
+    print(f"🆕 [Turn {now_turn}] 초기화 완료 | topic={topic_str} | discussion_id={discussion_id} | 파일 카운트={json_num_count}")
 
     compact_input = build_compact_user_input(now_turn, raw_user_message, discussion_id=discussion_id)
+
+    # 이전 턴에서 생성된 파일들을 json_info에 복원 → 오케스트레이터가 이전 자료를 참조 가능
+    restored_json_info = {
+        fname: data.get("workspace_summary", "")
+        for fname, data in _store().items()
+        if fname.startswith("output_") and fname.endswith(".json")
+    }
 
     context = {
         "discussion_id": discussion_id,
@@ -212,39 +231,37 @@ def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", di
         "previous_instruction": "이전 대화에서 이어지는 사용자 발화입니다.",
         "last_action": {"agent_id": 6, "result": ""},
         "user_input": compact_input,
-        "json_info": {},
+        "json_info": restored_json_info,
         "stage": stage_str,
         "refutation_turn": 0,
     }
     return run_step(context)
 
-# ────────────────────────────────────────────────────────────────────
 
-def count_agent_calls(json_info, agent_id):
-    """json_info 요약에서 특정 에이전트가 호출된 횟수를 집계합니다."""
-    prefix = f"[{agent_id}]"
-    return sum(
-        1 for summary in json_info.values()
-        if isinstance(summary, str) and summary.strip().startswith(prefix)
-    )
+# ── 인메모리 I/O (파일 대신 dict 사용) ─────────────────────────────────
 
-def read_step(step_key: str) -> dict | None:
-    """메모리 캐시에서 스텝 데이터를 읽는다."""
-    return _steps_cache.get(step_key)
+def read_json_file(filename: str) -> dict | None:
+    if not filename.endswith(".json"):
+        filename = f"{filename}.json"
+    return _store().get(filename)
 
-def save_step(step_key: str, input_json: dict, output_json: dict) -> dict:
-    """스텝 데이터를 메모리 캐시에 저장하고 병합된 상태를 반환한다."""
-    global _step_count
+read_step = read_json_file
+
+
+def make_json_file(filename: str, input_json: dict, output_json: dict) -> dict:
+    global json_num_count
+
+    if not filename.endswith(".json"):
+        filename = f"{filename}.json"
 
     json_info_accumulated = input_json.get("json_info", {}).copy()
 
-    # 이전 스텝의 json_info를 메모리에서 합산
-    prev_key = f"step_{_step_count - 1}"
-    prev_data = _steps_cache.get(prev_key)
+    prev_filename = f"output_{json_num_count - 1}.json"
+    prev_data = _store().get(prev_filename)
     if prev_data:
         json_info_accumulated.update(prev_data.get("json_info", {}))
 
-    json_info_accumulated[step_key] = output_json.get("workspace_summary", "요약 없음")
+    json_info_accumulated[filename] = output_json.get("workspace_summary", "요약 없음")
 
     prev_refutation_turn = input_json.get("refutation_turn", 0)
     last_agent_id = input_json.get("last_action", {}).get("agent_id", -1)
@@ -267,8 +284,11 @@ def save_step(step_key: str, input_json: dict, output_json: dict) -> dict:
         'workspace_summary': output_json.get("workspace_summary", "no_workspace_summary"),
     }
 
-    _steps_cache[step_key] = merged
+    _store()[filename] = merged
     return merged
+
+
+# ── 에이전트 ─────────────────────────────────────────────────────────
 
 def run_explorer_agent(input_json_str):
     input_data = input_json_str
@@ -276,6 +296,7 @@ def run_explorer_agent(input_json_str):
     json_info = input_data.get("json_info", {})
     discussion_id = input_data.get("discussion_id")
     turn_number = input_data.get("refutation_turn", 0)
+
     print(f"🔍 [Agent 0] 주제 분석 및 쿼리 생성 중: {topic}")
 
     chain = info_query_prompt | llm | JsonOutputParser()
@@ -287,8 +308,16 @@ def run_explorer_agent(input_json_str):
 
     for q in search_queries:
         print(f"🌐 [Agent 0] 검색 수행: {q}")
-        search_results = search_tool.invoke({"query": q})
-        for res in search_results:
+        search_response = search_tool.invoke({"query": q})
+
+        if isinstance(search_response, dict) and "results" in search_response:
+            result_list = search_response["results"]
+        elif isinstance(search_response, list):
+            result_list = search_response
+        else:
+            result_list = []
+
+        for res in result_list:
             if isinstance(res, dict):
                 doc = {
                     "source_query": q,
@@ -300,19 +329,18 @@ def run_explorer_agent(input_json_str):
                 doc = {"source_query": q, "title": "No Title", "url": "", "content": str(res)}
             collected_documents.append(doc)
 
-    # 검색 결과를 Supabase에 영구 저장
     if discussion_id is not None and collected_documents:
         try:
             from database import get_supabase_client
             sb = get_supabase_client()
             rows = [
                 {
-                    "discussion_id": discussion_id,
-                    "turn_number": turn_number,
-                    "query": doc["source_query"],
-                    "title": doc["title"],
-                    "url": doc["url"],
-                    "content": doc["content"],
+                    "discussion_id": str(discussion_id),
+                    "turn_number": int(turn_number),
+                    "query": str(doc["source_query"]),
+                    "title": str(doc["title"]),
+                    "url": str(doc["url"]),
+                    "content": str(doc["content"]),
                 }
                 for doc in collected_documents
             ]
@@ -329,10 +357,10 @@ def run_explorer_agent(input_json_str):
         "user_input": user_input,
         "json_info": json_info,
         "stage": input_data.get("stage", "normal"),
+        "refutation_turn": input_data.get("refutation_turn", 0),
     }
     return run_step(input_json)
 
-# 사전 퀴즈 에이전트 추가
 
 def make_refute_agent(input_json_str):
     input_data = input_json_str
@@ -341,19 +369,18 @@ def make_refute_agent(input_json_str):
     json_info = input_data.get("json_info", {})
     reference = input_data.get("reference", [])
     user_input = input_data.get("user_input", "")
+    discussion_id = input_data.get("discussion_id")
 
     print(f"⚔️ [Agent 3] 반론 생성 중: {topic}")
 
     reference_docs = []
     for ref in reference:
-        raw_data = read_step(ref)
+        raw_data = read_json_file(ref)
         if raw_data:
-            content = raw_data.get("workspace", {})
-            reference_docs.append(content)
+            reference_docs.append(raw_data.get("workspace", {}))
 
-    # 프롬프트 원형 유지
     refute_prompt = f"""
-    당신은 토론 시스템의 **3번 반론 생성 에이전트(Refuter)**입니다. 
+    당신은 토론 시스템의 **3번 반론 생성 에이전트(Refuter)**입니다.
     오케스트레이터의 [지시사항]과 [전달된 자료(workspace)]를 바탕으로 상대방 주장의 논리적 허점을 격파하는 **데이터 중심의 반론**을 작성하십시오.
 
     **[토론 주제]**
@@ -406,21 +433,22 @@ def make_refute_agent(input_json_str):
     (workspace에 포함된 링크를 번호에 맞게 기입)
     """
 
-    # Gemini 호출
     response = llm.invoke(refute_prompt)
     result = response.content
     print(f"✅ [Agent 3] 반론 생성 완료.")
 
     output_json = {
+        "discussion_id": discussion_id,
         "topic": topic,
         "previous_instruction": instruction,
         "last_action": {"agent_id": 3, "result": result},
         "user_input": user_input,
         "json_info": json_info,
         "stage": input_data.get("stage", "normal"),
+        "refutation_turn": input_data.get("refutation_turn", 0),
     }
-
     return run_step(output_json)
+
 
 def make_topic_explanation_agent(input_json_str):
     input_data = input_json_str
@@ -428,39 +456,88 @@ def make_topic_explanation_agent(input_json_str):
     instruction = input_data.get("instruction", "")
     json_info = input_data.get("json_info", {})
     user_input = input_data.get("user_input", "")
+    reference = input_data.get("reference", [])
+    discussion_id = input_data.get("discussion_id")
+    turn_number = input_data.get("refutation_turn", 0)
+
 
     print(f"📖 [Agent 2] 주제 배경 및 정보 수집 중: {topic}")
 
-    explanation_queries = [
-        f"{topic} definition and current status 2026",
-        f"pros and cons of {topic} major issues",
-        f"latest news and statistics about {topic}"
-    ]
+    # 오케스트레이터가 reference를 지정한 경우 파일에서 읽어옴 (Agent 0가 수집한 자료 활용)
+    reference_docs = []
+    for ref in reference:
+        raw_data = read_json_file(ref)
+        if raw_data:
+            reference_docs.append(raw_data.get("workspace", {}))
 
+    # reference 자료가 없을 때만 자체 검색 수행 (fallback)
     collected_context = []
-    for q in explanation_queries:
-        print(f"🌐 [Agent 2] 배경 정보 검색: {q}")
-        search_results = search_tool.invoke({"query": q})
-        for res in search_results:
-            if isinstance(res, dict):
-                doc = {
-                    "source": res.get("url", "unknown"),
-                    "title": res.get("title", "No Title"),
-                    "content": res.get("content", "")
-                }
+    if not reference_docs:
+        print(f"📖 [Agent 2] reference 없음 → 자체 검색 수행")
+        explanation_queries = [
+            f"{topic} definition and current status 2026",
+            f"pros and cons of {topic} major issues",
+            f"latest news and statistics about {topic}"
+        ]
+
+        for q in explanation_queries:
+            print(f"🌐 [Agent 2] 배경 정보 검색: {q}")
+            search_response = search_tool.invoke({"query": q})
+
+            if isinstance(search_response, dict) and "results" in search_response:
+                result_list = search_response["results"]
+            elif isinstance(search_response, list):
+                result_list = search_response
             else:
-                doc = {"source": "unknown", "title": "No Title", "content": str(res)}
-            collected_context.append(doc)
+                result_list = []
+
+            for res in result_list:
+                if isinstance(res, dict):
+                    doc = {
+                        "source": res.get("url", "unknown"),
+                        "title": res.get("title", "No Title"),
+                        "content": res.get("content", "")
+                    }
+                else:
+                    doc = {"source": "unknown", "title": "No Title", "content": str(res)}
+                collected_context.append(doc)
+
+        if discussion_id is not None and collected_context:
+            try:
+                from database import get_supabase_client
+                sb = get_supabase_client()
+                rows = [
+                    {
+                        "discussion_id": str(discussion_id),
+                        "turn_number": int(turn_number),
+                        "query": str(doc["source"]),
+                        "title": str(doc["title"]),
+                        "url": str(doc["source"]),
+                        "content": str(doc["content"]),
+                    }
+                    for doc in collected_context
+                ]
+                sb.table("discussion_search_results").insert(rows).execute()
+                print(f"💾 [Agent 2] 배경 자료 {len(rows)}건 Supabase 저장 완료")
+            except Exception as e:
+                print(f"⚠️ [Agent 2] Supabase 저장 실패: {e}")
+    else:
+        print(f"📖 [Agent 2] reference {len(reference_docs)}개 자료 사용 (자체 검색 생략)")
+
+    source_data = reference_docs if reference_docs else collected_context
 
     explanation_prompt = f"""
-    당신은 토론 시스템의 **2번 주제 설명 에이전트(Topic Explainer)**입니다. 
+    당신은 토론 시스템의 **2번 주제 설명 에이전트(Topic Explainer)**입니다.
     수집된 [검색 자료]를 바탕으로 주제에 대한 객관적인 가이드라인을 작성하십시오.
 
     **[토론 주제]**
     "{topic}"
 
+    **[오케스트레이터 지시사항]**
+    "{instruction}"
+
     **[검색 자료]**
-    "{collected_context}"
+    "{source_data}"
 
     ## [작성 규칙]
     1. **객관성 유지**: 특정 입장에 치우치지 말고 중립적인 정보를 제공하십시오.
@@ -483,14 +560,15 @@ def make_topic_explanation_agent(input_json_str):
     print(f"✅ [Agent 2] 주제 설명 생성 완료.")
 
     output_json = {
+        "discussion_id": discussion_id,
         "topic": topic,
         "previous_instruction": instruction,
         "last_action": {"agent_id": 2, "result": result},
         "user_input": user_input,
         "json_info": json_info,
         "stage": input_data.get("stage", "normal"),
+        "refutation_turn": input_data.get("refutation_turn", 0),
     }
-
     return run_step(output_json)
 
 
@@ -499,15 +577,16 @@ def make_opinion_agent(input_json_str):
     instruction = input_data.get("instruction", "")
     json_info = input_data.get("json_info", {})
     reference = input_data.get("reference", [])
+    discussion_id = input_data.get("discussion_id")
+
     print(f"🔍 [Agent 1] 주장 생성 중: {topic}")
-    
+
     reference_docs = []
     for ref in reference:
-        raw_data = read_step(ref)
+        raw_data = read_json_file(ref)
         if raw_data:
-            raw_data_content = raw_data.get("workspace", {})
-            reference_docs.append(raw_data_content)
-    
+            reference_docs.append(raw_data.get("workspace", {}))
+
     opinion_prompt = f"""
     당신은 토론 시스템의 **1번 주장 생성 에이전트**입니다.
     오케스트레이터가 전달한 [지시사항]과 [전달된 자료(workspace)]만을 기반으로, 상대방을 설득할 수 있는 **데이터 중심의 단일 주장**을 작성하십시오.
@@ -590,16 +669,18 @@ def make_opinion_agent(input_json_str):
     """
     response = llm.invoke(opinion_prompt)
     result = response.content
-    print('result', result)
     input_json = {
+        "discussion_id": discussion_id,
         "topic": topic,
         "previous_instruction": instruction,
         "last_action": {"agent_id": 1, "result": result},
         "user_input": user_input,
         "json_info": json_info,
         "stage": input_data.get("stage", "normal"),
+        "refutation_turn": input_data.get("refutation_turn", 0),
     }
     return run_step(input_json)
+
 
 def simplify_output_agent(input_json_str):
     input_data = input_json_str
@@ -616,10 +697,9 @@ def simplify_output_agent(input_json_str):
 
     reference_docs = []
     for ref in reference:
-        raw_data = read_step(ref)
+        raw_data = read_json_file(ref)
         if raw_data:
-            content = raw_data.get("workspace", {})
-            reference_docs.append(content)
+            reference_docs.append(raw_data.get("workspace", {}))
 
     simplify_prompt = f"""
     당신은 토론 시스템의 **4번 쉬운 설명 에이전트(Simple Explainer)**입니다.
@@ -641,7 +721,7 @@ def simplify_output_agent(input_json_str):
     - 어려운 전문 용어는 그대로 쓰지 말고, 비유나 실생활 예시(예: 용돈, 쓰레기 배출 등)를 적극적으로 활용하여 초등학생도 이해할 수 있도록 풀어 설명하십시오.
 
     2. **핵심 주장의 시각적 강조 (필수)**
-    - 발언 전체의 관통하는 가장 중요한 **핵심 주장이 등장하는 문장이나 단어**는 반드시 마크다운 굵게 표시 기호인 `**내용**`을 사용하여 강조하십시오. 
+    - 발언 전체의 관통하는 가장 중요한 **핵심 주장이 등장하는 문장이나 단어**는 반드시 마크다운 굵게 표시 기호인 `**내용**`을 사용하여 강조하십시오.
     - 단, 본문 내의 일반적인 설명이나 부연 설명에는 마크다운 기호(##, *, - 등)를 절대 사용하지 마십시오.
 
     3. **인용 및 참조 문헌 형식의 철저한 유지 (필수)**
@@ -653,10 +733,8 @@ def simplify_output_agent(input_json_str):
     result = response.content
     print(f"✅ [Agent 4] 쉬운 설명 변환 완료.")
 
-    # 오케스트레이터를 우회하고 최종 파일을 직접 생성합니다.
-    # 이유: run_step을 다시 호출하면 LLM 오케스트레이터가 Agent 4 결과를
-    #       새 사용자 입력으로 오해하여 Agent 0 재탐색 루프가 발생합니다.
     input_json_for_file = {
+        "discussion_id": discussion_id,
         "topic": topic,
         "previous_instruction": instruction,
         "last_action": {"agent_id": 4, "result": result},
@@ -673,17 +751,17 @@ def simplify_output_agent(input_json_str):
         "workspace_summary": "[4] 쉬운 설명 변환 완료 - 최종 답변 출력.",
     }
 
-    global _step_count
-    _step_count += 1
-    save_step(f"output_{_step_count}", input_json_for_file, final_output)
+    global json_num_count
+    json_num_count += 1
+    make_json_file(f"output_{json_num_count}.json", input_json_for_file, final_output)
 
     print("\n✅ Orchestrator has decided to end the discussion. Final response:")
     print(result)
 
-    # 턴 완료 → Supabase에 저장
     raw_msg = extract_current_message(user_input)
     save_turn_file(raw_msg, result, discussion_id=discussion_id, turn_number=turn_number)
     return result
+
 
 def normally_output_agent(input_json_str):
     input_data = input_json_str
@@ -700,10 +778,9 @@ def normally_output_agent(input_json_str):
 
     reference_docs = []
     for ref in reference:
-        raw_data = read_step(ref)
+        raw_data = read_json_file(ref)
         if raw_data:
-            content = raw_data.get("workspace", {})
-            reference_docs.append(content)
+            reference_docs.append(raw_data.get("workspace", {}))
 
     simplify_prompt = f"""
     당신은 토론 시스템의 **5번 보통 설명 에이전트(Normal Explainer)**이며, 현재 고도의 학술적·정책적 판단을 내리는 전문가를 대상으로 발언하는 **[전문가 모드]** 상태입니다.
@@ -733,17 +810,17 @@ def normally_output_agent(input_json_str):
     - **[중요]** 발언문 작성이 끝난 후, 맨 아래에 원본에 있는 `[참조 문헌]` 목록을 줄바꿈을 포함하여 원본 형태 그대로 반드시 덧붙여 출력하십시오.
 
     4. **텍스트 형식 규칙**
-    - 시스템 출력의 자연스러운 흐름과 청각적 전달력을 위해 마크다운 기호(##, **, * 등)는 절대 사용하지 마십시오. 
-    - 문단 간의 유기적인 연결을 위해 적절한 줄바꿈과 공백만을 활용하여 가독성을 높이십시오"""
+    - 시스템 출력의 자연스러운 흐름과 청각적 전달력을 위해 마크다운 기호(##, **, * 등)는 절대 사용하지 마십시오.
+    - 문단 간의 유기적인 연결을 위해 적절한 줄바꿈과 공백만을 활용하여 가독성을 높이십시오
+
+    인사는 최소화해주세요. (예: "존경하는 심사위원 여러분, 오늘은 ~에 대해 말해줄게, 넵 저 agent 5가 답해보겠습니다."와 같은 형식은 지양)"""
 
     response = llm.invoke(simplify_prompt)
     result = response.content
     print(f"✅ [Agent 5] 보통 설명 변환 완료.")
 
-    # 오케스트레이터를 우회하고 최종 파일을 직접 생성합니다.
-    # 이유: run_step을 다시 호출하면 LLM 오케스트레이터가 Agent 5 결과를
-    #       새 사용자 입력으로 오해하여 Agent 0 재탐색 루프가 발생합니다.
     input_json_for_file = {
+        "discussion_id": discussion_id,
         "topic": topic,
         "previous_instruction": instruction,
         "last_action": {"agent_id": 5, "result": result},
@@ -760,21 +837,20 @@ def normally_output_agent(input_json_str):
         "workspace_summary": "[5] 보통 설명 변환 완료 - 최종 답변 출력.",
     }
 
-    global _step_count
-    _step_count += 1
-    save_step(f"output_{_step_count}", input_json_for_file, final_output)
+    global json_num_count
+    json_num_count += 1
+    make_json_file(f"output_{json_num_count}.json", input_json_for_file, final_output)
 
     print("\n✅ Orchestrator has decided to end the discussion. Final response:")
     print(result)
 
-    # 턴 완료 → Supabase에 저장
     raw_msg = extract_current_message(user_input)
     save_turn_file(raw_msg, result, discussion_id=discussion_id, turn_number=turn_number)
     return result
 
 
+# ── 오케스트레이터 ───────────────────────────────────────────────────
 
-# 시스템 프롬프트 원형 유지
 def get_system_prompt(refutation_count=0):
     repeat_rule = ""
     if refutation_count >= 3:
@@ -790,14 +866,14 @@ def get_system_prompt(refutation_count=0):
 """
     return f"""{repeat_rule}
 당신은 토론 시스템의 총괄 제어 및 품질 검수관입니다.
-입력 형식은 [에이전트 번호, 에이전트 작업 내역]이며, 
+입력 형식은 [에이전트 번호, 에이전트 작업 내역]이며,
 출력 형식은 반드시 [에이전트 번호, 시킬 일]을 엄격히 준수해야 합니다.
 
 가용 에이전트 리스트:
 0번 (자료탐색): 질문 기반 검색어 생성 및 정보 수집
 1번 (주장 생성): 구조화된 데이터를 바탕으로 논리적 주장 구축
 2번 (주제 설명): 토론 주제에 대한 정의, 배경 정보, 핵심 쟁점을 구조적으로 정리하여 제공(유저의 요청시에만 호출)
-3번 (반박 생성): 이미 존재하는 '상대 주장'을 반박해야 할 때만 사용, 반박 대상이 명확히 존재해야 함(유저의 요청시에만 호출)
+3번 (반박 생성): 이미 존재하는 '상대 주장'을 반박해야 할 때만 사용, 반박 대상이 명확히 존재해야 함(유저의 요청시에만 호출). ⚠️ 반드시 0번(자료탐색)을 먼저 호출하여 근거 자료를 수집한 후에만 호출할 수 있습니다. 현재 턴에서 0번이 아직 호출되지 않았다면 3번 대신 0번을 먼저 호출하세요.
 4번 (쉬운 설명 변환): stage가 "easy"일 때만 호출. 1번/2번/3번 결과가 완성된 후 -1(최종 출력) 직전에 반드시 한 번 호출하여 내용을 전문 지식이 없는 사람도 이해할 수 있도록 쉽고 친근하게 변환.
 5번 (보통 설명 변환): stage가 "normal"일 때만 호출. 1번/2번/3번 결과가 완성된 후 -1(최종 출력) 직전에 반드시 한 번 호출하여 내용을 일반 뉴스 기사 수준으로 쉽게 변환.
 
@@ -815,9 +891,10 @@ def get_system_prompt(refutation_count=0):
 - 4번은 stage가 "easy"일 때만, 최종 출력 직전에 한 번만 호출하십시오. stage가 "normal"이면 절대 호출하지 마십시오.
 - 5번은 stage가 "normal"일 때만, 최종 출력 직전에 한 번만 호출하십시오. stage가 "easy"이면 절대 호출하지 마십시오.
 - 당신은 모든 입출력을 아래 JSON 명세서 형식으로 처리하여 맥락을 유지해야 합니다.
-
+- 사용자 입력의 topic을 절대 무시하지 마세요.
 [INPUT JSON SPEC]
 {{
+  "discussion_id": "토론 세션 ID",
   "topic": "토론 주제",
   "previous_instruction": "이전 에이전트에게 내린 지시 사항",
   "last_action": {{"agent_id": n, "result": "작업 내용"}},
@@ -825,14 +902,14 @@ def get_system_prompt(refutation_count=0):
   "stage": "easy 또는 normal — easy면 최종 출력 전 4번 에이전트를 반드시 호출, normal이면 5번 에이전트를 반드시 호출",
   "refutation_turn": "3번(반박) 에이전트가 완료된 누적 횟수. 이 값이 3 이상이면 반드시 결론으로 가야 함.",
   "json_info": {{ # 기존 에이전트가 수행한 내용을 요약해둔 문서들. output json의 reference에 넣을때 사용해야함.
-  "output_1.json": "전기차 화재 원인 뉴스 탐색, 배터리 열폭주 관련 최신 데이터 수집함.",
-    "output_2.json": "찬반 논거 구조화: 정부의 안전 규제 강화안과 제조사 책임을 대조하며 주장을 생성함."
+  "output_1.json": "",
+    "output_2.json": ""
   }}
 }}
 
 [OUTPUT JSON SPEC]
 {{
-  "next_agent_id": n, 
+  "next_agent_id": n,
   "instruction": "다음 에이전트에게 내릴 구체적 지시",
   "reference": ["output_1.json","output_2.json"], # 다음 에이전트가 instruction을 수행하기 위해 반드시 읽어야 할 문서들을 명시, input json spec의 json_info에 있는 문서명(output_1.json, output_2.json 등)을 참조
   "context_summary": "지금까지의 핵심 맥락 요약 (누적)",
@@ -848,7 +925,7 @@ def get_system_prompt(refutation_count=0):
 2. **문서 관리 및 json_info 유지**:
    - 'reference' 리스트에는 'instruction'을 수행하기 위해 다음 에이전트가 반드시 읽어야 할 파일명들을 명시하십시오. 이 파일명들은 'json_info'에 존재하는 문서명(output_1.json, output_2.json 등)과 일치해야 합니다.
    - 참조할 문서는 'json_info'에서 관련 내용을 찾을 수 있습니다.
-   - 현재 스텝의 output 키(output_N.json 형태)는 반드시 포함되어야 합니다.
+   - 'output_{json_num_count}.json'은 반드시 포함되어야 합니다.
 
 3. **Workspace 및 Context 유지**:
    - 'workspace'에는 에이전트가 생성한 날것의 데이터(Raw Data), 논증 전문, 검색 결과 등을 상세히 기록하십시오.
@@ -862,20 +939,20 @@ def get_system_prompt(refutation_count=0):
    - 그 외: 유저가 '납득'했거나 '토론 종료'를 요청한 경우에 -1을 호출하십시오.
 """
 
-def run_step(context_json):
-    print(f"\n[Step] topic={context_json.get('topic')} | stage={context_json.get('stage')} | last_agent={context_json.get('last_action', {}).get('agent_id')}")
 
-    global _step_count
-    _step_count += 1
-    step_key = f"output_{_step_count}"
-    print(f"⚙️  [Step {_step_count}] 오케스트레이터 호출 시작")
+def run_step(context_json):
+    global json_num_count
+    json_num_count += 1
+    filename = f"output_{json_num_count}.json"
 
     refutation_turn = context_json.get("refutation_turn", 0)
+    print(f"\n[Current Context]:\n{json.dumps(context_json, indent=2, ensure_ascii=False, default=str)}")
+    print(f"⚙️  [Step {json_num_count}] 오케스트레이터 호출 시작")
     print(f"📊 [Orchestrator] 현재 반박 완료 횟수(refutation_turn): {refutation_turn}")
 
     messages = [
         SystemMessage(content=get_system_prompt(refutation_turn)),
-        HumanMessage(content=json.dumps(context_json, ensure_ascii=False))
+        HumanMessage(content=json.dumps(context_json, ensure_ascii=False, default=str))
     ]
 
     response = llm.invoke(messages)
@@ -888,7 +965,7 @@ def run_step(context_json):
         result = json.loads(raw_content)
         print(f"\n[Orchestrator Decision]:\n{json.dumps(result, indent=2, ensure_ascii=False)}")
 
-        save_step(step_key, context_json, result)
+        make_json_file(filename, context_json, result)
     except Exception as e:
         print(f"❌ 오케스트레이터가 유효한 JSON을 반환하지 않았습니다. 오류: {e}")
         print(response.content)
@@ -896,11 +973,12 @@ def run_step(context_json):
 
     return run_orchestrator_test(result)
 
+
 def run_orchestrator_test(result):
     agent_id = result.get("next_agent_id", None)
 
-    current_step_key = f"output_{_step_count}"
-    result2 = _steps_cache.get(current_step_key, {})
+    current_filename = f"output_{json_num_count}.json"
+    result2 = read_json_file(current_filename) or {}
 
     if agent_id is None:
         print("❌ Orchestrator did not return a valid next_agent_id.")
@@ -927,8 +1005,8 @@ def run_orchestrator_test(result):
         agent_id = forced_id
 
     print(f"\n⏸ 현재 next_agent_id: {agent_id}")
-    user_cmd = 'pass' # 테스트 자동화를 위해 pass로 고정
-    
+    user_cmd = 'pass'
+
     if user_cmd == "stop":
         print("🛑 실행을 중단합니다.")
         return
@@ -954,7 +1032,6 @@ def run_orchestrator_test(result):
     else:
         print(f"🔄 잘못된 에이전트 ID: {agent_id}")
         return
-
 # ── 실행 설정 ───────────────────────────────────────────────────────
 # stage: "easy"   → 전문 지식 없는 친구에게 설명하듯 쉽게 변환 (Agent 4 자동 호출)
 # stage: "normal" → 일반 뉴스 수준으로 출력 (Agent 5 자동 호출)
@@ -962,7 +1039,7 @@ def run_orchestrator_test(result):
 TOPIC = "원자력 발전소 증설"
 STAGE = "easy"
 
-# 글로벌 초기화 (start_new_turn 호출 전에 기본값 설정)
+# ── 글로벌 초기화 ────────────────────────────────────────────────────
 topic = TOPIC
 user_input = ""
 
@@ -970,7 +1047,6 @@ if __name__ == "__main__":
     # 다중 턴 예시: start_new_turn()을 반복 호출하면 turn_N.json이 누적되며
     # user_input이 자동으로 압축됩니다.
     start_new_turn(
-        discussion_id="discussion_001",
         now_turn = 1, # 턴 번호 (0부터 시작) 0은 토론 주제에 대한 설명, 1은 에이전트가 유저의 의견에 대한 반박, 2는 새로운 의견을 제시하는 턴, 3은 유저의 반박에 대한 재반박.
         raw_user_message="원자력 발전소 증설을 해야해. 이것에 대해 반박하는 주장을 생성해줘.",
         topic_str=TOPIC,

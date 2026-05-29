@@ -4,6 +4,7 @@ from supabase import Client
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
+import re
 
 from schemas.discussion import (
     DiscussionCreate,
@@ -106,10 +107,17 @@ async def send_message(
         stage_str=body.difficulty,
     )
 
+    # [참조 문헌] 섹션의 URL을 추출해 프론트 관련 자료 하이라이트에 사용
+    used_materials = list(dict.fromkeys(
+        re.findall(r'https?://[^\s\]\)\'"]+', response_text or '')
+    ))
+
     return {
         "discussion_id": discussion_id,
+        "used_materials": used_materials,
         "userSide": "pro",
         "aiResponse": {
+            "discussion_id": discussion_id,
             "side": "con",
             "content": response_text or "응답을 생성할 수 없습니다.",
             "timestamp": dt.now().strftime("%H:%M"),
@@ -145,6 +153,14 @@ async def analyze_debate(
         f"[추가 정보]\n{summary.get('extra_info', '')}",
     ])
 
+    # 토론 종료 — 인메모리 파일 스토어 해제
+    if body.discussion_id:
+        try:
+            from services.debate_orchestrator import clear_discussion_store
+            clear_discussion_store(body.discussion_id)
+        except Exception:
+            pass
+
     return {"result": result_text}
 
 
@@ -155,6 +171,24 @@ async def get_quiz(
 ):
     """퀴즈 반환 - AI 서버에서 생성"""
     data = AgentService.get_quiz(topic=topic)
+    return data
+
+
+@router.get("/quiz/set")
+async def get_quiz_set(
+    topic: str = "",
+    phase: str = "pre",
+    discussion_id: int = 0,
+):
+    """사전(pre)/사후(post) 퀴즈 세트 반환.
+    discussion_id 기준으로 Supabase discussion_turns에서 컨텍스트를 구성해 퀴즈 생성.
+    """
+    from services.quiz_service import get_quiz_set as _get_quiz_set
+    import asyncio
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(
+        None, lambda: _get_quiz_set(topic=topic, phase=phase, discussion_id=discussion_id)
+    )
     return data
 
 
@@ -326,17 +360,51 @@ def _source_from_url(url: str) -> str:
         return "뉴스"
 
 
-# 수정 필요
 @public_router.get("/related-materials")
-async def get_related_materials(topic: str = ""):
+async def get_related_materials(topic: str = "", discussion_id: int = 0):
     """
-    토론 주제와 관련된 뉴스 자료 반환.
-    Supabase news 테이블에서 키워드 매칭으로 관련 뉴스를 추출한다.
+    토론 관련 뉴스 자료 반환.
+    discussion_id가 있으면 해당 토론의 discussion_search_results에서,
+    없으면 news 테이블에서 키워드 매칭으로 조회한다.
     """
     from database import get_supabase_client
 
+    sb = get_supabase_client()
+
+    if discussion_id:
+        # discussion_search_results에서 해당 토론 검색 결과 조회
+        try:
+            rows = (
+                sb.table("discussion_search_results")
+                .select("title, url, content")
+                .eq("discussion_id", str(discussion_id))
+                .execute()
+                .data
+            ) or []
+        except Exception:
+            rows = []
+
+        # url 기준 중복 제거
+        seen_urls: set[str] = set()
+        result = []
+        for item in rows:
+            url = item.get("url", "")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            category = _detect_category(item.get("title", ""))
+            result.append({
+                "category": category,
+                "color": _CATEGORY_COLORS.get(category, "text-gray-600"),
+                "title": item.get("title", ""),
+                "description": (item.get("content") or "")[:120],
+                "source": _source_from_url(url),
+                "url": url,
+            })
+        return result
+
+    # fallback: news 테이블 키워드 매칭
     try:
-        sb = get_supabase_client()
         rows = sb.table("news").select("title, url").order("crawled_at", desc=True).execute().data
     except Exception:
         rows = []
@@ -344,17 +412,14 @@ async def get_related_materials(topic: str = ""):
     if not rows:
         return []
 
-    # 주제 키워드와 매칭 점수 계산
     keywords = [w for w in topic.replace("?", "").replace(".", "").split() if len(w) > 1]
 
     def score(title: str) -> int:
         return sum(1 for kw in keywords if kw in title)
 
     ranked = sorted(rows, key=lambda r: score(r["title"]), reverse=True)
-    top = ranked[:5]  # 상위 5개
-
     result = []
-    for item in top:
+    for item in ranked[:5]:
         category = _detect_category(item["title"])
         result.append({
             "category": category,
@@ -364,7 +429,6 @@ async def get_related_materials(topic: str = ""):
             "source": _source_from_url(item.get("url", "")),
             "url": item.get("url", ""),
         })
-
     return result
 
 

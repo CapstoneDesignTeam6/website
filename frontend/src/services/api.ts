@@ -72,10 +72,12 @@ export const debateApi = {
   },
 
   // ─── 퀴즈 관련 (Quiz) ────────────────────────────────────────────────────────
-  getQuizSet: async (topic: string, phase: 'pre' | 'post'): Promise<MultipleChoiceQuiz[]> => {
+  getQuizSet: async (topic: string, phase: 'pre' | 'post', discussionId?: number | null): Promise<MultipleChoiceQuiz[]> => {
     try {
+      const params = new URLSearchParams({ topic, phase });
+      if (discussionId != null) params.set('discussion_id', String(discussionId));
       const res = await fetch(
-        `/api/debate/quiz/set?topic=${encodeURIComponent(topic)}&phase=${phase}`,
+        `/api/debate/quiz/set?${params.toString()}`,
         { headers: getHeaders() },
       );
       if (!res.ok) throw new Error(`API error: ${res.statusText}`);
@@ -169,9 +171,11 @@ export const debateApi = {
     });
     return res.json();
   },
-  getRelatedMaterials: async (topic: string): Promise<RelatedMaterial[]> => {
+  getRelatedMaterials: async (topic: string, discussionId?: number | null): Promise<RelatedMaterial[]> => {
     try {
-      const res = await fetch(`/api/debates/related-materials?topic=${encodeURIComponent(topic)}`, {
+      const params = new URLSearchParams({ topic });
+      if (discussionId) params.set('discussion_id', String(discussionId));
+      const res = await fetch(`/api/debates/related-materials?${params.toString()}`, {
         headers: getHeaders(),
       });
       if (!res.ok) throw new Error(`API error: ${res.statusText}`);

@@ -289,20 +289,23 @@ export const DebateView = ({
   }, [messages.length, discussionId]);
 
   // 관련 자료를 백엔드에서 불러오는 useEffect
+  // AI 응답(agent 메시지)이 새로 추가될 때마다 재조회 — 새 검색 결과가 Supabase에 저장된 직후
+  const lastAgentMsgCount = messages.filter(m => m.role === 'agent').length;
   useEffect(() => {
+    if (!discussionId) return;
     const fetchRelatedMaterials = async () => {
-      setIsLoadingRelatedMaterials(true); // 로딩 시작
+      setIsLoadingRelatedMaterials(true);
       try {
-        const data = await debateApi.getRelatedMaterials(topic);
+        const data = await debateApi.getRelatedMaterials(topic, discussionId || null);
         setRelatedMaterials(data);
       } catch (error) {
         console.error("Failed to fetch related materials:", error);
       } finally {
-        setIsLoadingRelatedMaterials(false); // 로딩 종료
+        setIsLoadingRelatedMaterials(false);
       }
     };
     fetchRelatedMaterials();
-  }, [topic]); // 토론 주제가 변경될 때마다 다시 불러옴
+  }, [topic, discussionId, lastAgentMsgCount]); // AI 메시지 추가 시 재조회
 
   // 주장 생성 응답으로 받은 사용된 자료 링크를 기존 목록과 매칭해 used 자료를 위로 재배치
   useEffect(() => {

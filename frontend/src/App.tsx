@@ -132,7 +132,7 @@ export default function App() {
     try {
       console.log('[sendMessage] topic:', topic);
       const data = await debateApi.sendMessage(
-        topic, `${topic}에 대한 토론을 수행할거야. 주제에 대한 설명을 해줘`, [], null, undefined, 0,
+        topic, `${topic}에 대해 설명해주세요. 주제의 정의, 배경, 주요 쟁점을 알려주세요.`, [], null, undefined, 0,
         (step) => setAgentSteps(prev => {
           const idx = prev.findIndex(s => s.step === step.step);
           if (idx >= 0) {
@@ -199,7 +199,7 @@ export default function App() {
     setIsQuizLoading(true);
     setDebatePhase('pre-quiz');
     try {
-      const data = await debateApi.getQuizSet(topic, 'pre');
+      const data = await debateApi.getQuizSet(topic, 'pre', discussionId);
       setPreQuizzes(
         Array.isArray(data) && data.length > 0 ? data : MOCK_PRE_QUIZ_MC
       );
@@ -334,7 +334,7 @@ export default function App() {
   const handleFinishDebate = async () => {
     setIsQuizLoading(true);
     try {
-      const data = await debateApi.getQuizSet(topic, 'post');
+      const data = await debateApi.getQuizSet(topic, 'post', discussionId);
       setPostQuizzes(
         Array.isArray(data) && data.length > 0 ? data : MOCK_POST_QUIZ_MC
       );

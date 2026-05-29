@@ -25,6 +25,39 @@ logger = logging.getLogger(__name__)
 # ── 내부 헬퍼 ─────────────────────────────────────────────────────────────
 
 
+def _call_gpt(system_prompt: str, user_content: str, max_tokens: int = 500) -> str:
+    """OpenAI GPT 호출 → 텍스트 반환."""
+    try:
+        from openai import OpenAI
+        client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            max_tokens=max_tokens,
+            temperature=0.7,
+        )
+        return resp.choices[0].message.content or ""
+    except Exception as e:
+        logger.error(f"[GPT] 호출 실패: {e}")
+        return ""
+
+
+def _call_gpt_json(system_prompt: str, user_content: str, max_tokens: int = 500) -> dict:
+    """OpenAI GPT 호출 → JSON dict 반환. 파싱 실패 시 빈 dict."""
+    raw = _call_gpt(system_prompt, user_content, max_tokens)
+    if not raw:
+        return {}
+    try:
+        import re as _re
+        match = _re.search(r"\{.*\}", raw, _re.DOTALL)
+        return json.loads(match.group()) if match else {}
+    except Exception:
+        return {}
+
+
 def _normalize_history(history: Optional[List[Dict]]) -> List[Dict]:
     return [
         {
