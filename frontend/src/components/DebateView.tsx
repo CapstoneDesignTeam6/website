@@ -211,16 +211,30 @@ const extractReferencedUrls = (content: string): string[] => {
   const refSectionMatch = normalized.match(
     /(?:^|\n)(?:#{1,6}\s*)?(?:\*{0,2})(?:참고문헌|참고\s*자료|출처|References?)(?:\*{0,2})\s*[:：]?\s*\n([\s\S]*?)(?:\n(?:#{1,6}\s|\n#{1,6}\s)|$)/i
   );
+  console.log('[extractReferencedUrls] 참고문헌 섹션 매칭:', refSectionMatch ? '성공' : '실패 (섹션 없음)');
+  if (refSectionMatch) {
+    console.log('[extractReferencedUrls] 섹션 원문:\n', refSectionMatch[1]);
+  }
   if (!refSectionMatch) return [];
   const urlRegex = /https?:\/\/[^\s\)\],"']+/g;
-  return [...new Set(refSectionMatch[1].match(urlRegex) ?? [])];
+  const urls = [...new Set(refSectionMatch[1].match(urlRegex) ?? [])];
+  console.log('[extractReferencedUrls] 추출된 URL 목록:', urls);
+  return urls;
 };
 
 // 추출된 URL과 relatedMaterials를 매칭해 used 플래그 업데이트
 const matchReferencesToMaterials = (referencedUrls: string[], materials: RelatedMaterial[]): RelatedMaterial[] => {
   if (referencedUrls.length === 0) return materials;
   const urlSet = new Set(referencedUrls);
-  return materials.map(m => ({ ...m, used: m.used || (!!m.url && urlSet.has(m.url)) }));
+  console.log('[matchReferencesToMaterials] 매칭 시도 — URL 수:', urlSet.size, '자료 수:', materials.length);
+  const result = materials.map(m => {
+    const matched = !!m.url && urlSet.has(m.url);
+    if (matched) console.log('[matchReferencesToMaterials] 매칭됨:', m.title, '|', m.url);
+    return { ...m, used: m.used || matched };
+  });
+  const matchedCount = result.filter(m => m.used).length;
+  console.log('[matchReferencesToMaterials] 매칭된 자료 수:', matchedCount);
+  return result;
 };
 
 export const DebateView = ({
@@ -358,18 +372,20 @@ export const DebateView = ({
   }, [usedMaterials]);
 
   // 에이전트 메시지 본문의 참고문헌 섹션에서 URL을 추출해 relatedMaterials와 매칭
+  // relatedMaterials도 의존성에 포함: fetch 완료 후에도 재매칭 되도록
   useEffect(() => {
     const agentMessages = messages.filter(m => m.role === 'agent');
-    if (agentMessages.length === 0) return;
+    console.log('[refMatch useEffect] 에이전트 메시지 수:', agentMessages.length, '| 현재 자료 수:', relatedMaterials.length);
+    if (agentMessages.length === 0 || relatedMaterials.length === 0) return;
     const allUrls = agentMessages.flatMap(m => extractReferencedUrls(m.content));
+    console.log('[refMatch useEffect] 전체 추출 URL:', allUrls);
     if (allUrls.length === 0) return;
-    setRelatedMaterials(prev => {
-      const updated = matchReferencesToMaterials(allUrls, prev);
-      const used = updated.filter(m => m.used);
-      const unused = updated.filter(m => !m.used);
-      return [...used, ...unused];
-    });
-  }, [lastAgentMsgCount]);
+    const updated = matchReferencesToMaterials(allUrls, relatedMaterials);
+    const used = updated.filter(m => m.used);
+    const unused = updated.filter(m => !m.used);
+    setRelatedMaterials([...used, ...unused]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastAgentMsgCount, relatedMaterials.length]);
 
 
   const prevMessageCountRef = useRef(0);
