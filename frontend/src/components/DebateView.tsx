@@ -71,7 +71,7 @@ const EASY_STEP_KEYS   = ['orchestrator', 'search', 'generate', 'simplify'];
 
 // instruction 텍스트를 단어 단위로 약 2줄 분량씩 잘라 순차 전환하는 컴포넌트
 // 청크가 1개면 전환 없이 그냥 표시
-const WORDS_PER_CHUNK = 40; // 한 청크당 단어 수 (약 2줄 분량)
+const WORDS_PER_CHUNK = 30; // 한 청크당 단어 수 (약 2줄 분량)
 const InstructionScroller = ({ text }: { text: string }) => {
   const words = text.split(/\s+/).filter(Boolean);
   const chunks: string[] = [];
@@ -213,13 +213,13 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
   );
 };
 
-// 에이전트 메시지 content에서 참고문헌 섹션 내 URL 추출
+// 에이전트 메시지 content에서 참조문헌 섹션 내 URL 추출
 const extractReferencedUrls = (content: string): string[] => {
   const normalized = content.replace(/\\n/g, '\n');
   const refSectionMatch = normalized.match(
-    /(?:^|\n)(?:#{1,6}\s*)?(?:\*{0,2})(?:참고문헌|참고\s*자료|출처|References?)(?:\*{0,2})\s*[:：]?\s*\n([\s\S]*?)(?:\n(?:#{1,6}\s|\n#{1,6}\s)|$)/i
+    /(?:^|\n)(?:#{1,6}\s*)?(?:\*{0,2})(?:참조문헌|참조\s*자료|출처|References?)(?:\*{0,2})\s*[:：]?\s*\n([\s\S]*?)(?:\n(?:#{1,6}\s|\n#{1,6}\s)|$)/i
   );
-  console.log('[extractReferencedUrls] 참고문헌 섹션 매칭:', refSectionMatch ? '성공' : '실패 (섹션 없음)');
+  console.log('[extractReferencedUrls] 참조문헌 섹션 매칭:', refSectionMatch ? '성공' : '실패 (섹션 없음)');
   if (refSectionMatch) {
     console.log('[extractReferencedUrls] 섹션 원문:\n', refSectionMatch[1]);
   }
@@ -349,7 +349,7 @@ export const DebateView = ({
     fetchScore();
   }, [messages.length, discussionId]);
 
-  // 관련 자료 fetch + 참고문헌 매칭을 한 번에 처리
+  // 관련 자료 fetch + 참조문헌 매칭을 한 번에 처리
   // messages.length를 트리거로 사용 — 어떤 메시지(turn=0 포함)가 추가돼도 재실행
   useEffect(() => {
     if (!discussionId) return;
@@ -357,7 +357,7 @@ export const DebateView = ({
       setIsLoadingRelatedMaterials(true);
       try {
         const data = await debateApi.getRelatedMaterials(topic, discussionId || null);
-        // fetch 완료 후 현재 messages 기준으로 참고문헌 매칭
+        // fetch 완료 후 현재 messages 기준으로 참조문헌 매칭
         const nonUserMessages = messages.filter(m => m.role !== 'user');
         console.log('[fetchAndMatch] messages 전체:', messages.map(m => ({ role: m.role, turn: m.turn })));
         console.log('[fetchAndMatch] 비사용자 메시지 수:', nonUserMessages.length, '| 자료 수:', data.length);
@@ -483,7 +483,7 @@ export const DebateView = ({
   // 1. \n 이스케이프 문자열을 실제 줄바꿈으로 변환 (백엔드/목데이터 혼용 대응)
   // 2. ## / ### 헤더 줄 제거
   // 3. [1], [2] 등 인라인 각주 번호 제거
-  // 4. 참고문헌 섹션 제거 (에이전트 메시지)
+  // 4. 참조문헌 섹션 제거 (에이전트 메시지)
   const preprocessContent = (content: string, isAgent = false): string => {
     let processed = content
       .replace(/\\n/g, '\n')
@@ -491,7 +491,7 @@ export const DebateView = ({
       .replace(/\[\d+\]/g, '');
     if (isAgent) {
       processed = processed.replace(
-        /\n?(?:\*{0,2})(?:참고문헌|참고\s*자료|출처|References?)(?:\*{0,2})\s*[:：]?\s*\n[\s\S]*/i,
+        /\n?(?:\*{0,2})(?:참조문헌|참조\s*자료|출처|References?)(?:\*{0,2})\s*[:：]?\s*\n[\s\S]*/i,
         ''
       );
     }
@@ -1083,7 +1083,7 @@ export const DebateView = ({
                 <article key={i} className={`flex flex-col gap-2 bg-white rounded-2xl border p-5 card-hover ${material.used ? 'border-primary/40 ring-1 ring-primary/20' : 'border-gray-100'}`}>
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-bold ${material.color}`}>{material.category}</span>
-                    {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">AI가 참고한 자료</span>}
+                    {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">AI가 참조한 자료</span>}
                   </div>
                   <h3 className="text-sm font-bold leading-tight">{material.title}</h3>
                   {material.description && (
