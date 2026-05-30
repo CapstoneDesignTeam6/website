@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import {
   Send,
   FileText,
@@ -672,7 +672,8 @@ export const DebateView = ({
   }, [messages.length]);
 
   // 메시지가 추가될 때 마지막 agent 메시지의 usedMaterials로 즉시 태그 업데이트
-  useEffect(() => {
+  // useLayoutEffect: 페인트 전에 실행되어 메시지 렌더와 태그가 동일 프레임에 표시됨
+  useLayoutEffect(() => {
     if (!hasFetchedMaterialsRef.current) return;
     const lastAgentMsg = [...messages].reverse().find(m => m.role !== 'user');
     const cur = lastAgentMsg?.usedMaterials ?? [];
