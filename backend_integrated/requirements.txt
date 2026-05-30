@@ -22,6 +22,7 @@ openai>=1.30.0
 # Web scraping
 beautifulsoup4>=4.12.0
 lxml>=5.0.0
+playwright>=1.40.0
 
 # Vertex AI / DebateOrchestrator — 핵심 패키지는 고정
 google-cloud-aiplatform==1.153.1

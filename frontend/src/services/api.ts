@@ -158,15 +158,17 @@ export const debateApi = {
     // 기존 JSON 응답 (백엔드 미전환 시 폴백)
     return res.json();
   },
-  getCounterHint: async (discussionId: number) => {
-    const res = await fetch(`/api/debate/${discussionId}/counter-hint`, {
+  getCounterHint: async (discussionId: number, topic?: string) => {
+    const params = topic ? `?topic=${encodeURIComponent(topic)}` : '';
+    const res = await fetch(`/api/debate/${discussionId}/counter-hint${params}`, {
       method: 'POST',
       headers: getHeaders(),
     });
     return res.json();
   },
-  getRebuttalHint: async (discussionId: number) => {
-    const res = await fetch(`/api/debate/${discussionId}/rebuttal-hint`, {
+  getRebuttalHint: async (discussionId: number, topic?: string) => {
+    const params = topic ? `?topic=${encodeURIComponent(topic)}` : '';
+    const res = await fetch(`/api/debate/${discussionId}/rebuttal-hint${params}`, {
       method: 'POST',
       headers: getHeaders(),
     });
@@ -187,9 +189,11 @@ export const debateApi = {
       return MOCK_RELATED_MATERIALS as RelatedMaterial[];
     }
   },
-  getUserEvaluation: async (discussionId: number): Promise<UserEvaluationScore> => {
+  getUserEvaluation: async (discussionId: number, topic?: string): Promise<UserEvaluationScore> => {
     try {
-      const res = await fetch(`/api/debate/${discussionId}/evaluation`, {
+      const params = new URLSearchParams();
+      if (topic) params.set('topic', topic);
+      const res = await fetch(`/api/debate/${discussionId}/evaluation?${params.toString()}`, {
         headers: getHeaders(),
       });
       if (!res.ok) throw new Error(`API error: ${res.statusText}`);

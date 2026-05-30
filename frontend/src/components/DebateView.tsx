@@ -388,7 +388,7 @@ export const DebateView = ({
     const fetchScore = async () => {
       setIsLoadingScore(true);
       try {
-        const score = await debateApi.getUserEvaluation(discussionId);
+        const score = await debateApi.getUserEvaluation(discussionId, topic);
         setEvaluationScore(score);
       } catch (_) {
       } finally {
@@ -525,8 +525,8 @@ export const DebateView = ({
       const hintType = isCounter ? '재반박' : '반박';
       try {
         const data = isCounter
-          ? await debateApi.getCounterHint(discussionId)
-          : await debateApi.getRebuttalHint(discussionId);
+          ? await debateApi.getCounterHint(discussionId, topic)
+          : await debateApi.getRebuttalHint(discussionId, topic);
         setChatbotMessages(prev => [...prev, { sender: 'bot', text: data.hint || `${hintType} 힌트를 생성할 수 없습니다.`, timestamp: formatTime() }]);
       } catch (error) {
         console.error(`Error fetching ${hintType} hint:`, error);

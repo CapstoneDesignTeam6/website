@@ -24,7 +24,7 @@ llm = ChatVertexAI(
     temperature=0.3
 )
 
-search_tool = TavilySearch(max_results=1)
+search_tool = TavilySearch(max_results=1,topic='news')
 current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 global topic, user_input
@@ -78,11 +78,14 @@ info_query_prompt = ChatPromptTemplate.from_template("""
 
 # ── 인메모리 스토어 ──────────────────────────────────────────────────
 import queue as _queue_module
+import time as _time
+
+_STORE_TTL = 7200  # 2시간 이상 비활성 토론은 자동 해제
 
 json_num_count: int = 0
 _current_discussion_id: str = "local"
 _discussion_stores: dict[str, dict[str, dict]] = {}
-# SSE 이벤트 큐: {discussion_id: Queue}
+_discussion_timestamps: dict[str, float] = {}   # 마지막 접근 시각
 _event_queues: dict[str, _queue_module.Queue] = {}
 
 # agent_id → SSE step 타입
@@ -97,7 +100,20 @@ _AGENT_STEP_TYPE: dict[int, str] = {
 }
 
 
+def _cleanup_stale_stores() -> None:
+    """TTL 초과 토론 스토어를 한 번에 정리 (start_new_turn 시 호출)."""
+    now = _time.time()
+    stale = [k for k, t in _discussion_timestamps.items() if now - t > _STORE_TTL]
+    for k in stale:
+        _discussion_stores.pop(k, None)
+        _discussion_timestamps.pop(k, None)
+        _event_queues.pop(k, None)
+    if stale:
+        print(f"🧹 [Store] 만료 토론 {len(stale)}건 정리: {stale}")
+
+
 def _store() -> dict[str, dict]:
+    _discussion_timestamps[_current_discussion_id] = _time.time()
     return _discussion_stores.setdefault(_current_discussion_id, {})
 
 
@@ -228,6 +244,7 @@ def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", di
     topic = topic_str
     user_input = raw_user_message
 
+    _cleanup_stale_stores()  # 새 턴 시작 시 만료 스토어 정리
     _current_discussion_id = str(discussion_id or "local")
     # 이전 턴 파일을 보존하기 위해 스토어를 지우지 않음.
     # json_num_count는 이 토론에서 마지막으로 사용한 번호부터 이어감.
@@ -836,7 +853,7 @@ def normally_output_agent(input_json_str):
 
     1. **품격 있는 전문가적 대화체 수행**
     - 텍스트를 단순히 읽는 듯한 딱딱한 어조를 탈피하고, 인과관계와 논리적 흐름이 매끄럽게 연결되는 대화 형태로 작성하십시오.
-    - 인사는 하지마세요. (예: "존경하는 심사위원 여러분, 오늘은 ~에 대해 말해줄게, 넵 저 agent 5가 답해보겠습니다."와 같은 형식은 절대 사용 불가.)
+    - 인사말, 소개, 다짐, 본인의 상태나 모드 전환에 대한 언급(예: '전문가 모드로 시작하겠습니다', '네, 답변드리겠습니다', instruction을 다시 이야기하기)을 절대 생략하고, 질문에 대한 핵심 답변의 첫 문장을 **내용** 강조해서 즉시 출력을 시작하세요.
 
     2. **용어의 고수 및 심층적 논리 전개**
     - 원문에 등장하는 핵심 전문 용어를 임의로 쉬운 단어로 바꾸거나 생략하지 말고 정확하게 기술하십시오.
@@ -932,6 +949,7 @@ def get_system_prompt(refutation_count=0):
 - 5번은 stage가 "normal"일 때만, 최종 출력 직전에 한 번만 호출하십시오. stage가 "easy"이면 절대 호출하지 마십시오.
 - 당신은 모든 입출력을 아래 JSON 명세서 형식으로 처리하여 맥락을 유지해야 합니다.
 - 사용자 입력의 topic을 절대 무시하지 마세요.
+
 [INPUT JSON SPEC]
 {{
   "discussion_id": "토론 세션 ID",
@@ -942,8 +960,8 @@ def get_system_prompt(refutation_count=0):
   "stage": "easy 또는 normal — easy면 최종 출력 전 4번 에이전트를 반드시 호출, normal이면 5번 에이전트를 반드시 호출",
   "refutation_turn": "3번(반박) 에이전트가 완료된 누적 횟수. 이 값이 3 이상이면 반드시 결론으로 가야 함.",
   "json_info": {{ # 기존 에이전트가 수행한 내용을 요약해둔 문서들. output json의 reference에 넣을때 사용해야함.
-  "output_1.json": "",
-    "output_2.json": ""
+  "output_1.json": "전기차 화재 원인 뉴스 탐색 (완료)",
+    "output_2.json": "output_1.json을 참조하여 전기차 화재 원인 분석 및 주장 생성 (완료)",
   }}
 }}
 
