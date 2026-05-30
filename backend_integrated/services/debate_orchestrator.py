@@ -544,10 +544,11 @@ def make_topic_explanation_agent(input_json_str):
                     doc = {
                         "source": res.get("url", "unknown"),
                         "title": res.get("title", "No Title"),
+                        "url": res.get("url", ""),
                         "content": res.get("content", "")
                     }
                 else:
-                    doc = {"source": "unknown", "title": "No Title", "content": str(res)}
+                    doc = {"source": "unknown", "title": "No Title", "url": "No url", "content": str(res)}
                 collected_context.append(doc)
 
         if discussion_id is not None and collected_context:
