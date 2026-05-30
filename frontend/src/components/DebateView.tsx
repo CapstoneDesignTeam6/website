@@ -428,15 +428,26 @@ export const DebateView = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topic, discussionId, messages.length]);
 
-  // 주장 생성 응답으로 받은 사용된 자료 링크를 기존 목록과 매칭해 used 자료를 위로 재배치
+  // 현재 생성된 메시지의 참조 자료만 used=true로 표시
+  // usedMaterials가 새로 들어오면: 이전 used 초기화 후 현재 응답 기준으로 재설정
+  // usedMaterials가 빈 배열로 초기화되면: used 전체 초기화 (메시지 추가 후 App.tsx에서 reset 시)
+  const prevUsedMaterialsRef = useRef<string[]>([]);
   useEffect(() => {
-    if (!usedMaterials || usedMaterials.length === 0) return;
-    const usedUrls = new Set(usedMaterials.filter(url => !!url));
-    setRelatedMaterials(prev => {
-      const used = prev.filter(m => m.url && usedUrls.has(m.url)).map(m => ({ ...m, used: true }));
-      const unused = prev.filter(m => !m.url || !usedUrls.has(m.url)).map(m => ({ ...m, used: false }));
-      return [...used, ...unused];
-    });
+    const prev = prevUsedMaterialsRef.current;
+    const cur = usedMaterials ?? [];
+    prevUsedMaterialsRef.current = cur;
+
+    if (cur.length === 0) {
+      // App.tsx에서 빈 배열로 리셋 → used 전체 초기화
+      if (prev.length > 0) {
+        setRelatedMaterials(p => p.map(m => ({ ...m, used: false })));
+      }
+      return;
+    }
+    const usedUrls = new Set(cur.filter(url => !!url));
+    setRelatedMaterials(p =>
+      p.map(m => ({ ...m, used: !!(m.url && usedUrls.has(m.url)) }))
+    );
   }, [usedMaterials]);
 
 
