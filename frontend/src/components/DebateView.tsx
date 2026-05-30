@@ -331,11 +331,10 @@ export const DebateView = ({
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
   const fetchedMaterialsRef = useRef<RelatedMaterial[]>([]); // fetch된 원본 자료 캐시
   const hasFetchedMaterialsRef = useRef(false); // 최초 fetch 완료 여부
-  const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
-    { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"를 눌러보세요.', timestamp: formatTime() }
-  ]);
+  const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([]);
   const [isHintGenerating, setIsHintGenerating] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const chatbotScrollRef = useRef<HTMLDivElement>(null);
 
   const [chatbotSize, setChatbotSize] = useState({ width: 480, height: 350 });
   const [isFirstInput, setIsFirstInput] = useState(true);
@@ -360,10 +359,44 @@ export const DebateView = ({
   }, [navigate]);
 
   const SPEECH_GUIDE: Record<number, string> = {
-    1: '💡 주장: 주제에 대한 나의 입장과 근거를 제시해주세요',
-    2: '✅ 반박: 에이전트의 주장에 반박해주세요',
-    3: '🔄️ 재반박: 에이전트의 반박에 맞서 나의 주장을 강화해주세요',
+    1: `📢 **주장 단계입니다.** 나의 입장과 근거를 이야기해주세요. 💡 **도움말**  • 구체적인 사례나 수치를 제시해보세요. • 경제·사회·환경 등 여러 측면을 함께 언급해보세요.`, 
+    2: `✅ **반박 단계입니다.** 상대방 주장 속 논리적 오류를 짚어 반박해주세요. 💡 **도움말** • 상대방 주장이 적용되지 않는 특수한 상황이나 예외적인 사례를 설명해보세요. • 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요. `, 
+    3: `🔄 **재반박 단계입니다.** 상대방 반박의 논리적 모순이나 근거 오류를 제시하여 나의 주장을 더 보완해보세요. 💡 **도움말**  • 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요. • 주장을 뒷받침하는 새로운 사례나 이유를 추가해보세요.  `,
   };
+
+  // speechTurn 변화 시 챗봇 자동 팝업 (speechGuide + 힌트 질문)
+  useEffect(() => {
+    if (debatePhase !== 'debating') return;
+
+    const guideText = SPEECH_GUIDE[speechTurn];
+    if (!guideText) return;
+
+    // speechGuide 메시지 추가
+    const newMsgs: Array<{ sender: 'user' | 'bot'; text: string; timestamp: string }> = [
+      { sender: 'bot', text: guideText, timestamp: formatTime() },
+    ];
+
+    // 반박(speechTurn==2) 또는 재반박(speechTurn==3) 타이밍에 힌트 질문 추가
+    if (speechTurn === 2 || speechTurn === 3) {
+      const hintLabel = speechTurn === 2 ? '반박' : '재반박';
+      newMsgs.push({
+        sender: 'bot',
+        text: `💬 **${hintLabel} 힌트**가 필요하신가요?\n아래 버튼을 눌러 AI의 도움을 받아보세요!`,
+        timestamp: formatTime(),
+      });
+    }
+
+    setChatbotMessages(msgs => [...msgs, ...newMsgs]);
+    setIsHelpOpen(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [speechTurn, debatePhase]);
+
+  // 챗봇 메시지 추가 시 자동 스크롤
+  useEffect(() => {
+    if (chatbotScrollRef.current) {
+      chatbotScrollRef.current.scrollTop = chatbotScrollRef.current.scrollHeight;
+    }
+  }, [chatbotMessages]);
 
   useEffect(() => {
     setPlaceholder("Ctrl + Enter를 눌러 의견을 제출해주세요.");
@@ -1041,11 +1074,6 @@ export const DebateView = ({
               </div>
             ) : (
               <>
-                <div className="px-1 py-2">
-                  <span className="text-xs font-bold text-primary flex items-center gap-2">
-                    {SPEECH_GUIDE[speechTurn]}
-                  </span>
-                </div>
                 <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 gap-2">
                   <textarea
                     ref={textareaRef}
@@ -1079,7 +1107,7 @@ export const DebateView = ({
 
         {/* 챗봇 플로팅 버튼 & 팝업 — debating 단계에서만 표시 */}
         {debatePhase === 'debating' && (
-        <div className="absolute bottom-6 right-6 z-60 flex flex-col items-end gap-4">
+        <div className="absolute bottom-6 right-6 z-60 flex flex-col items-end gap-4 pointer-events-none">
           <AnimatePresence>
             {isHelpOpen && (
               <motion.div
@@ -1087,7 +1115,7 @@ export const DebateView = ({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8, y: 20 }}
                 style={{ width: chatbotSize.width, height: chatbotSize.height }}
-                className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col mb-2 relative"
+                className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col mb-2 relative pointer-events-auto"
               >
                 {/* 드래그 핸들 (좌상단 모서리) */}
                 <div
@@ -1128,7 +1156,7 @@ export const DebateView = ({
                     <X size={20} />
                   </button>
                 </div>
-                <div className="flex-1 p-4 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col gap-2 custom-scrollbar">
+                <div ref={chatbotScrollRef} className="flex-1 p-4 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col gap-2 custom-scrollbar">
                   {chatbotMessages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[80%] p-2 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
@@ -1158,29 +1186,28 @@ export const DebateView = ({
                     </div>
                   )}
                 </div>
-                <div className="p-3 border-t border-gray-100 bg-white flex gap-2 shrink-0">
-                  <button
-                    onClick={() => handleHintRequest('반박 힌트')}
-                    disabled={isHintGenerating}
-                    className="flex-1 text-xs py-2 px-3 bg-primary/10 text-primary font-bold rounded-xl hover:bg-primary/20 transition-colors disabled:opacity-50"
-                  >
-                    반박 힌트
-                  </button>
-                  <button
-                    onClick={() => handleHintRequest('재반박 힌트')}
-                    disabled={isHintGenerating}
-                    className="flex-1 text-xs py-2 px-3 bg-secondary/10 text-secondary font-bold rounded-xl hover:bg-secondary/20 transition-colors disabled:opacity-50"
-                  >
-                    재반박 힌트
-                  </button>
-                </div>
+                {(speechTurn === 2 || speechTurn === 3) && (
+                  <div className="p-3 border-t border-gray-100 bg-white shrink-0">
+                    <button
+                      onClick={() => handleHintRequest(speechTurn === 2 ? '반박 힌트' : '재반박 힌트')}
+                      disabled={isHintGenerating}
+                      className={`w-full text-xs py-2 px-3 font-bold rounded-xl transition-colors disabled:opacity-50 ${speechTurn === 2 ? 'bg-primary/10 text-primary hover:bg-primary/20' : 'bg-secondary/10 text-secondary hover:bg-secondary/20'}`}
+                    >
+                      {isHintGenerating ? (
+                        <span className="flex items-center justify-center gap-1"><Loader2 size={13} className="animate-spin" /> 힌트 생성 중...</span>
+                      ) : (
+                        `${speechTurn === 2 ? '반박' : '재반박'} 힌트 받기`
+                      )}
+                    </button>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
 
           <button
             onClick={() => setIsHelpOpen(!isHelpOpen)}
-            className="w-12 h-12 md:w-14 md:h-14 bg-transparent border-none flex items-center justify-center overflow-hidden hover:scale-110 transition-transform"
+            className="w-12 h-12 md:w-14 md:h-14 bg-transparent border-none flex items-center justify-center overflow-hidden hover:scale-110 transition-transform pointer-events-auto"
           >
             <img
               src="/help_icon.png"
