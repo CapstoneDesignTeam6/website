@@ -565,8 +565,10 @@ export const DebateView = ({
       const lines = processed.split('\n');
       let cutIdx = -1;
       for (let i = 0; i < lines.length; i++) {
-        const stripped = lines[i].replace(/^[#*\[\]\s]+|[#*\[\]\s]+$/g, '').trim();
-        if (REF_HEADER_RE.test(stripped) && stripped.length <= 60) {
+        // 줄 앞쪽의 헤더 토큰([...], **...**, ###, 공백)만 제거한 뒤 REF_HEADER_RE 검사
+        // 헤더와 내용이 같은 줄에 있어도 (예: "[참조 문헌] 김민정...") 헤더 줄로 인식
+        const headerToken = lines[i].match(/^([#*\[\]\s]*(?:참고|참조|출처|레퍼런스|reference|source)[^\n:：]*[:：]?\s*)/i)?.[0] ?? '';
+        if (headerToken.length > 0) {
           cutIdx = i;
           break;
         }
