@@ -172,7 +172,6 @@ export default function App() {
   const [waitingForContinue, setWaitingForContinue] = useState(false);
   const [fullScreenMode, setFullScreenMode] = useState(false);
   const [discussionId, setDiscussionId] = useState<number | null>(null);
-  const [usedMaterials, setUsedMaterials] = useState<string[]>([]);
   const [agentSteps, setAgentSteps] = useState<AgentStep[]>([]);
 
   /**
@@ -258,9 +257,6 @@ export default function App() {
         }),
       );
 
-      if (data.used_materials && data.used_materials.length > 0) {
-        setUsedMaterials(data.used_materials);
-      }
       if (data.agent_steps && data.agent_steps.length > 0) {
         setAgentSteps(data.agent_steps);
       }
@@ -296,11 +292,9 @@ export default function App() {
             ? formatTime(data.aiResponse.timestamp)
             : formatTime(),
           round: currentRound,
+          usedMaterials: data.used_materials ?? [],
         },
       ]);
-
-      // 메시지 추가 후 used 플래그 초기화 (다음 응답 전까지 하이라이트 해제)
-      setUsedMaterials([]);
 
       // 진행률 계산: 각 라운드는 에이전트 설명(+1) + 주장/반박/재반박(3) = 4스텝
       const totalSteps = totalRounds * 4;
@@ -436,7 +430,6 @@ export default function App() {
                       progress={progress}
                       discussionId={discussionId ?? 0}
                       setFullScreenMode={setFullScreenMode}
-                      usedMaterials={usedMaterials}
                       agentSteps={agentSteps}
                       difficulty={difficulty}
                       speechTurn={speechTurn}
