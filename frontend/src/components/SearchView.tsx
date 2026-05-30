@@ -116,7 +116,7 @@ const DebateCard = ({
   );
 };
 
-type SortOrder = 'latest' | 'popular';
+// type SortOrder = 'latest' | 'popular';
 
 export const SearchView = ({ setTopic }: SearchViewProps) => {
   const navigate = useNavigate();
@@ -124,14 +124,14 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
   const [debates, setDebates] = useState<DebateTopic[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
-  const [sortOrder, setSortOrder] = useState<SortOrder>('latest');
+  // const [sortOrder, setSortOrder] = useState<SortOrder>('latest');
 
   useEffect(() => {
     const fetchDebates = async () => {
       setIsLoading(true);
       try {
         const data = await debateApi.search(searchQuery);
-        setDebates(data);
+        setDebates([...data].sort((a, b) => (b.isHot ? 1 : 0) - (a.isHot ? 1 : 0)));
       } catch (error) {
         console.error("Failed to fetch debates:", error);
       } finally {
@@ -143,10 +143,10 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
     return () => clearTimeout(timeoutId);
   }, [searchQuery]);
 
-  const sortedDebates = [...debates].sort((a, b) => {
-    if (sortOrder === 'popular') return b.participants - a.participants;
-    return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
-  });
+  // const sortedDebates = [...debates].sort((a, b) => {
+  //   if (sortOrder === 'popular') return b.participants - a.participants;
+  //   return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+  // });
 
   return (
     <div className="max-w-7xl mx-auto px-4 md:px-8 py-12 md:py-20">
@@ -170,7 +170,7 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
         </div>
       </div>
 
-      <div className="mb-4 md:mb-6 flex gap-4 justify-end">
+      {/* <div className="mb-4 md:mb-6 flex gap-4 justify-end">
         {(['latest', 'popular'] as SortOrder[]).map((order) => (
           <button
             key={order}
@@ -185,7 +185,7 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
             {order === 'latest' ? '최신순' : '날짜별'}
           </button>
         ))}
-      </div>
+      </div> */}
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
         {isLoading ? (
@@ -193,8 +193,8 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
             <Loader2 size={48} className="animate-spin mx-auto text-primary mb-4" />
             <p className="text-outline">검색 중...</p>
           </div>
-        ) : sortedDebates.length > 0 ? (
-          sortedDebates.map(debate => (
+        ) : debates.length > 0 ? (
+          debates.map((debate: DebateTopic) => (
             <DebateCard
               key={debate.id}
               debate={debate}

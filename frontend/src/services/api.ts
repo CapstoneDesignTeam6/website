@@ -31,6 +31,7 @@ export const debateApi = {
     return MOCK_TOPICS;
   },
   search: async (query: string): Promise<DebateTopic[]> => {
+    const HOT_IDS = new Set([26, 30, 33]);
     try {
       const url = query
         ? `/api/debates/search?q=${encodeURIComponent(query)}`
@@ -39,17 +40,17 @@ export const debateApi = {
       if (res.ok) {
         const json = await res.json();
         // 백엔드가 { code, message, data: [...] } 형태로 반환하는 경우 처리
-        const rows: { id?: number; topic?: string; title?: string; description?: string; category?: string; isHot?: boolean; participants?: number; createdAt?: string }[] =
+        const rows: { id?: number; topic?: string; title?: string; description?: string; category?: string; isHot?: boolean; participants?: number; /* createdAt?: string */ }[] =
           Array.isArray(json) ? json : (Array.isArray(json?.data) ? json.data : []);
         if (rows.length > 0) {
           return rows.map((row, i) => ({
             id: row.id ?? i,
             category: row.category ?? '사회',
-            isHot: row.isHot ?? false,
+            isHot: HOT_IDS.has(row.id ?? i) || (row.isHot ?? false),
             title: row.title ?? row.topic ?? '',
             description: row.description ?? '',
             participants: row.participants ?? 0,
-            createdAt: row.createdAt ?? '',
+            // createdAt: row.createdAt ?? '',
           }));
         }
       }

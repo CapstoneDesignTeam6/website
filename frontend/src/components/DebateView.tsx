@@ -59,40 +59,78 @@ interface DebateViewProps {
   onPostQuizComplete?: () => void;  // 사후 퀴즈 완료 → ResultView 이동
 }
 
-const AGENT_STEPS_NORMAL = [
-  { icon: Bot,    label: '오케스트레이터', desc: '전략 수립 중' },
-  { icon: Search, label: '자료 탐색',      desc: '관련 자료 검색 중' },
-  { icon: Brain,  label: '주장 생성',      desc: '논거 구성 중' },
-];
+const STEP_META: Record<string, { icon: React.ElementType; label: string; desc: string }> = {
+  orchestrator: { icon: Bot,       label: '오케스트레이터', desc: '전략 수립 중' },
+  search:       { icon: Search,    label: '자료 탐색',      desc: '관련 자료 검색 중' },
+  generate:     { icon: Brain,     label: '주장 생성',      desc: '논거 구성 중' },
+  simplify:     { icon: Lightbulb, label: '난이도 조정',    desc: '표현 변환 중' },
+};
 
-const AGENT_STEPS_EASY = [
-  { icon: Bot,      label: '오케스트레이터', desc: '전략 수립 중' },
-  { icon: Search,   label: '자료 탐색',      desc: '관련 자료 검색 중' },
-  { icon: Brain,    label: '주장 생성',      desc: '논거 구성 중' },
-  { icon: Lightbulb, label: '쉬운 설명',    desc: '표현 변환 중' },
-];
+const NORMAL_STEP_KEYS = ['orchestrator', 'search', 'generate'];
+const EASY_STEP_KEYS   = ['orchestrator', 'search', 'generate', 'simplify'];
+
+// instruction 텍스트 순차 전환하는 컴포넌트
+// 문장 단위로 분리하되, 한 문장이 MAX_WORDS_PER_CHUNK 단어를 초과하면 단어 청크로 재분리
+const MAX_WORDS_PER_CHUNK = 50;
+
+const splitIntoChunks = (text: string): string[] => {
+  const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+  const result: string[] = [];
+  for (const sentence of sentences) {
+    const words = sentence.split(/\s+/).filter(Boolean);
+    if (words.length <= MAX_WORDS_PER_CHUNK) {
+      result.push(sentence);
+    } else {
+      for (let i = 0; i < words.length; i += MAX_WORDS_PER_CHUNK) {
+        result.push(words.slice(i, i + MAX_WORDS_PER_CHUNK).join(' '));
+      }
+    }
+  }
+  return result;
+};
+
+const InstructionScroller = ({ text }: { text: string }) => {
+  const chunks = splitIntoChunks(text);
+
+
+  const [idx, setIdx] = useState(0);
+
+  useEffect(() => {
+    setIdx(0);
+  }, [text]);
+
+  useEffect(() => {
+    if (chunks.length <= 1) return;
+    const timer = setTimeout(() => {
+      setIdx(prev => (prev + 1) % chunks.length);
+    }, 2500);
+    return () => clearTimeout(timer);
+  }, [idx, chunks.length]);
+
+  return (
+    <div className="overflow-hidden h-8 px-1">
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={idx}
+          className="text-[10px] text-gray-400 leading-relaxed line-clamp-2"
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.3 }}
+        >
+          {chunks[idx]}
+        </motion.p>
+      </AnimatePresence>
+    </div>
+  );
+};
 
 const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agentSteps?: AgentStep[] }) => {
-  const STEP_TYPE_TO_ICON: Record<string, React.ElementType> = {
-    orchestrator: Bot,
-    search: Search,
-    generate: Brain,
-    simplify: Lightbulb,
-  };
-
-  // step → 기본 label/desc 매핑 (data가 없을 때 폴백)
-  const STEP_META: Record<string, { label: string; desc: string }> = {
-    orchestrator: { label: '오케스트레이터', desc: '전략 수립 중' },
-    search:       { label: '자료 탐색',      desc: '관련 자료 검색 중' },
-    generate:     { label: '주장 생성',      desc: '논거 구성 중' },
-    simplify:     { label: '쉬운 설명',      desc: '표현 변환 중' },
-  };
-
   const backendSteps = agentSteps && agentSteps.length > 0
     ? agentSteps.map(s => {
-        const meta = STEP_META[s.step] ?? { label: s.step, desc: '' };
+        const meta = STEP_META[s.step] ?? { icon: Bot, label: s.step, desc: '' };
         return {
-          icon:   STEP_TYPE_TO_ICON[s.step] ?? Bot,
+          icon:   meta.icon,
           label:  meta.label,
           desc:   s.data?.workspace_summary || meta.desc,
           status: s.status,
@@ -101,8 +139,8 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
       })
     : null;
 
-  const fallbackSteps = isEasy ? AGENT_STEPS_EASY : AGENT_STEPS_NORMAL;
-  const steps = backendSteps ?? fallbackSteps.map(s => ({ ...s, status: 'pending' as const, data: undefined }));
+  const fallbackKeys = isEasy ? EASY_STEP_KEYS : NORMAL_STEP_KEYS;
+  const steps = backendSteps ?? fallbackKeys.map(key => ({ ...STEP_META[key], status: 'pending' as const, data: undefined }));
 
   const initialActive = backendSteps
     ? Math.max(0, backendSteps.findIndex(s => s.status === 'running'))
@@ -130,7 +168,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
       </div>
       <div className="flex flex-col gap-3 py-1">
         <div className="flex items-center gap-1.5">
-          {steps.map((_, i) => (
+          {steps.map((_: unknown, i: number) => (
             <React.Fragment key={i}>
               <motion.div
                 className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors ${
@@ -174,15 +212,86 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
           </motion.div>
           <span className="text-[11px] text-outline">{steps[activeStep].desc}</span>
         </div>
-        {/* data.instruction이 있으면 현재 단계의 지시사항을 부가 정보로 표시 */}
         {activeStepData?.instruction && (
-          <p className="text-[10px] text-gray-400 px-1 leading-relaxed max-w-xs line-clamp-2">
-            {activeStepData.instruction}
-          </p>
+          <InstructionScroller text={activeStepData.instruction} />
         )}
       </div>
     </div>
   );
+};
+
+// 에이전트 메시지에서 참조문헌 섹션 텍스트 추출
+// "참고/참조/출처/source/ref/reference" 계열 단어가 들어간 줄을 헤더로 인식
+// 헤더와 내용이 같은 줄이거나 다음 줄에 오는 모든 형태를 처리
+const REF_HEADER_RE = /참고|참조|출처|레퍼런스|reference|source/i;
+const extractRefSection = (content: string): string | null => {
+  const normalized = content.replace(/\\n/g, '\n');
+  const lines = normalized.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    // 헤더 줄 판별: REF_HEADER_RE 매칭 + 본문 내용이 아닌 짧은 줄(60자 이하)
+    const stripped = line.replace(/^[#*\[\]\s]+|[#*\[\]\s]+$/g, '').trim();
+    if (!REF_HEADER_RE.test(stripped) || stripped.length > 60) continue;
+
+    // 같은 줄에 헤더 뒤로 내용이 있는 경우 (예: [참조 문헌] URL1 URL2 / **참조문헌** 내용)
+    // [헤더] 형태: ] 이후, **헤더** 형태: 마지막 ** 이후, 그 외: : 이후
+    const inlineContent = line
+      .replace(/^\[.*?\]\s*[:：]?\s*/, '')   // [헤더] 제거
+      .replace(/^\*{1,2}.*?\*{1,2}\s*[:：]?\s*/, '')  // **헤더** 제거
+      .replace(/^[#\s]*\S+\s*[:：]\s*/, '')  // 헤더: 형태 제거
+      .trim();
+    if (inlineContent.length > 0) return inlineContent;
+
+    // 다음 줄부터 내용 수집 — 빈 줄 2개 연속이거나 새 헤더가 나오면 종료
+    const bodyLines: string[] = [];
+    let blankCount = 0;
+    for (let j = i + 1; j < lines.length; j++) {
+      const bodyLine = lines[j];
+      if (bodyLine.trim() === '') {
+        blankCount++;
+        if (blankCount >= 2) break;
+      } else {
+        blankCount = 0;
+        // 새 섹션 헤더(##, ** 등)가 나오면 종료
+        if (/^#{1,6}\s|^\*{2}[^*]/.test(bodyLine)) break;
+        bodyLines.push(bodyLine);
+      }
+    }
+    if (bodyLines.length > 0) return bodyLines.join('\n').trim();
+  }
+  return null;
+};
+
+// 참조문헌 섹션에서 URL 목록 추출
+const extractReferencedUrls = (content: string): string[] => {
+  const section = extractRefSection(content);
+  console.log('[extractReferencedUrls] 섹션 매칭:', section ? '성공' : '실패');
+  if (section) console.log('[extractReferencedUrls] 섹션 원문:\n', section);
+  if (!section) return [];
+  const urls = [...new Set(section.match(/https?:\/\/[^\s\)\],"']+/g) ?? [])];
+  console.log('[extractReferencedUrls] 추출된 URL:', urls);
+  return urls;
+};
+
+// 참조문헌 섹션 전체 텍스트(서지정보 포함)와 자료 title을 매칭해 used 플래그 업데이트
+const matchReferencesToMaterials = (content: string, materials: RelatedMaterial[]): RelatedMaterial[] => {
+  const section = extractRefSection(content);
+  const urls = extractReferencedUrls(content);
+  console.log('[matchReferencesToMaterials] 섹션:', section ? section.slice(0, 120) : '없음');
+  console.log('[matchReferencesToMaterials] URL 수:', urls.length, '| 자료 수:', materials.length);
+  const urlSet = new Set(urls);
+  const result = materials.map(m => {
+    const byUrl = !!m.url && urlSet.has(m.url);
+    // title 키워드 매칭: 자료 제목의 주요 단어(4글자 이상)가 섹션 텍스트에 포함되는지 확인
+    const byTitle = !!section && !!m.title &&
+      m.title.split(/\s+/).filter(w => w.length >= 4).some(w => section.includes(w));
+    const matched = byUrl || byTitle;
+    if (matched) console.log('[matchReferencesToMaterials] 매칭됨:', m.title, '| byUrl:', byUrl, '| byTitle:', byTitle);
+    return { ...m, used: m.used || matched };
+  });
+  console.log('[matchReferencesToMaterials] 매칭된 자료 수:', result.filter(m => m.used).length);
+  return result;
 };
 
 export const DebateView = ({
@@ -289,29 +398,39 @@ export const DebateView = ({
     fetchScore();
   }, [messages.length, discussionId]);
 
-  // 관련 자료를 백엔드에서 불러오는 useEffect
-  // AI 응답(agent 메시지)이 새로 추가될 때마다 재조회 — 새 검색 결과가 Supabase에 저장된 직후
-  const lastAgentMsgCount = messages.filter(m => m.role === 'agent').length;
+  // 관련 자료 fetch + 참조문헌 매칭을 한 번에 처리
+  // messages.length를 트리거로 사용 — 어떤 메시지(turn=0 포함)가 추가돼도 재실행
   useEffect(() => {
     if (!discussionId) return;
-    const fetchRelatedMaterials = async () => {
+    const fetchAndMatch = async () => {
       setIsLoadingRelatedMaterials(true);
       try {
         const data = await debateApi.getRelatedMaterials(topic, discussionId || null);
-        setRelatedMaterials(data);
+        // fetch 완료 후 현재 messages 기준으로 참조문헌 매칭
+        const nonUserMessages = messages.filter(m => m.role !== 'user');
+        console.log('[fetchAndMatch] messages 전체:', messages.map(m => ({ role: m.role, turn: m.turn })));
+        console.log('[fetchAndMatch] 비사용자 메시지 수:', nonUserMessages.length, '| 자료 수:', data.length);
+        // 메시지별로 순차 매칭 (각 content에서 섹션 추출 후 매칭)
+        const matched = nonUserMessages.reduce(
+          (acc, m) => matchReferencesToMaterials(m.content, acc),
+          data
+        );
+        const used = matched.filter(m => m.used);
+        const unused = matched.filter(m => !m.used);
+        setRelatedMaterials([...used, ...unused]);
       } catch (error) {
         console.error("Failed to fetch related materials:", error);
       } finally {
         setIsLoadingRelatedMaterials(false);
       }
     };
-    fetchRelatedMaterials();
-  }, [topic, discussionId, lastAgentMsgCount]); // AI 메시지 추가 시 재조회
+    fetchAndMatch();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topic, discussionId, messages.length]);
 
   // 주장 생성 응답으로 받은 사용된 자료 링크를 기존 목록과 매칭해 used 자료를 위로 재배치
   useEffect(() => {
     if (!usedMaterials || usedMaterials.length === 0) return;
-    // used_materials는 URL 문자열 배열이므로 그대로 Set으로 변환
     const usedUrls = new Set(usedMaterials.filter(url => !!url));
     setRelatedMaterials(prev => {
       const used = prev.filter(m => m.url && usedUrls.has(m.url)).map(m => ({ ...m, used: true }));
@@ -415,16 +534,31 @@ export const DebateView = ({
   // 1. \n 이스케이프 문자열을 실제 줄바꿈으로 변환 (백엔드/목데이터 혼용 대응)
   // 2. ## / ### 헤더 줄 제거
   // 3. [1], [2] 등 인라인 각주 번호 제거
-  const preprocessContent = (content: string): string =>
-    content
-      .replace(/\\n/g, '\n')
+  // 4. 참조문헌 섹션 제거 (에이전트 메시지)
+  const preprocessContent = (content: string, isAgent = false): string => {
+    let processed = content.replace(/\\n/g, '\n');
+    if (isAgent) {
+      // 헤더 제거 전에 참조문헌 섹션을 먼저 잘라냄 (헤더 제거 시 REF_HEADER_RE 매칭 불가 방지)
+      const lines = processed.split('\n');
+      let cutIdx = -1;
+      for (let i = 0; i < lines.length; i++) {
+        const stripped = lines[i].replace(/^[#*\[\]\s]+|[#*\[\]\s]+$/g, '').trim();
+        if (REF_HEADER_RE.test(stripped) && stripped.length <= 60) {
+          cutIdx = i;
+          break;
+        }
+      }
+      if (cutIdx !== -1) processed = lines.slice(0, cutIdx).join('\n');
+    }
+    processed = processed
       .replace(/^#{1,6}\s+.+$/gm, '')
-      .replace(/\[\d+\]/g, '')
-      .trim();
+      .replace(/\[\d+\]/g, '');
+    return processed.trim();
+  };
 
-  // **레이블**: 형태의 섹션 레이블을 children 배열에서 제거하는 함수
+  // **레이블**: 형태의 섹션 레이블을 제거하고, 일반 **볼드** 는 <strong> 으로 유지하는 함수
   // ReactMarkdown은 **foo**: bar 를 [<strong>foo</strong>, ": bar"] 로 파싱함
-  // strong 커스텀 컴포넌트를 쓰지 않으므로 type === 'strong' 문자열 비교가 정확히 작동함
+  // 뒤따르는 문자열이 ':' 로 시작하면 섹션 레이블로 간주해 제거, 아니면 볼드 유지
   const stripSectionLabels = (children: React.ReactNode): React.ReactNode[] => {
     const nodes = Array.isArray(children) ? children : [children];
     const result: React.ReactNode[] = [];
@@ -440,6 +574,11 @@ export const DebateView = ({
         const rest = (next as string).replace(/^\s*[:：]\s*/, '');
         if (rest) result.push(rest);
         i++;
+      } else if (
+        React.isValidElement(node) &&
+        (node as React.ReactElement).type === 'strong'
+      ) {
+        result.push(<strong className="font-bold">{(node as React.ReactElement<{ children?: React.ReactNode }>).props.children}</strong>);
       } else {
         result.push(node);
       }
@@ -740,7 +879,7 @@ export const DebateView = ({
                                 },
                               }}
                             >
-                              {preprocessContent(msg.content)}
+                              {preprocessContent(msg.content, msg.role === 'agent')}
                             </ReactMarkdown>
                           </div>
                         </div>
@@ -1002,7 +1141,7 @@ export const DebateView = ({
                 <article key={i} className={`flex flex-col gap-2 bg-white rounded-2xl border p-5 card-hover ${material.used ? 'border-primary/40 ring-1 ring-primary/20' : 'border-gray-100'}`}>
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-bold ${material.color}`}>{material.category}</span>
-                    {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">AI가 참고한 자료</span>}
+                    {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">AI가 참조한 자료</span>}
                   </div>
                   <h3 className="text-sm font-bold leading-tight">{material.title}</h3>
                   {material.description && (

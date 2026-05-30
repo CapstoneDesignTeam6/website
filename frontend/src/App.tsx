@@ -232,6 +232,19 @@ export default function App() {
 
     try {
       const currentTurn = getSpeechTurn(speechTurn);
+
+      // 사용자 메시지를 API 호출 전에 먼저 추가 (AgentThinkingIndicator 표시 전에 보이도록)
+      const userMsg: DebateMessage = {
+        discussion_id: discussionId!,
+        role: "user",
+        side: undefined,
+        turn: currentTurn,
+        content: text,
+        timestamp: formatTime(),
+        round: currentRound,
+      };
+      setMessages((prev) => [...prev, userMsg]);
+
       const data = await debateApi.sendMessage(
         topic, text, messages, discussionId, difficulty, currentTurn,
         (step) => setAgentSteps(prev => {
@@ -252,23 +265,18 @@ export default function App() {
         setAgentSteps(data.agent_steps);
       }
 
-      // 사용자 메시지 객체 생성
-      const userMsg: DebateMessage = {
-        discussion_id: discussionId!, //이미 저장된 discussionId 사용
-        role: "user",
-        side: data.userSide || undefined,
-        turn: currentTurn,
-        content: text,
-        timestamp: formatTime(),
-        round: currentRound,
-      };
+      // userSide가 응답에 포함된 경우 앞서 추가한 사용자 메시지의 side를 업데이트
+      if (data.userSide) {
+        setMessages((prev) => prev.map((m, i) =>
+          i === prev.length - 1 && m.role === 'user' ? { ...m, side: data.userSide } : m
+        ));
+      }
 
       const nextspeechTurn = speechTurn + 1;
 
-      // AI 응답 메시지 객체 생성 후 목록에 추가
+      // AI 응답 메시지 추가
       setMessages((prev) => [
         ...prev,
-        userMsg,
         {
           discussion_id: data.aiResponse.discussion_id,
           role: "agent",
