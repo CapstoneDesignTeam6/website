@@ -292,7 +292,6 @@ export default function App() {
             ? formatTime(data.aiResponse.timestamp)
             : formatTime(),
           round: currentRound,
-          usedMaterials: data.used_materials ?? [],
         },
       ]);
 

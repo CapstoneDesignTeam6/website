@@ -114,7 +114,6 @@ export interface DebateMessage {
   content: string;
   timestamp: string;
   difficulty?: Difficulty; // 쉬운 모드 선택
-  usedMaterials?: string[]; // 이 메시지 생성 시 AI가 참조한 자료 URL 목록
 }
 
 export type AgentStepType = 'orchestrator' | 'search' | 'generate' | 'simplify';

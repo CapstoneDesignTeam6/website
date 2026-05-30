@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Send,
   FileText,
@@ -671,22 +671,6 @@ export const DebateView = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length, hasFetchedMaterials]);
 
-  // 메시지가 추가될 때 마지막 agent 메시지의 usedMaterials로 즉시 태그 업데이트
-  // useLayoutEffect: 페인트 전에 실행되어 메시지 렌더와 태그가 동일 프레임에 표시됨
-  useLayoutEffect(() => {
-    if (!hasFetchedMaterials) return;
-    const lastAgentMsg = [...messages].reverse().find(m => m.role !== 'user');
-    const cur = lastAgentMsg?.usedMaterials ?? [];
-    if (cur.length === 0) {
-      setRelatedMaterials(p => p.map(m => ({ ...m, used: false })));
-      return;
-    }
-    const usedUrls = new Set(cur.filter(url => !!url));
-    setRelatedMaterials(p =>
-      p.map(m => ({ ...m, used: !!(m.url && usedUrls.has(m.url)) }))
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length]);
 
 
   const prevMessageCountRef = useRef(0);
