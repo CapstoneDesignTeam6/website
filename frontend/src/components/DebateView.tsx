@@ -327,6 +327,8 @@ export const DebateView = ({
   const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
   const [relatedMaterials, setRelatedMaterials] = useState<RelatedMaterial[]>([]); // 관련 자료 상태
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
+  const fetchedMaterialsRef = useRef<RelatedMaterial[]>([]); // fetch된 원본 자료 캐시
+  const hasFetchedMaterialsRef = useRef(false); // 최초 fetch 완료 여부
   const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
     { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"를 눌러보세요.', timestamp: formatTime() }
   ]);
@@ -398,35 +400,39 @@ export const DebateView = ({
     fetchScore();
   }, [messages.length, discussionId]);
 
-  // 관련 자료 fetch + 참조문헌 매칭을 한 번에 처리
-  // messages.length를 트리거로 사용 — 어떤 메시지(turn=0 포함)가 추가돼도 재실행
+  // 관련 자료 fetch — discussionId 확정 시 최초 1회만 실행
   useEffect(() => {
-    if (!discussionId) return;
-    const fetchAndMatch = async () => {
+    if (!discussionId || hasFetchedMaterialsRef.current) return;
+    const fetchMaterials = async () => {
       setIsLoadingRelatedMaterials(true);
       try {
-        const data = await debateApi.getRelatedMaterials(topic, discussionId || null);
-        // fetch 완료 후 현재 messages 기준으로 참조문헌 매칭
-        const nonUserMessages = messages.filter(m => m.role !== 'user');
-        console.log('[fetchAndMatch] messages 전체:', messages.map(m => ({ role: m.role, turn: m.turn })));
-        console.log('[fetchAndMatch] 비사용자 메시지 수:', nonUserMessages.length, '| 자료 수:', data.length);
-        // 메시지별로 순차 매칭 (각 content에서 섹션 추출 후 매칭)
-        const matched = nonUserMessages.reduce(
-          (acc, m) => matchReferencesToMaterials(m.content, acc),
-          data
-        );
-        const used = matched.filter(m => m.used);
-        const unused = matched.filter(m => !m.used);
-        setRelatedMaterials([...used, ...unused]);
+        const data = await debateApi.getRelatedMaterials(topic, discussionId);
+        hasFetchedMaterialsRef.current = true;
+        fetchedMaterialsRef.current = data;
+        setRelatedMaterials(data);
       } catch (error) {
         console.error("Failed to fetch related materials:", error);
       } finally {
         setIsLoadingRelatedMaterials(false);
       }
     };
-    fetchAndMatch();
+    fetchMaterials();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topic, discussionId, messages.length]);
+  }, [discussionId]);
+
+  // 참조문헌 매칭 — 새 메시지가 추가될 때마다 캐시된 자료 기준으로 재실행
+  useEffect(() => {
+    if (!hasFetchedMaterialsRef.current || fetchedMaterialsRef.current.length === 0) return;
+    const nonUserMessages = messages.filter(m => m.role !== 'user');
+    const matched = nonUserMessages.reduce(
+      (acc, m) => matchReferencesToMaterials(m.content, acc),
+      fetchedMaterialsRef.current
+    );
+    const used = matched.filter(m => m.used);
+    const unused = matched.filter(m => !m.used);
+    setRelatedMaterials([...used, ...unused]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length]);
 
   // 현재 생성된 메시지의 참조 자료만 used=true로 표시
   // usedMaterials가 새로 들어오면: 이전 used 초기화 후 현재 응답 기준으로 재설정
