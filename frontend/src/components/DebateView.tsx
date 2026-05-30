@@ -324,6 +324,8 @@ export const DebateView = ({
   const [isScoreSidebarOpen, setIsScoreSidebarOpen] = useState(true);
   const [evaluationScore, setEvaluationScore] = useState<UserEvaluationScore | null>(null);
   const [isLoadingScore, setIsLoadingScore] = useState(false);
+  const [showPrevScoreWhileLoading, setShowPrevScoreWhileLoading] = useState(false);
+  const [viewingMsgIdx, setViewingMsgIdx] = useState<number | null>(null);
   const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
   const [relatedMaterials, setRelatedMaterials] = useState<RelatedMaterial[]>([]); // 관련 자료 상태
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
@@ -392,6 +394,7 @@ export const DebateView = ({
     if (lastMessage?.role !== 'user') return;
     const fetchScore = async () => {
       setIsLoadingScore(true);
+      setShowPrevScoreWhileLoading(false);
       try {
         const score = await debateApi.getUserEvaluation(discussionId, topic);
         setEvaluationScore(score);
@@ -637,6 +640,14 @@ export const DebateView = ({
 
   const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
 
+  // 가장 마지막 사용자 메시지 인덱스
+  const lastUserMsgIdx = React.useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') return i;
+    }
+    return -1;
+  }, [messages]);
+
   const PentagonChart = ({ score }: { score: UserEvaluationScore }) => {
     const size = 240;
     const padding = 46;
@@ -730,17 +741,42 @@ export const DebateView = ({
             <BarChart3 size={20} className={evaluationScore ? 'text-primary' : 'text-outline'} />
             <h2 className="text-base font-black font-headline">실시간 평가 지표</h2>
           </div>
-          {isLoadingScore ? (
+          {/* 로딩 중 + 이전 평가 보기 선택 → 배너만 표시 */}
+          {isLoadingScore && showPrevScoreWhileLoading && (
+            <div className="flex items-center gap-2 bg-blue-50 border border-primary/20 rounded-xl px-3 py-2">
+              <Loader2 size={13} className="animate-spin text-primary shrink-0" />
+              <div className="flex flex-col min-w-0">
+                <p className="text-[9px] font-bold text-primary">새 발언 평가 중...</p>
+                <p className="text-[10px] text-gray-600 truncate">{messages[lastUserMsgIdx]?.content}</p>
+              </div>
+            </div>
+          )}
+
+          {/* 로딩 중 + 전체 로딩 화면 */}
+          {isLoadingScore && !showPrevScoreWhileLoading ? (
             <div className="flex flex-col items-center justify-center gap-3 flex-1">
               <Loader2 size={28} className="animate-spin text-primary" />
               <p className="text-xs text-outline">점수를 계산하는 중...</p>
             </div>
+          ) : !isLoadingScore && !evaluationScore ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
+              <p className="text-xs text-outline">첫 발언 후 점수가 표시됩니다.</p>
+            </div>
           ) : evaluationScore ? (
             <>
+            {(viewingMsgIdx ?? lastUserMsgIdx) >= 0 && (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                  <p className="text-[11px] font-bold text-primary mb-1">평가 대상 발언</p>
+                  <p className="text-[10px] text-outline leading-relaxed line-clamp-2">
+                    {messages[viewingMsgIdx ?? lastUserMsgIdx]?.content}
+                  </p>
+                </div>
+              )}
               <div className="w-full">
                 <PentagonChart score={evaluationScore} />
               </div>
               <p className="text-[10px] text-outline text-center -mt-5 mb-1">지표 이름을 클릭하면 설명을 볼 수 있어요</p>
+              
               <AnimatePresence>
                 {activeTooltip !== null && (
                   <motion.div
@@ -780,11 +816,7 @@ export const DebateView = ({
                 ))}
               </div>
             </>
-          ) : (
-            <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
-              <p className="text-xs text-outline">첫 발언 후 점수가 표시됩니다.</p>
-            </div>
-          )}
+          ) : null}
         </div>
       </motion.aside>
 
@@ -873,6 +905,28 @@ export const DebateView = ({
                         </div>
                         <div className={`flex flex-col gap-1 md:gap-1.5 max-w-[82%] ${msg.role === 'user' ? 'items-end' : ''}`}>
                           <div className="flex items-center gap-2 px-1">
+                            {msg.role === 'user' && (!!evaluationScore || isLoadingScore) && idx !== lastUserMsgIdx && (
+                              <button
+                                onClick={() => { setIsScoreSidebarOpen(true); setShowPrevScoreWhileLoading(true); setViewingMsgIdx(idx); }}
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                              >
+                                <BarChart3 size={10} /> 평가 완료 · 보기
+                              </button>
+                            )}
+                            {msg.role === 'user' && idx === lastUserMsgIdx && (!!evaluationScore || isLoadingScore) && (
+                              isLoadingScore ? (
+                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-gray-100 text-outline">
+                                  <Loader2 size={9} className="animate-spin" /> 평가 중
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => { setIsScoreSidebarOpen(true); setViewingMsgIdx(idx); }}
+                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                >
+                                  <BarChart3 size={10} /> 평가 완료 · 보기
+                                </button>
+                              )
+                            )}
                             <span className="text-[10px] md:text-xs font-bold text-on-surface">
                               {msg.role === 'user' ? '나 (사용자)' : msg.agentName || 'AI 에이전트'}
                             </span>
