@@ -299,6 +299,9 @@ export default function App() {
         },
       ]);
 
+      // 메시지 추가 후 used 플래그 초기화 (다음 응답 전까지 하이라이트 해제)
+      setUsedMaterials([]);
+
       // 진행률 계산: 각 라운드는 에이전트 설명(+1) + 주장/반박/재반박(3) = 4스텝
       const totalSteps = totalRounds * 4;
       const completedSteps = (currentRound - 1) * 4 + 1 + speechTurn;
