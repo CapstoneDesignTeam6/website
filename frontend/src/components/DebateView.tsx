@@ -386,7 +386,8 @@ export const DebateView = ({
   }, []);
 
   useEffect(() => {
-    if (messages.length === 0) return;
+    const hasUserMessage = messages.some(m => m.role === 'user');
+    if (!hasUserMessage) return;
     const fetchScore = async () => {
       setIsLoadingScore(true);
       try {
