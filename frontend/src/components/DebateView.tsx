@@ -536,12 +536,9 @@ export const DebateView = ({
   // 3. [1], [2] 등 인라인 각주 번호 제거
   // 4. 참조문헌 섹션 제거 (에이전트 메시지)
   const preprocessContent = (content: string, isAgent = false): string => {
-    let processed = content
-      .replace(/\\n/g, '\n')
-      .replace(/^#{1,6}\s+.+$/gm, '')
-      .replace(/\[\d+\]/g, '');
+    let processed = content.replace(/\\n/g, '\n');
     if (isAgent) {
-      // extractRefSection과 동일한 줄 파싱으로 섹션 시작 위치를 찾아 잘라냄
+      // 헤더 제거 전에 참조문헌 섹션을 먼저 잘라냄 (헤더 제거 시 REF_HEADER_RE 매칭 불가 방지)
       const lines = processed.split('\n');
       let cutIdx = -1;
       for (let i = 0; i < lines.length; i++) {
@@ -553,6 +550,9 @@ export const DebateView = ({
       }
       if (cutIdx !== -1) processed = lines.slice(0, cutIdx).join('\n');
     }
+    processed = processed
+      .replace(/^#{1,6}\s+.+$/gm, '')
+      .replace(/\[\d+\]/g, '');
     return processed.trim();
   };
 
