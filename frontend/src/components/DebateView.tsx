@@ -387,7 +387,9 @@ export const DebateView = ({
 
   useEffect(() => {
     const hasUserMessage = messages.some(m => m.role === 'user');
-    if (!hasUserMessage) return;
+    if (!hasUserMessage || speechTurn === 0) return;
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role !== 'user') return;
     const fetchScore = async () => {
       setIsLoadingScore(true);
       try {
