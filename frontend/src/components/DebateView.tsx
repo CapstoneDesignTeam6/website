@@ -172,7 +172,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
   );
 };
 
-// 에이전트 메시지에서 참조문헌 섹션 텍스트 추출
+// 에이전트 메시지에서 참고 자료 섹션 텍스트 추출
 // "참고/참조/출처/source/ref/reference" 계열 단어가 들어간 줄을 헤더로 인식
 // 헤더와 내용이 같은 줄이거나 다음 줄에 오는 모든 형태를 처리
 const REF_HEADER_RE = /참고|참조|출처|레퍼런스|reference|source/i;
@@ -186,7 +186,7 @@ const extractRefSection = (content: string): string | null => {
     const stripped = line.replace(/^[#*\[\]\s]+|[#*\[\]\s]+$/g, '').trim();
     if (!REF_HEADER_RE.test(stripped) || stripped.length > 60) continue;
 
-    // 같은 줄에 헤더 뒤로 내용이 있는 경우 (예: [참조 문헌] URL1 URL2 / **참조문헌** 내용)
+    // 같은 줄에 헤더 뒤로 내용이 있는 경우 (예: [참고 자료] URL1 URL2 / **참고자료** 내용)
     // [헤더] 형태: ] 이후, **헤더** 형태: 마지막 ** 이후, 그 외: : 이후
     const inlineContent = line
       .replace(/^\[.*?\]\s*[:：]?\s*/, '')   // [헤더] 제거
@@ -215,7 +215,7 @@ const extractRefSection = (content: string): string | null => {
   return null;
 };
 
-// 참조문헌 섹션에서 URL 목록 추출
+// 참고자료 섹션에서 URL 목록 추출
 const extractReferencedUrls = (content: string): string[] => {
   const section = extractRefSection(content);
   console.log('[extractReferencedUrls] 섹션 매칭:', section ? '성공' : '실패');
@@ -226,7 +226,7 @@ const extractReferencedUrls = (content: string): string[] => {
   return urls;
 };
 
-// 참조문헌 섹션 전체 텍스트(서지정보 포함)와 자료 title을 매칭해 used 플래그 업데이트
+// 참고자료 섹션 전체 텍스트(서지정보 포함)와 자료 title을 매칭해 used 플래그 업데이트
 const matchReferencesToMaterials = (content: string, materials: RelatedMaterial[]): RelatedMaterial[] => {
   const section = extractRefSection(content);
   const urls = extractReferencedUrls(content);
@@ -422,7 +422,7 @@ export const DebateView = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discussionId]);
 
-  // 참조문헌 매칭 — 새 메시지가 추가되거나 자료 fetch 완료 시 재실행
+  // 참고자료 매칭 — 새 메시지가 추가되거나 자료 fetch 완료 시 재실행
   useEffect(() => {
     if (!hasFetchedMaterials || fetchedMaterialsRef.current.length === 0) return;
     const nonUserMessages = messages.filter(m => m.role !== 'user');
@@ -532,16 +532,16 @@ export const DebateView = ({
   // 1. \n 이스케이프 문자열을 실제 줄바꿈으로 변환 (백엔드/목데이터 혼용 대응)
   // 2. ## / ### 헤더 줄 제거
   // 3. [1], [2] 등 인라인 각주 번호 제거
-  // 4. 참조문헌 섹션 제거 (에이전트 메시지)
+  // 4. 참고자료 섹션 제거 (에이전트 메시지)
   const preprocessContent = (content: string, isAgent = false): string => {
     let processed = content.replace(/\\n/g, '\n');
     if (isAgent) {
-      // 헤더 제거 전에 참조문헌 섹션을 먼저 잘라냄 (헤더 제거 시 REF_HEADER_RE 매칭 불가 방지)
+      // 헤더 제거 전에 참고자료 섹션을 먼저 잘라냄 (헤더 제거 시 REF_HEADER_RE 매칭 불가 방지)
       const lines = processed.split('\n');
       let cutIdx = -1;
       for (let i = 0; i < lines.length; i++) {
         // 줄 앞쪽의 헤더 토큰([...], **...**, ###, 공백)만 제거한 뒤 REF_HEADER_RE 검사
-        // 헤더와 내용이 같은 줄에 있어도 (예: "[참조 문헌] 김민정...") 헤더 줄로 인식
+        // 헤더와 내용이 같은 줄에 있어도 (예: "[참고 자료] 김민정...") 헤더 줄로 인식
         const headerToken = lines[i].match(/^([#*\[\]\s]*(?:참고|참조|출처|레퍼런스|reference|source)[^\n:：]*[:：]?\s*)/i)?.[0] ?? '';
         if (headerToken.length > 0) {
           cutIdx = i;
@@ -1176,10 +1176,12 @@ export const DebateView = ({
         className="bg-white flex flex-col border-l border-gray-200 overflow-hidden relative md:flex order-last" // order-last로 우측 정렬
       >
         <div id="tutorial-materials-panel" className="p-6 flex flex-col gap-3 h-full w-90 overflow-y-auto custom-scrollbar">
-          <div className="flex items-center gap-2">
-            <FileText size={20} className="text-secondary" />
-            <h2 className="text-base font-black font-headline">관련 자료</h2>
-          </div>
+          {(!hasFetchedMaterials || relatedMaterials.length > 0 || isLoadingRelatedMaterials) && (
+            <div className="flex items-center gap-2">
+              <FileText size={20} className="text-secondary" />
+              <h2 className="text-base font-black font-headline">관련 자료</h2>
+            </div>
+          )}
 
           {isLoadingRelatedMaterials ? (
             <div className="flex flex-col items-center justify-center gap-4 h-full">
@@ -1227,11 +1229,11 @@ export const DebateView = ({
                 </article>
               ))}
             </div>
-          ) : ( // 관련 자료가 없을 때
-            <div className="text-center py-12 text-outline">
-              <p>관련 자료를 찾을 수 없습니다.</p> {/* 자료 없음 메시지 */}
+          ) : hasFetchedMaterials ? (
+            <div className="flex flex-col items-center justify-center gap-2 flex-1 text-center opacity-50">
+              <p className="text-xs text-outline">관련 자료 없음</p>
             </div>
-          )}
+          ) : null}
         </div>
       </motion.aside>
 
