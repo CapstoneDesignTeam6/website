@@ -21,6 +21,11 @@ import {
   CheckCircle2,
   XCircle,
   ArrowRight,
+  BookOpen,
+  MessageCircle,
+  RotateCcw,
+  Flag,
+  Info,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -42,7 +47,6 @@ interface DebateViewProps {
   progress?: number;
   discussionId: number;
   setFullScreenMode: (isFullScreen: boolean) => void;
-  usedMaterials?: string[];
   agentSteps?: AgentStep[];
   difficulty?: Difficulty;
   speechTurn?: number;
@@ -294,6 +298,196 @@ const matchReferencesToMaterials = (content: string, materials: RelatedMaterial[
   return result;
 };
 
+// ─── 토론 시작 안내 팝업 ────────────────────────────────────────────────────────
+
+const GUIDE_PAGES = [
+  {
+    title: '화면 사용 방법',
+    subtitle: '토론 화면의 주요 기능을 확인해보세요',
+    content: [
+      {
+        icon: BarChart3,
+        color: 'text-primary',
+        bgColor: 'bg-primary/10',
+        title: '실시간 평가 지표 (왼쪽 패널)',
+        desc: '내 발언이 끝날 때마다 AI가 구체성·인과 연결·도메인 폭·정보 자립도·개념 정확도 5가지 항목을 1~5점으로 채점합니다. 오각형 차트로 한눈에 확인하고, 항목 이름을 클릭하면 상세 이유를 볼 수 있어요.',
+      },
+      {
+        icon: FileText,
+        color: 'text-secondary',
+        bgColor: 'bg-secondary/10',
+        title: '관련 자료 (오른쪽 패널)',
+        desc: 'AI가 주장을 만들 때 참고한 자료가 자동으로 표시됩니다. "AI가 참고한 자료" 뱃지가 붙은 항목이 이번 발언에 활용된 자료예요. 제목을 클릭하면 원문 링크로 이동할 수 있습니다.',
+      },
+      {
+        icon: Brain,
+        color: 'text-purple-500',
+        bgColor: 'bg-purple-100',
+        title: '보조 에이전트 (우측 하단 버튼)',
+        desc: '반박·재반박 단계에서 막히면 우측 하단 도움말 버튼을 클릭하세요. "힌트 받기" 버튼을 누르면 AI가 현재 상황에 맞는 반박 또는 재반박 전략을 알려줍니다.',
+      },
+      {
+        icon: RefreshCw,
+        color: 'text-green-500',
+        bgColor: 'bg-green-100',
+        title: '기타 기능',
+        desc: '상단의 [다시 시작] 버튼으로 새 주제로 토론을 시작하거나, [토론 종료] 버튼으로 결과 리포트를 확인할 수 있어요. [전체 화면] 버튼으로 집중 모드로 전환할 수도 있습니다.',
+      },
+    ],
+  },
+  {
+    title: '토론 진행 방법',
+    subtitle: '라운드 구조와 발언 순서를 확인해보세요',
+    content: [
+      {
+        icon: Flag,
+        color: 'text-primary',
+        bgColor: 'bg-primary/10',
+        title: '전체 구조',
+        desc: '토론은 기본 2라운드로 진행됩니다. 각 라운드는 주장 → 반박 → 재반박 3단계로 이루어지며, 마지막 라운드가 끝나면 사후 퀴즈와 결과 리포트가 제공됩니다.',
+      },
+      {
+        icon: MessageCircle,
+        color: 'text-blue-500',
+        bgColor: 'bg-blue-100',
+        title: '1단계 · 주장',
+        desc: '내 입장과 근거를 자유롭게 제시하세요. 구체적인 수치나 사례를 들수록 평가 점수가 높아집니다. 경제·사회·환경 등 여러 관점을 함께 언급하면 더욱 좋습니다.',
+      },
+      {
+        icon: RotateCcw,
+        color: 'text-orange-500',
+        bgColor: 'bg-orange-100',
+        title: '2단계 · 반박',
+        desc: 'AI의 주장에서 논리적 오류나 한계를 찾아 반박하세요. 상대 주장이 적용되지 않는 예외 상황을 제시하거나, 새로운 근거를 추가하는 방식이 효과적입니다.',
+      },
+      {
+        icon: BookOpen,
+        color: 'text-teal-500',
+        bgColor: 'bg-teal-100',
+        title: '3단계 · 재반박',
+        desc: 'AI의 반박에 맞서 내 주장을 더욱 강화하세요. 상대 반박의 논리적 허점을 짚거나 새로운 사례를 추가해 입장을 보완합니다. 재반박이 끝나면 다음 라운드로 넘어갑니다.',
+      },
+    ],
+  },
+];
+
+const GuideModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
+  const [pageIndex, setPageIndex] = useState(0);
+  const page = GUIDE_PAGES[pageIndex];
+  const isFirst = pageIndex === 0;
+  const isLast = pageIndex === GUIDE_PAGES.length - 1;
+
+  useEffect(() => {
+    if (isOpen) setPageIndex(0);
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        >
+          <motion.div
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
+            initial={{ scale: 0.92, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.92, opacity: 0, y: 20 }}
+            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 헤더 */}
+            <div className="bg-primary px-8 pt-8 pb-6 text-white relative">
+              <button
+                onClick={onClose}
+                className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-white/20 transition-colors"
+              >
+                <X size={18} />
+              </button>
+              <div className="flex items-center gap-2 mb-2">
+                <Info size={16} className="text-white/70" />
+                <span className="text-xs font-bold text-white/70 uppercase tracking-widest">사용 가이드</span>
+              </div>
+              <h2 className="text-xl font-black">{page.title}</h2>
+              <p className="text-sm text-white/80 mt-1">{page.subtitle}</p>
+              {/* 페이지 인디케이터 */}
+              <div className="flex gap-1.5 mt-4">
+                {GUIDE_PAGES.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setPageIndex(i)}
+                    className={`h-1.5 rounded-full transition-all ${i === pageIndex ? 'w-6 bg-white' : 'w-1.5 bg-white/40'}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* 본문 */}
+            <div className="px-8 py-6 flex flex-col gap-4 max-h-[55vh] overflow-y-auto custom-scrollbar">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={pageIndex}
+                  initial={{ opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -16 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col gap-3"
+                >
+                  {page.content.map((item, i) => {
+                    const Icon = item.icon;
+                    return (
+                      <div key={i} className="flex gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
+                        <div className={`w-10 h-10 rounded-xl ${item.bgColor} flex items-center justify-center shrink-0`}>
+                          <Icon size={20} className={item.color} />
+                        </div>
+                        <div className="flex flex-col gap-1">
+                          <p className="text-sm font-black text-on-surface">{item.title}</p>
+                          <p className="text-xs text-outline leading-relaxed">{item.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* 푸터 */}
+            <div className="px-8 pb-8 flex items-center justify-between">
+              <button
+                onClick={() => setPageIndex(p => p - 1)}
+                disabled={isFirst}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-outline hover:text-on-surface hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft size={16} /> 이전
+              </button>
+              {isLast ? (
+                <button
+                  onClick={onClose}
+                  className="px-6 py-2 bg-primary text-white rounded-xl text-sm font-black hover:bg-primary/90 transition-colors"
+                >
+                  토론 시작하기
+                </button>
+              ) : (
+                <button
+                  onClick={() => setPageIndex(p => p + 1)}
+                  className="flex items-center gap-1.5 px-5 py-2 bg-primary text-white rounded-xl text-sm font-black hover:bg-primary/90 transition-colors"
+                >
+                  다음 <ChevronRight size={16} />
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
 export const DebateView = ({
   topic,
   messages,
@@ -305,7 +499,6 @@ export const DebateView = ({
   totalRounds = 2,
   progress = 25,
   discussionId,
-  usedMaterials,
   agentSteps,
   difficulty = 'normal',
   speechTurn = 1,
@@ -322,20 +515,25 @@ export const DebateView = ({
   const [inputText, setInputText] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [isScoreSidebarOpen, setIsScoreSidebarOpen] = useState(true);
+  const [evaluationScores, setEvaluationScores] = useState<Record<number, UserEvaluationScore>>({});
   const [evaluationScore, setEvaluationScore] = useState<UserEvaluationScore | null>(null);
   const [isLoadingScore, setIsLoadingScore] = useState(false);
+  const [showPrevScoreWhileLoading, setShowPrevScoreWhileLoading] = useState(false);
+  const [viewingMsgIdx, setViewingMsgIdx] = useState<number | null>(null);
   const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
   const [relatedMaterials, setRelatedMaterials] = useState<RelatedMaterial[]>([]); // 관련 자료 상태
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
-  const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([
-    { sender: 'bot', text: '어떤 도움이 필요하신가요? "반박 힌트" 또는 "재반박 힌트"를 눌러보세요.', timestamp: formatTime() }
-  ]);
+  const fetchedMaterialsRef = useRef<RelatedMaterial[]>([]); // fetch된 원본 자료 캐시
+  const [hasFetchedMaterials, setHasFetchedMaterials] = useState(false);
+  const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([]);
   const [isHintGenerating, setIsHintGenerating] = useState(false);
   const [isHelpOpen, setIsHelpOpen] = useState(false);
+  const chatbotScrollRef = useRef<HTMLDivElement>(null);
 
   const [chatbotSize, setChatbotSize] = useState({ width: 480, height: 350 });
   const [isFirstInput, setIsFirstInput] = useState(true);
   const [placeholder, setPlaceholder] = useState('');
+  const [isGuideOpen, setIsGuideOpen] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -356,10 +554,44 @@ export const DebateView = ({
   }, [navigate]);
 
   const SPEECH_GUIDE: Record<number, string> = {
-    1: '💡 주장: 주제에 대한 나의 입장과 근거를 제시해주세요',
-    2: '✅ 반박: 에이전트의 주장에 반박해주세요',
-    3: '🔄️ 재반박: 에이전트의 반박에 맞서 나의 주장을 강화해주세요',
+    1: `📢 **주장 단계입니다.** 나의 입장과 근거를 이야기해주세요. 💡 **도움말**  • 구체적인 사례나 수치를 제시해보세요. • 경제·사회·환경 등 여러 측면을 함께 언급해보세요.`, 
+    2: `✅ **반박 단계입니다.** 상대방 주장 속 논리적 오류를 짚어 반박해주세요. 💡 **도움말** • 상대방 주장이 적용되지 않는 특수한 상황이나 예외적인 사례를 설명해보세요. • 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요. `, 
+    3: `🔄 **재반박 단계입니다.** 상대방 반박의 논리적 모순이나 근거 오류를 제시하여 나의 주장을 더 보완해보세요. 💡 **도움말**  • 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요. • 주장을 뒷받침하는 새로운 사례나 이유를 추가해보세요.  `,
   };
+
+  // speechTurn 변화 시 챗봇 자동 팝업 (speechGuide + 힌트 질문)
+  useEffect(() => {
+    if (debatePhase !== 'debating') return;
+
+    const guideText = SPEECH_GUIDE[speechTurn];
+    if (!guideText) return;
+
+    // speechGuide 메시지 추가
+    const newMsgs: Array<{ sender: 'user' | 'bot'; text: string; timestamp: string }> = [
+      { sender: 'bot', text: guideText, timestamp: formatTime() },
+    ];
+
+    // 반박(speechTurn==2) 또는 재반박(speechTurn==3) 타이밍에 힌트 질문 추가
+    if (speechTurn === 2 || speechTurn === 3) {
+      const hintLabel = speechTurn === 2 ? '반박' : '재반박';
+      newMsgs.push({
+        sender: 'bot',
+        text: `💬 **${hintLabel} 힌트**가 필요하신가요?\n아래 버튼을 눌러 AI의 도움을 받아보세요!`,
+        timestamp: formatTime(),
+      });
+    }
+
+    setChatbotMessages(msgs => [...msgs, ...newMsgs]);
+    setIsHelpOpen(true);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [speechTurn, debatePhase]);
+
+  // 챗봇 메시지 추가 시 자동 스크롤
+  useEffect(() => {
+    if (chatbotScrollRef.current) {
+      chatbotScrollRef.current.scrollTop = chatbotScrollRef.current.scrollHeight;
+    }
+  }, [chatbotMessages]);
 
   useEffect(() => {
     setPlaceholder("Ctrl + Enter를 눌러 의견을 제출해주세요.");
@@ -384,12 +616,19 @@ export const DebateView = ({
   }, []);
 
   useEffect(() => {
-    if (messages.length === 0) return;
+    const hasUserMessage = messages.some(m => m.role === 'user');
+    if (!hasUserMessage || speechTurn === 0) return;
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage?.role !== 'user') return;
+    const msgIdx = messages.length - 1;
     const fetchScore = async () => {
       setIsLoadingScore(true);
+      setShowPrevScoreWhileLoading(false);
       try {
         const score = await debateApi.getUserEvaluation(discussionId, topic);
+        setEvaluationScores(prev => ({ ...prev, [msgIdx]: score }));
         setEvaluationScore(score);
+        setViewingMsgIdx(msgIdx);
       } catch (_) {
       } finally {
         setIsLoadingScore(false);
@@ -398,57 +637,40 @@ export const DebateView = ({
     fetchScore();
   }, [messages.length, discussionId]);
 
-  // 관련 자료 fetch + 참조문헌 매칭을 한 번에 처리
-  // messages.length를 트리거로 사용 — 어떤 메시지(turn=0 포함)가 추가돼도 재실행
+  // 관련 자료 fetch — discussionId 확정 시 최초 1회만 실행
   useEffect(() => {
-    if (!discussionId) return;
-    const fetchAndMatch = async () => {
+    if (!discussionId || hasFetchedMaterials) return;
+    const fetchMaterials = async () => {
       setIsLoadingRelatedMaterials(true);
       try {
-        const data = await debateApi.getRelatedMaterials(topic, discussionId || null);
-        // fetch 완료 후 현재 messages 기준으로 참조문헌 매칭
-        const nonUserMessages = messages.filter(m => m.role !== 'user');
-        console.log('[fetchAndMatch] messages 전체:', messages.map(m => ({ role: m.role, turn: m.turn })));
-        console.log('[fetchAndMatch] 비사용자 메시지 수:', nonUserMessages.length, '| 자료 수:', data.length);
-        // 메시지별로 순차 매칭 (각 content에서 섹션 추출 후 매칭)
-        const matched = nonUserMessages.reduce(
-          (acc, m) => matchReferencesToMaterials(m.content, acc),
-          data
-        );
-        const used = matched.filter(m => m.used);
-        const unused = matched.filter(m => !m.used);
-        setRelatedMaterials([...used, ...unused]);
+        const data = await debateApi.getRelatedMaterials(topic, discussionId);
+        fetchedMaterialsRef.current = data;
+        setHasFetchedMaterials(true);
+        setRelatedMaterials(data);
       } catch (error) {
         console.error("Failed to fetch related materials:", error);
       } finally {
         setIsLoadingRelatedMaterials(false);
       }
     };
-    fetchAndMatch();
+    fetchMaterials();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topic, discussionId, messages.length]);
+  }, [discussionId]);
 
-  // 현재 생성된 메시지의 참조 자료만 used=true로 표시
-  // usedMaterials가 새로 들어오면: 이전 used 초기화 후 현재 응답 기준으로 재설정
-  // usedMaterials가 빈 배열로 초기화되면: used 전체 초기화 (메시지 추가 후 App.tsx에서 reset 시)
-  const prevUsedMaterialsRef = useRef<string[]>([]);
+  // 참조문헌 매칭 — 새 메시지가 추가되거나 자료 fetch 완료 시 재실행
   useEffect(() => {
-    const prev = prevUsedMaterialsRef.current;
-    const cur = usedMaterials ?? [];
-    prevUsedMaterialsRef.current = cur;
-
-    if (cur.length === 0) {
-      // App.tsx에서 빈 배열로 리셋 → used 전체 초기화
-      if (prev.length > 0) {
-        setRelatedMaterials(p => p.map(m => ({ ...m, used: false })));
-      }
-      return;
-    }
-    const usedUrls = new Set(cur.filter(url => !!url));
-    setRelatedMaterials(p =>
-      p.map(m => ({ ...m, used: !!(m.url && usedUrls.has(m.url)) }))
+    if (!hasFetchedMaterials || fetchedMaterialsRef.current.length === 0) return;
+    const nonUserMessages = messages.filter(m => m.role !== 'user');
+    const matched = nonUserMessages.reduce(
+      (acc, m) => matchReferencesToMaterials(m.content, acc),
+      fetchedMaterialsRef.current
     );
-  }, [usedMaterials]);
+    const used = matched.filter(m => m.used);
+    const unused = matched.filter(m => !m.used);
+    setRelatedMaterials([...used, ...unused]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, hasFetchedMaterials]);
+
 
 
   const prevMessageCountRef = useRef(0);
@@ -553,8 +775,10 @@ export const DebateView = ({
       const lines = processed.split('\n');
       let cutIdx = -1;
       for (let i = 0; i < lines.length; i++) {
-        const stripped = lines[i].replace(/^[#*\[\]\s]+|[#*\[\]\s]+$/g, '').trim();
-        if (REF_HEADER_RE.test(stripped) && stripped.length <= 60) {
+        // 줄 앞쪽의 헤더 토큰([...], **...**, ###, 공백)만 제거한 뒤 REF_HEADER_RE 검사
+        // 헤더와 내용이 같은 줄에 있어도 (예: "[참조 문헌] 김민정...") 헤더 줄로 인식
+        const headerToken = lines[i].match(/^([#*\[\]\s]*(?:참고|참조|출처|레퍼런스|reference|source)[^\n:：]*[:：]?\s*)/i)?.[0] ?? '';
+        if (headerToken.length > 0) {
           cutIdx = i;
           break;
         }
@@ -627,6 +851,14 @@ export const DebateView = ({
   ];
 
   const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
+
+  // 가장 마지막 사용자 메시지 인덱스
+  const lastUserMsgIdx = React.useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') return i;
+    }
+    return -1;
+  }, [messages]);
 
   const PentagonChart = ({ score }: { score: UserEvaluationScore }) => {
     const size = 240;
@@ -710,6 +942,7 @@ export const DebateView = ({
 
   return (
     <div className={`flex ${isFullScreen ? 'h-screen' : 'h-[calc(100vh-72px)]'} overflow-hidden relative`}>
+      <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
       {/* Left Sidebar: 실시간 평가 점수 */}
       <motion.aside
         initial={false}
@@ -721,17 +954,42 @@ export const DebateView = ({
             <BarChart3 size={20} className={evaluationScore ? 'text-primary' : 'text-outline'} />
             <h2 className="text-base font-black font-headline">실시간 평가 지표</h2>
           </div>
-          {isLoadingScore ? (
+          {/* 로딩 중 + 이전 평가 보기 선택 → 배너만 표시 */}
+          {isLoadingScore && showPrevScoreWhileLoading && (
+            <div className="flex items-center gap-2 bg-blue-50 border border-primary/20 rounded-xl px-3 py-2">
+              <Loader2 size={13} className="animate-spin text-primary shrink-0" />
+              <div className="flex flex-col min-w-0">
+                <p className="text-[9px] font-bold text-primary">새 발언 평가 중...</p>
+                <p className="text-[10px] text-gray-600 truncate">{messages[lastUserMsgIdx]?.content}</p>
+              </div>
+            </div>
+          )}
+
+          {/* 로딩 중 + 전체 로딩 화면 */}
+          {isLoadingScore && !showPrevScoreWhileLoading ? (
             <div className="flex flex-col items-center justify-center gap-3 flex-1">
               <Loader2 size={28} className="animate-spin text-primary" />
               <p className="text-xs text-outline">점수를 계산하는 중...</p>
             </div>
+          ) : !isLoadingScore && !evaluationScore ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
+              <p className="text-xs text-outline">첫 발언 후 점수가 표시됩니다.</p>
+            </div>
           ) : evaluationScore ? (
             <>
+            {(viewingMsgIdx ?? lastUserMsgIdx) >= 0 && (
+                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                  <p className="text-[11px] font-bold text-primary mb-1">평가 대상 발언</p>
+                  <p className="text-[10px] text-outline leading-relaxed line-clamp-2">
+                    {messages[viewingMsgIdx ?? lastUserMsgIdx]?.content}
+                  </p>
+                </div>
+              )}
               <div className="w-full">
                 <PentagonChart score={evaluationScore} />
               </div>
               <p className="text-[10px] text-outline text-center -mt-5 mb-1">지표 이름을 클릭하면 설명을 볼 수 있어요</p>
+              
               <AnimatePresence>
                 {activeTooltip !== null && (
                   <motion.div
@@ -771,11 +1029,7 @@ export const DebateView = ({
                 ))}
               </div>
             </>
-          ) : (
-            <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
-              <p className="text-xs text-outline">첫 발언 후 점수가 표시됩니다.</p>
-            </div>
-          )}
+          ) : null}
         </div>
       </motion.aside>
 
@@ -864,6 +1118,28 @@ export const DebateView = ({
                         </div>
                         <div className={`flex flex-col gap-1 md:gap-1.5 max-w-[82%] ${msg.role === 'user' ? 'items-end' : ''}`}>
                           <div className="flex items-center gap-2 px-1">
+                            {msg.role === 'user' && evaluationScores[idx] && idx !== lastUserMsgIdx && (
+                              <button
+                                onClick={() => { setIsScoreSidebarOpen(true); setShowPrevScoreWhileLoading(false); setViewingMsgIdx(idx); setEvaluationScore(evaluationScores[idx]); }}
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                              >
+                                <BarChart3 size={10} /> 평가 완료 · 보기
+                              </button>
+                            )}
+                            {msg.role === 'user' && idx === lastUserMsgIdx && (!!evaluationScores[idx] || isLoadingScore) && (
+                              isLoadingScore ? (
+                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-gray-100 text-outline">
+                                  <Loader2 size={9} className="animate-spin" /> 평가 중
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={() => { setIsScoreSidebarOpen(true); setViewingMsgIdx(idx); setEvaluationScore(evaluationScores[idx]); }}
+                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                >
+                                  <BarChart3 size={10} /> 평가 완료 · 보기
+                                </button>
+                              )
+                            )}
                             <span className="text-[10px] md:text-xs font-bold text-on-surface">
                               {msg.role === 'user' ? '나 (사용자)' : msg.agentName || 'AI 에이전트'}
                             </span>
@@ -976,11 +1252,6 @@ export const DebateView = ({
               </div>
             ) : (
               <>
-                <div className="px-1 py-2">
-                  <span className="text-xs font-bold text-primary flex items-center gap-2">
-                    {SPEECH_GUIDE[speechTurn]}
-                  </span>
-                </div>
                 <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 gap-2">
                   <textarea
                     ref={textareaRef}
@@ -1014,7 +1285,7 @@ export const DebateView = ({
 
         {/* 챗봇 플로팅 버튼 & 팝업 — debating 단계에서만 표시 */}
         {debatePhase === 'debating' && (
-        <div className="absolute bottom-6 right-6 z-60 flex flex-col items-end gap-4">
+        <div className="absolute bottom-6 right-6 z-60 flex flex-col items-end gap-4 pointer-events-none">
           <AnimatePresence>
             {isHelpOpen && (
               <motion.div
@@ -1022,7 +1293,7 @@ export const DebateView = ({
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.8, y: 20 }}
                 style={{ width: chatbotSize.width, height: chatbotSize.height }}
-                className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col mb-2 relative"
+                className="bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden flex flex-col mb-2 relative pointer-events-auto"
               >
                 {/* 드래그 핸들 (좌상단 모서리) */}
                 <div
@@ -1063,7 +1334,7 @@ export const DebateView = ({
                     <X size={20} />
                   </button>
                 </div>
-                <div className="flex-1 p-4 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col gap-2 custom-scrollbar">
+                <div ref={chatbotScrollRef} className="flex-1 p-4 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col gap-2 custom-scrollbar">
                   {chatbotMessages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`max-w-[80%] p-2 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
@@ -1093,29 +1364,28 @@ export const DebateView = ({
                     </div>
                   )}
                 </div>
-                <div className="p-3 border-t border-gray-100 bg-white flex gap-2 shrink-0">
-                  <button
-                    onClick={() => handleHintRequest('반박 힌트')}
-                    disabled={isHintGenerating}
-                    className="flex-1 text-xs py-2 px-3 bg-primary/10 text-primary font-bold rounded-xl hover:bg-primary/20 transition-colors disabled:opacity-50"
-                  >
-                    반박 힌트
-                  </button>
-                  <button
-                    onClick={() => handleHintRequest('재반박 힌트')}
-                    disabled={isHintGenerating}
-                    className="flex-1 text-xs py-2 px-3 bg-secondary/10 text-secondary font-bold rounded-xl hover:bg-secondary/20 transition-colors disabled:opacity-50"
-                  >
-                    재반박 힌트
-                  </button>
-                </div>
+                {(speechTurn === 2 || speechTurn === 3) && (
+                  <div className="p-3 border-t border-gray-100 bg-white shrink-0">
+                    <button
+                      onClick={() => handleHintRequest(speechTurn === 2 ? '반박 힌트' : '재반박 힌트')}
+                      disabled={isHintGenerating}
+                      className={`w-full text-xs py-2 px-3 font-bold rounded-xl transition-colors disabled:opacity-50 bg-primary/10 text-primary hover:bg-primary/20`}
+                    >
+                      {isHintGenerating ? (
+                        <span className="flex items-center justify-center gap-1"><Loader2 size={13} className="animate-spin" /> 힌트 생성 중...</span>
+                      ) : (
+                        `${speechTurn === 2 ? '반박' : '재반박'} 힌트 받기`
+                      )}
+                    </button>
+                  </div>
+                )}
               </motion.div>
             )}
           </AnimatePresence>
 
           <button
             onClick={() => setIsHelpOpen(!isHelpOpen)}
-            className="w-12 h-12 md:w-14 md:h-14 bg-transparent border-none flex items-center justify-center overflow-hidden hover:scale-110 transition-transform"
+            className="w-12 h-12 md:w-14 md:h-14 bg-transparent border-none flex items-center justify-center overflow-hidden hover:scale-110 transition-transform pointer-events-auto"
           >
             <img
               src="/help_icon.png"
@@ -1152,7 +1422,7 @@ export const DebateView = ({
                 <article key={i} className={`flex flex-col gap-2 bg-white rounded-2xl border p-5 card-hover ${material.used ? 'border-primary/40 ring-1 ring-primary/20' : 'border-gray-100'}`}>
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-bold ${material.color}`}>{material.category}</span>
-                    {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">AI가 참조한 자료</span>}
+                    {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">AI가 참고한 자료</span>}
                   </div>
                   <h3 className="text-sm font-bold leading-tight">{material.title}</h3>
                   {material.description && (
