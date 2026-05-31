@@ -48,6 +48,7 @@ interface DebateViewProps {
   discussionId: number;
   setFullScreenMode: (isFullScreen: boolean) => void;
   agentSteps?: AgentStep[];
+  agentLog?: string[];
   difficulty?: Difficulty;
   speechTurn?: number;
   waitingForContinue?: boolean;
@@ -68,6 +69,13 @@ const STEP_META: Record<string, { icon: React.ElementType; label: string; desc: 
   search:       { icon: Search,    label: '자료 탐색',      desc: '관련 자료 검색 중' },
   generate:     { icon: Brain,     label: '주장 생성',      desc: '논거 구성 중' },
   simplify:     { icon: Lightbulb, label: '난이도 조정',    desc: '표현 변환 중' },
+};
+
+// generate 타입은 agent_id에 따라 라벨/설명이 달라짐 (1=주장, 2=설명, 3=반박)
+const AGENT_LABEL: Record<number, { label: string; desc: string }> = {
+  1: { label: '주장 생성', desc: '논거 구성 중' },
+  2: { label: '주제 설명', desc: '배경 정리 중' },
+  3: { label: '반박 생성', desc: '반론 구성 중' },
 };
 
 const NORMAL_STEP_KEYS = ['orchestrator', 'search', 'generate'];
@@ -129,14 +137,20 @@ const InstructionScroller = ({ text }: { text: string }) => {
   );
 };
 
-const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agentSteps?: AgentStep[] }) => {
+const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: boolean; agentSteps?: AgentStep[]; agentLog?: string[] }) => {
   const backendSteps = agentSteps && agentSteps.length > 0
     ? agentSteps.map(s => {
         const meta = STEP_META[s.step] ?? { icon: Bot, label: s.step, desc: '' };
+        // generate 타입은 agent_id로 라벨/설명을 세분화 (1=주장, 2=설명, 3=반박)
+        const agentMeta = s.step === 'generate' && s.data?.agent_id != null
+          ? AGENT_LABEL[s.data.agent_id]
+          : undefined;
+        const label = agentMeta?.label ?? meta.label;
+        const progressDesc = s.data?.workspace_summary || agentMeta?.desc || meta.desc;
         return {
           icon:   meta.icon,
-          label:  meta.label,
-          desc:   s.data?.workspace_summary || meta.desc,
+          label,
+          desc:   progressDesc,
           status: s.status,
           data:   s.data,
         };
@@ -216,7 +230,26 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
           </motion.div>
           <span className="text-[11px] text-outline">{steps[activeStep]?.desc ?? ''}</span>
         </div>
-        {activeStepData?.instruction && (
+        {/* 현재 단계의 실시간 서버 로그 누적 표시 (단계 전환 시 초기화됨) */}
+        {agentLog && agentLog.length > 0 && (
+          <div className="flex flex-col gap-1 px-1 pt-1">
+            <AnimatePresence initial={false}>
+              {agentLog.map((line, i) => (
+                <motion.span
+                  key={`${i}-${line}`}
+                  className="text-[10px] text-gray-400 leading-relaxed font-mono"
+                  initial={{ opacity: 0, x: -4 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  {line}
+                </motion.span>
+              ))}
+            </AnimatePresence>
+          </div>
+        )}
+        {!agentLog?.length && activeStepData?.instruction && (
           <InstructionScroller text={activeStepData.instruction} />
         )}
       </div>
@@ -500,6 +533,7 @@ export const DebateView = ({
   progress = 25,
   discussionId,
   agentSteps,
+  agentLog,
   difficulty = 'normal',
   speechTurn = 1,
   waitingForContinue = false,
@@ -637,11 +671,11 @@ export const DebateView = ({
     fetchScore();
   }, [messages.length, discussionId]);
 
-  // 관련 자료 fetch — discussionId 확정 시 최초 1회만 실행
+  // 관련 자료 fetch — AI 응답이 추가될 때마다 갱신 (에이전트가 매 턴 새 자료를 저장하므로)
+  const aiMessageCount = messages.filter(m => m.role !== 'user').length;
   useEffect(() => {
-    if (!discussionId || hasFetchedMaterials) return;
+    if (!discussionId) return;
     const fetchMaterials = async () => {
-      setIsLoadingRelatedMaterials(true);
       try {
         const data = await debateApi.getRelatedMaterials(topic, discussionId);
         fetchedMaterialsRef.current = data;
@@ -655,7 +689,7 @@ export const DebateView = ({
     };
     fetchMaterials();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [discussionId]);
+  }, [discussionId, aiMessageCount]);
 
   // 참조문헌 매칭 — 새 메시지가 추가되거나 자료 fetch 완료 시 재실행
   useEffect(() => {
@@ -1085,7 +1119,7 @@ export const DebateView = ({
 
           {/* ── intro 단계: turn=0 로딩 스피너 ── */}
           {debatePhase === 'intro' && isGenerating && (
-            <AgentThinkingIndicator isEasy={difficulty === 'easy'} agentSteps={agentSteps} />
+            <AgentThinkingIndicator isEasy={difficulty === 'easy'} agentSteps={agentSteps} agentLog={agentLog} />
           )}
 
           {/* ── 메시지 목록: intro / pre-quiz / debating / post-quiz 모두 표시 ── */}
@@ -1211,7 +1245,7 @@ export const DebateView = ({
               )}
 
               {isGenerating && debatePhase === 'debating' && (
-                <AgentThinkingIndicator isEasy={difficulty === 'easy'} agentSteps={agentSteps} />
+                <AgentThinkingIndicator isEasy={difficulty === 'easy'} agentSteps={agentSteps} agentLog={agentLog} />
               )}
             </>
           )}

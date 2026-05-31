@@ -103,6 +103,7 @@ export const debateApi = {
     difficulty?: DebateMessage['difficulty'],
     turn?: DebateMessage['turn'],
     onStep?: (step: AgentStep) => void,
+    onLog?: (message: string) => void,
   ): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: string[]; agent_steps?: AgentStep[] }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
@@ -139,6 +140,8 @@ export const debateApi = {
               const step: AgentStep = { step: event.step, status: event.status, data: event.data };
               steps.push(step);
               onStep?.(step);
+            } else if (event.type === 'log') {
+              onLog?.(event.message);
             } else if (event.type === 'result') {
               result = {
                 userSide: event.userSide,

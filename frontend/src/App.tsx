@@ -129,19 +129,25 @@ export default function App() {
     // 1단계: turn=0 주제 요약 메시지 먼저 요청
     setIsGenerating(true);
     setAgentSteps([]);
+    setAgentLog([]);
     try {
       console.log('[sendMessage] topic:', topic);
       const data = await debateApi.sendMessage(
         topic, `${topic}에 대해 설명해주세요. 주제의 정의, 배경, 주요 쟁점을 알려주세요.`, [], null, undefined, 0,
-        (step) => setAgentSteps(prev => {
-          const idx = prev.findIndex(s => s.step === step.step);
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = step;
-            return next;
-          }
-          return [...prev, step];
-        }),
+        (step) => {
+          // 새 단계(running)로 진입하면 이전 단계의 로그를 비움
+          if (step.status === 'running') setAgentLog([]);
+          setAgentSteps(prev => {
+            const idx = prev.findIndex(s => s.step === step.step);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = step;
+              return next;
+            }
+            return [...prev, step];
+          });
+        },
+        (msg) => setAgentLog(prev => [...prev, msg]),
       );
       const initialMsg: DebateMessage = { ...data.aiResponse, turn: 0, round: 1 };
       setMessages([initialMsg]);
@@ -173,6 +179,7 @@ export default function App() {
   const [fullScreenMode, setFullScreenMode] = useState(false);
   const [discussionId, setDiscussionId] = useState<number | null>(null);
   const [agentSteps, setAgentSteps] = useState<AgentStep[]>([]);
+  const [agentLog, setAgentLog] = useState<string[]>([]);
 
   /**
    * 발언 단계(speechTurn)를 API turn 값으로 변환
@@ -244,17 +251,23 @@ export default function App() {
       };
       setMessages((prev) => [...prev, userMsg]);
 
+      setAgentLog([]);
       const data = await debateApi.sendMessage(
         topic, text, messages, discussionId, difficulty, currentTurn,
-        (step) => setAgentSteps(prev => {
-          const idx = prev.findIndex(s => s.step === step.step);
-          if (idx >= 0) {
-            const next = [...prev];
-            next[idx] = step;
-            return next;
-          }
-          return [...prev, step];
-        }),
+        (step) => {
+          // 새 단계(running)로 진입하면 이전 단계의 로그를 비움
+          if (step.status === 'running') setAgentLog([]);
+          setAgentSteps(prev => {
+            const idx = prev.findIndex(s => s.step === step.step);
+            if (idx >= 0) {
+              const next = [...prev];
+              next[idx] = step;
+              return next;
+            }
+            return [...prev, step];
+          });
+        },
+        (msg) => setAgentLog(prev => [...prev, msg]),
       );
 
       if (data.agent_steps && data.agent_steps.length > 0) {
@@ -430,6 +443,7 @@ export default function App() {
                       discussionId={discussionId ?? 0}
                       setFullScreenMode={setFullScreenMode}
                       agentSteps={agentSteps}
+                      agentLog={agentLog}
                       difficulty={difficulty}
                       speechTurn={speechTurn}
                       waitingForContinue={waitingForContinue}

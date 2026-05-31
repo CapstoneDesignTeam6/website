@@ -122,6 +122,12 @@ def _emit(event: dict) -> None:
         q.put(event)
 
 
+def _log(message: str) -> None:
+    """서버 콘솔 출력 + SSE log 이벤트 동시 발송."""
+    print(message)
+    _emit({"type": "log", "message": message})
+
+
 def set_event_queue(discussion_id, q: _queue_module.Queue) -> None:
     _event_queues[str(discussion_id or "local")] = q
 
@@ -274,6 +280,7 @@ def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", di
         "json_info": restored_json_info,
         "stage": stage_str,
         "refutation_turn": 0,
+        "now_turn": now_turn,   # 실제 대화 턴 번호 (DB 저장용)
     }
     return run_step(context)
 
@@ -316,6 +323,7 @@ def make_json_file(filename: str, input_json: dict, output_json: dict) -> dict:
         'json_info': json_info_accumulated,
         'stage': input_json.get("stage", "normal"),
         'refutation_turn': refutation_turn,
+        'now_turn': input_json.get("now_turn", 0),
         'next_agent_id': output_json.get("next_agent_id", "no_next_agent_id"),
         'instruction': output_json.get("instruction", "no_instruction"),
         'reference': output_json.get("reference", []),
@@ -378,16 +386,16 @@ def run_explorer_agent(input_json_str):
     instruction = input_data.get("instruction", "")
     json_info = input_data.get("json_info", {})
     discussion_id = input_data.get("discussion_id")
-    turn_number = input_data.get("refutation_turn", 0)
+    turn_number = input_data.get("now_turn", 0)
     topic = input_data.get("topic", "")
     user_input = input_data.get("user_input", "")
 
-    print(f"🔍 [Agent 0] 주제 분석 및 쿼리 생성 중: {topic}")
+    _log(f"🔍 [Agent 0] 주제 분석 및 쿼리 생성 중: {topic}")
 
     chain = info_query_prompt | llm | JsonOutputParser()
     generated = chain.invoke({"topic": topic, "current_time": current_time, "instruction": instruction})
 
-    print(f"✅ [Agent 0] 쿼리 생성 완료. 총 {len(generated['queries'])}개의 쿼리가 생성되었습니다.")
+    _log(f"✅ [Agent 0] 쿼리 생성 완료. 총 {len(generated['queries'])}개의 쿼리가 생성되었습니다.")
     search_queries = [q['query'] for q in generated['queries']]
     collected_documents = []
     _sb_agent0 = None
@@ -399,7 +407,7 @@ def run_explorer_agent(input_json_str):
             print(f"⚠️ [Agent 0] Supabase 연결 실패: {e}")
 
     for q in search_queries:
-        print(f"🌐 [Agent 0] 검색 수행: {q}")
+        _log(f"🌐 [Agent 0] 검색 수행: {q}")
         search_response = search_tool.invoke({"query": q})
 
         if isinstance(search_response, dict) and "results" in search_response:
@@ -435,7 +443,7 @@ def run_explorer_agent(input_json_str):
                 except Exception:
                     pass  # 중복 등 개별 실패는 무시
 
-    print(f"💾 [Agent 0] 검색 결과 {len(collected_documents)}건 저장 완료")
+    _log(f"💾 [Agent 0] 검색 결과 {len(collected_documents)}건 저장 완료")
 
     input_json = {
         "discussion_id": discussion_id,
@@ -446,6 +454,7 @@ def run_explorer_agent(input_json_str):
         "json_info": json_info,
         "stage": input_data.get("stage", "normal"),
         "refutation_turn": input_data.get("refutation_turn", 0),
+        "now_turn": input_data.get("now_turn", 0),
     }
     _emit({"type": "step", "step": "search", "status": "done",
            "data": {"agent_id": 0,
@@ -462,7 +471,7 @@ def make_refute_agent(input_json_str):
     user_input = input_data.get("user_input", "")
     discussion_id = input_data.get("discussion_id")
 
-    print(f"⚔️ [Agent 3] 반론 생성 중: {topic}")
+    _log(f"⚔️ [Agent 3] 반론 생성 중: {topic}")
 
     formatted_docs = _format_reference_docs(reference)
 
@@ -522,7 +531,7 @@ def make_refute_agent(input_json_str):
 
     response = llm.invoke(refute_prompt)
     result = response.content
-    print(f"✅ [Agent 3] 반론 생성 완료.")
+    _log(f"✅ [Agent 3] 반론 생성 완료.")
 
     output_json = {
         "discussion_id": discussion_id,
@@ -533,6 +542,7 @@ def make_refute_agent(input_json_str):
         "json_info": json_info,
         "stage": input_data.get("stage", "normal"),
         "refutation_turn": input_data.get("refutation_turn", 0),
+        "now_turn": input_data.get("now_turn", 0),
     }
     _emit({"type": "step", "step": "generate", "status": "done",
            "data": {"agent_id": 3, "workspace_summary": "반론 생성 완료"}})
@@ -547,10 +557,10 @@ def make_topic_explanation_agent(input_json_str):
     user_input = input_data.get("user_input", "")
     reference = input_data.get("reference", [])
     discussion_id = input_data.get("discussion_id")
-    turn_number = input_data.get("refutation_turn", 0)
+    turn_number = input_data.get("now_turn", 0)
 
 
-    print(f"📖 [Agent 2] 주제 배경 및 정보 수집 중: {topic}")
+    _log(f"📖 [Agent 2] 주제 배경 및 정보 수집 중: {topic}")
 
     # reference 자료가 없을 때만 자체 검색 수행 (fallback)
     has_reference = bool(reference)
@@ -652,7 +662,7 @@ def make_topic_explanation_agent(input_json_str):
 
     response = llm.invoke(explanation_prompt)
     result = response.content
-    print(f"✅ [Agent 2] 주제 설명 생성 완료.")
+    _log(f"✅ [Agent 2] 주제 설명 생성 완료.")
 
     output_json = {
         "discussion_id": discussion_id,
@@ -663,6 +673,7 @@ def make_topic_explanation_agent(input_json_str):
         "json_info": json_info,
         "stage": input_data.get("stage", "normal"),
         "refutation_turn": input_data.get("refutation_turn", 0),
+        "now_turn": input_data.get("now_turn", 0),
     }
     _emit({"type": "step", "step": "generate", "status": "done",
            "data": {"agent_id": 2, "workspace_summary": "주제 설명 생성 완료"}})
@@ -676,7 +687,7 @@ def make_opinion_agent(input_json_str):
     reference = input_data.get("reference", [])
     discussion_id = input_data.get("discussion_id")
 
-    print(f"🔍 [Agent 1] 주장 생성 중: {topic}")
+    _log(f"🔍 [Agent 1] 주장 생성 중: {topic}")
 
     formatted_docs = _format_reference_docs(reference)
 
@@ -773,6 +784,7 @@ def make_opinion_agent(input_json_str):
         "json_info": json_info,
         "stage": input_data.get("stage", "normal"),
         "refutation_turn": input_data.get("refutation_turn", 0),
+        "now_turn": input_data.get("now_turn", 0),
     }
     return run_step(input_json)
 
@@ -786,9 +798,9 @@ def simplify_output_agent(input_json_str):
     reference = input_data.get("reference", [])
     stage = input_data.get("stage", "easy")
     discussion_id = input_data.get("discussion_id")
-    turn_number = input_data.get("refutation_turn", 0)
+    turn_number = input_data.get("now_turn", 0)
 
-    print(f"✏️ [Agent 4] 쉬운 설명으로 변환 중: {topic}")
+    _log(f"✏️ [Agent 4] 쉬운 설명으로 변환 중: {topic}")
 
     formatted_docs = _format_reference_docs(reference)
 
@@ -822,7 +834,7 @@ def simplify_output_agent(input_json_str):
 
     response = llm.invoke(simplify_prompt)
     result = response.content
-    print(f"✅ [Agent 4] 쉬운 설명 변환 완료.")
+    _log(f"✅ [Agent 4] 쉬운 설명 변환 완료.")
 
     input_json_for_file = {
         "discussion_id": discussion_id,
@@ -865,9 +877,9 @@ def normally_output_agent(input_json_str):
     reference = input_data.get("reference", [])
     stage = input_data.get("stage", "easy")
     discussion_id = input_data.get("discussion_id")
-    turn_number = input_data.get("refutation_turn", 0)
+    turn_number = input_data.get("now_turn", 0)
 
-    print(f"✏️ [Agent 5] 보통 설명으로 변환 중: {topic}")
+    _log(f"✏️ [Agent 5] 보통 설명으로 변환 중: {topic}")
 
     formatted_docs = _format_reference_docs(reference)
 
@@ -907,7 +919,7 @@ def normally_output_agent(input_json_str):
 
     response = llm.invoke(simplify_prompt)
     result = response.content
-    print(f"✅ [Agent 5] 보통 설명 변환 완료.")
+    _log(f"✅ [Agent 5] 보통 설명 변환 완료.")
 
     input_json_for_file = {
         "discussion_id": discussion_id,

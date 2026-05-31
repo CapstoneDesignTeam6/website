@@ -3,14 +3,10 @@ from sqlalchemy.orm import Session
 from supabase import Client
 from pydantic import BaseModel
 from typing import List
-from datetime import datetime
 import re
 
 from schemas.discussion import (
-    DiscussionCreate,
-    DiscussionResponse,
     DiscussionDetailResponse,
-    DiscussionEndRequest,
     DiscussionHistoryResponse
 )
 from services.discussion_service import DiscussionService
@@ -91,7 +87,6 @@ class DebateAnalyzeRequest(BaseModel):
 @router.post("/message")
 async def send_message(
     body: DebateMessageRequest,
-    db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
     import asyncio
@@ -211,8 +206,6 @@ async def send_message(
 async def get_evaluation(
     discussion_id: int,
     topic: str = "",
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user),
 ):
     """최신 유저 발언 기준 5개 지표 평가 점수 반환 (UserEvaluationScore 형식)"""
     import asyncio
@@ -230,8 +223,6 @@ async def get_evaluation(
 @router.post("/analyze")
 async def analyze_debate(
     body: DebateAnalyzeRequest,
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
 ):
     """토론 최종 분석 — SummaryAgent 기반 (Supabase discussion_turns 사용)
     프론트: { topic, messages, discussion_id } → DiscussionSummaryResponse
@@ -260,7 +251,6 @@ async def analyze_debate(
 @router.get("/quiz")
 async def get_quiz(
     topic: str = "",
-    db: Session = Depends(get_db)
 ):
     """퀴즈 반환 - AI 서버에서 생성"""
     data = AgentService.get_quiz(topic=topic)
