@@ -75,62 +75,6 @@ const STEP_META: Record<string, { icon: React.ElementType; label: string; desc: 
 const NORMAL_STEP_KEYS = ['orchestrator', 'search', 'generate'];
 const EASY_STEP_KEYS   = ['orchestrator', 'search', 'generate', 'simplify'];
 
-// instruction 텍스트 순차 전환하는 컴포넌트
-// 문장 단위로 분리하되, 한 문장이 MAX_WORDS_PER_CHUNK 단어를 초과하면 단어 청크로 재분리
-const MAX_WORDS_PER_CHUNK = 50;
-
-const splitIntoChunks = (text: string): string[] => {
-  const sentences = text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
-  const result: string[] = [];
-  for (const sentence of sentences) {
-    const words = sentence.split(/\s+/).filter(Boolean);
-    if (words.length <= MAX_WORDS_PER_CHUNK) {
-      result.push(sentence);
-    } else {
-      for (let i = 0; i < words.length; i += MAX_WORDS_PER_CHUNK) {
-        result.push(words.slice(i, i + MAX_WORDS_PER_CHUNK).join(' '));
-      }
-    }
-  }
-  return result;
-};
-
-const InstructionScroller = ({ text }: { text: string }) => {
-  const chunks = splitIntoChunks(text);
-
-
-  const [idx, setIdx] = useState(0);
-
-  useEffect(() => {
-    setIdx(0);
-  }, [text]);
-
-  useEffect(() => {
-    if (chunks.length <= 1) return;
-    const timer = setTimeout(() => {
-      setIdx(prev => (prev + 1) % chunks.length);
-    }, 2500);
-    return () => clearTimeout(timer);
-  }, [idx, chunks.length]);
-
-  return (
-    <div className="overflow-hidden h-8 px-1">
-      <AnimatePresence mode="wait">
-        <motion.p
-          key={idx}
-          className="text-[10px] text-gray-400 leading-relaxed line-clamp-2"
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ duration: 0.3 }}
-        >
-          {chunks[idx]}
-        </motion.p>
-      </AnimatePresence>
-    </div>
-  );
-};
-
 const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agentSteps?: AgentStep[] }) => {
   const backendSteps = agentSteps && agentSteps.length > 0
     ? agentSteps.map(s => {
@@ -219,7 +163,9 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
           <span className="text-[11px] text-outline">{steps[activeStep]?.desc ?? ''}</span>
         </div>
         {activeStepData?.instruction && (
-          <InstructionScroller text={activeStepData.instruction} />
+          <p className="text-[10px] text-gray-400 leading-relaxed px-1">
+            {activeStepData.instruction}
+          </p>
         )}
       </div>
     </div>
