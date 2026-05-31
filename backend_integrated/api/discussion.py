@@ -105,6 +105,36 @@ async def send_message(
     event_queue: _q.Queue = _q.Queue()
     set_event_queue(discussion_id, event_queue)
 
+    # 새 토론 시작 시 (discussion_id가 없었을 때) → session 저장 + participants 증가
+    if not body.discussion_id:
+        try:
+            from database import get_supabase_client
+            _sb = get_supabase_client()
+
+            # 로그인 유저만 session 저장
+            if user.get('id') and not user.get('is_guest'):
+                _sb.table("discussion_sessions").insert({
+                    "id": discussion_id,
+                    "user_id": user['id'],
+                    "topic": body.topic,
+                    "difficulty": body.difficulty,
+                }).execute()
+
+            # 게스트 포함 모든 유저 → 해당 주제 participants +1
+            _topic_row = (
+                _sb.table("discussion_topics")
+                .select("id, participants")
+                .eq("title", body.topic)
+                .limit(1)
+                .execute()
+                .data
+            )
+            if _topic_row:
+                _new_count = (_topic_row[0].get("participants") or 0) + 1
+                _sb.table("discussion_topics").update({"participants": _new_count}).eq("id", _topic_row[0]["id"]).execute()
+        except Exception as e:
+            _logger.warning(f"[participants] 업데이트 실패: {e}")
+
     async def generate():
         loop = asyncio.get_running_loop()
         future = loop.run_in_executor(None, lambda: start_new_turn(
@@ -292,12 +322,39 @@ async def get_discussion(
 async def get_user_discussions(
     skip: int = 0,
     limit: int = 20,
-    db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    """사용자의 토론 히스토리"""
-    discussions = DiscussionService.get_user_discussions(user, db, skip, limit)
-    return discussions
+    """사용자의 토론 히스토리 (Supabase discussion_sessions 기반)"""
+    user_id = user.get('id')
+    if not user_id or user.get('is_guest'):
+        return []
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        rows = (
+            sb.table("discussion_sessions")
+            .select("id, topic, difficulty, created_at")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .range(skip, skip + limit - 1)
+            .execute()
+            .data
+        ) or []
+        return [
+            {
+                "id": r["id"],
+                "topic": r["topic"],
+                "difficulty": r.get("difficulty", "normal"),
+                "status": "completed",
+                "score": 0.0,
+                "exp_earned": 0,
+                "created_at": r["created_at"],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        _logger.error(f"[discussion_sessions] 히스토리 조회 실패: {e}")
+        return []
 
 
 # ====== 평가 에이전트 관련 엔드포인트 ======

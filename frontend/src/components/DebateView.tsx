@@ -210,7 +210,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps }: { isEasy: boolean; agent
               />
             ))}
           </motion.div>
-          <span className="text-[11px] text-outline">{steps[activeStep].desc}</span>
+          <span className="text-[11px] text-outline">{steps[activeStep]?.desc ?? ''}</span>
         </div>
         {activeStepData?.instruction && (
           <InstructionScroller text={activeStepData.instruction} />

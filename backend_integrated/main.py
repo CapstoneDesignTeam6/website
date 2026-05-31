@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from database import create_all_tables
@@ -69,6 +71,23 @@ app = FastAPI(
     description="AI 토론 에이전트 백엔드 API",
     version="1.0.0"
 )
+
+# Pydantic 유효성 검사 에러 → 읽기 쉬운 문자열로 변환
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    if errors:
+        first = errors[0]
+        field = first["loc"][-1] if first.get("loc") else "입력값"
+        msg = first.get("msg", "유효하지 않은 값입니다.")
+        # 이메일 관련 에러 메시지 한국어로
+        if "email" in str(field) or "email" in str(msg).lower():
+            detail = "올바른 이메일 형식을 입력해주세요."
+        else:
+            detail = f"{field}: {msg}"
+    else:
+        detail = "입력값이 올바르지 않습니다."
+    return JSONResponse(status_code=422, content={"detail": detail})
 
 # 로깅 미들웨어 추가 (CORS 이전)
 app.add_middleware(LoggingMiddleware)

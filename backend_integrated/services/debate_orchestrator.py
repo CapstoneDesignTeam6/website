@@ -27,8 +27,6 @@ llm = ChatVertexAI(
 search_tool = TavilySearch(max_results=1,topic='news')
 current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-global topic, user_input
-
 info_query_prompt = ChatPromptTemplate.from_template("""
 당신은 **문제 이해 및 자료탐색 에이전트**입니다.
 [지시사항]을 분석하여, 사용자의 주장을 뒷받침하거나 반박할 수 있는 정교한 검색 쿼리 **2**개를 생성하십시오.
@@ -161,6 +159,7 @@ def save_turn_file(raw_user_message, ai_response, discussion_id=None, turn_numbe
                 "turn_number": turn_number,
                 "user_message": raw_user_message,
                 "ai_summary": ai_summary,
+                "ai_response": ai_response,
             }).execute()
             print(f"💾 [Turn Manager] 턴 {turn_number} Supabase 저장 완료 (discussion_id={discussion_id})")
         except Exception as e:
@@ -169,7 +168,7 @@ def save_turn_file(raw_user_message, ai_response, discussion_id=None, turn_numbe
         print(f"⚠️ [Turn Manager] discussion_id 없음 — 턴 저장 건너뜀")
 
 
-def build_compact_user_input(nowturn, raw_message, discussion_id=None, max_recent_turns=5):
+def build_compact_user_input(nowturn, raw_message, discussion_id=None, max_recent_turns=5, topic_str=""):
     now_turn = nowturn
     todo_instruction = ""
     if now_turn == 0:
@@ -208,7 +207,7 @@ def build_compact_user_input(nowturn, raw_message, discussion_id=None, max_recen
 
     lines = [
         sep,
-        f"[토론 현황]  주제: {topic}  |  진행 턴: {total_turns}회",
+        f"[토론 현황]  주제: {topic_str}  |  진행 턴: {total_turns}회",
         sep,
         "",
         "⚠️  【필수 지시】 아래에 나열된 이전 논점을 절대 반복하지 마십시오.",
@@ -240,9 +239,7 @@ def clear_discussion_store(discussion_id) -> None:
 
 
 def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", discussion_id=None):
-    global topic, user_input, json_num_count, _current_discussion_id
-    topic = topic_str
-    user_input = raw_user_message
+    global json_num_count, _current_discussion_id
 
     _cleanup_stale_stores()  # 새 턴 시작 시 만료 스토어 정리
     _current_discussion_id = str(discussion_id or "local")
@@ -259,7 +256,7 @@ def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", di
         json_num_count = 0
     print(f"🆕 [Turn {now_turn}] 초기화 완료 | topic={topic_str} | discussion_id={discussion_id} | 파일 카운트={json_num_count}")
 
-    compact_input = build_compact_user_input(now_turn, raw_user_message, discussion_id=discussion_id)
+    compact_input = build_compact_user_input(now_turn, raw_user_message, discussion_id=discussion_id, topic_str=topic_str)
 
     # 이전 턴에서 생성된 파일들을 json_info에 복원 → 오케스트레이터가 이전 자료를 참조 가능
     restored_json_info = {
@@ -331,6 +328,49 @@ def make_json_file(filename: str, input_json: dict, output_json: dict) -> dict:
     return merged
 
 
+# ── 에이전트 공통 유틸 ───────────────────────────────────────────────
+
+def _format_reference_docs(reference: list) -> str:
+    """
+    reference 파일 목록에서 workspace를 읽어 LLM이 쉽게 파싱할 수 있는
+    번호 목록 형태의 문자열로 변환한다.
+    workspace가 list(검색결과)이면 항목별로 펼치고,
+    str(텍스트)이면 그대로 사용한다.
+    """
+    docs = []
+    for ref in reference:
+        raw_data = read_json_file(ref)
+        if not raw_data:
+            continue
+        workspace = raw_data.get("workspace", "")
+        if isinstance(workspace, list):
+            # Agent 0 검색결과: [{url, title, content}, ...]
+            for item in workspace:
+                if isinstance(item, dict):
+                    docs.append(item)
+                elif isinstance(item, list):
+                    # 이중 중첩 방어
+                    for sub in item:
+                        if isinstance(sub, dict):
+                            docs.append(sub)
+        elif isinstance(workspace, str) and workspace.strip():
+            # Agent 2/1/3 텍스트 결과
+            docs.append({"title": ref, "url": "", "content": workspace})
+
+    if not docs:
+        return "(참고 자료 없음)"
+
+    parts = []
+    for i, doc in enumerate(docs, 1):
+        url = doc.get("url", "")
+        title = doc.get("title", "")
+        content = doc.get("content", "")[:600]
+        parts.append(
+            f"[자료 {i}]\n제목: {title}\nURL: {url}\n내용: {content}"
+        )
+    return "\n\n".join(parts)
+
+
 # ── 에이전트 ─────────────────────────────────────────────────────────
 
 def run_explorer_agent(input_json_str):
@@ -339,6 +379,8 @@ def run_explorer_agent(input_json_str):
     json_info = input_data.get("json_info", {})
     discussion_id = input_data.get("discussion_id")
     turn_number = input_data.get("refutation_turn", 0)
+    topic = input_data.get("topic", "")
+    user_input = input_data.get("user_input", "")
 
     print(f"🔍 [Agent 0] 주제 분석 및 쿼리 생성 중: {topic}")
 
@@ -348,6 +390,13 @@ def run_explorer_agent(input_json_str):
     print(f"✅ [Agent 0] 쿼리 생성 완료. 총 {len(generated['queries'])}개의 쿼리가 생성되었습니다.")
     search_queries = [q['query'] for q in generated['queries']]
     collected_documents = []
+    _sb_agent0 = None
+    if discussion_id is not None:
+        try:
+            from database import get_supabase_client
+            _sb_agent0 = get_supabase_client()
+        except Exception as e:
+            print(f"⚠️ [Agent 0] Supabase 연결 실패: {e}")
 
     for q in search_queries:
         print(f"🌐 [Agent 0] 검색 수행: {q}")
@@ -372,25 +421,21 @@ def run_explorer_agent(input_json_str):
                 doc = {"source_query": q, "title": "No Title", "url": "", "content": str(res)}
             collected_documents.append(doc)
 
-    if discussion_id is not None and collected_documents:
-        try:
-            from database import get_supabase_client
-            sb = get_supabase_client()
-            rows = [
-                {
-                    "discussion_id": str(discussion_id),
-                    "turn_number": int(turn_number),
-                    "query": str(doc["source_query"]),
-                    "title": str(doc["title"]),
-                    "url": str(doc["url"]),
-                    "content": str(doc["content"]),
-                }
-                for doc in collected_documents
-            ]
-            sb.table("discussion_search_results").insert(rows).execute()
-            print(f"💾 [Agent 0] 검색 결과 {len(rows)}건 Supabase 저장 완료")
-        except Exception as e:
-            print(f"⚠️ [Agent 0] Supabase 저장 실패: {e}")
+            # Tavily 결과 즉시 저장 (배치 아닌 개별 저장으로 실패 격리)
+            if _sb_agent0 and doc["url"]:
+                try:
+                    _sb_agent0.table("discussion_search_results").insert({
+                        "discussion_id": str(discussion_id),
+                        "turn_number": int(turn_number),
+                        "query": str(q),
+                        "title": str(doc["title"]),
+                        "url": str(doc["url"]),
+                        "content": str(doc["content"]),
+                    }).execute()
+                except Exception:
+                    pass  # 중복 등 개별 실패는 무시
+
+    print(f"💾 [Agent 0] 검색 결과 {len(collected_documents)}건 저장 완료")
 
     input_json = {
         "discussion_id": discussion_id,
@@ -419,11 +464,7 @@ def make_refute_agent(input_json_str):
 
     print(f"⚔️ [Agent 3] 반론 생성 중: {topic}")
 
-    reference_docs = []
-    for ref in reference:
-        raw_data = read_json_file(ref)
-        if raw_data:
-            reference_docs.append(raw_data.get("workspace", {}))
+    formatted_docs = _format_reference_docs(reference)
 
     refute_prompt = f"""
     당신은 토론 시스템의 **3번 반론 생성 에이전트(Refuter)**입니다.
@@ -436,7 +477,7 @@ def make_refute_agent(input_json_str):
     "{instruction}"
 
     **[전달된 자료(workspace)]**
-    "{reference_docs}"
+    {formatted_docs}
 
 
     ## [반론 생성 핵심 규칙 — 반드시 준수]
@@ -473,7 +514,7 @@ def make_refute_agent(input_json_str):
 
     결론: (반론 요약 및 주제에 대한 자신의 입장을 재확인)
 
-    [참조 문헌]
+    [참고 자료]
     [1] 링크
     [2] 링크
     (workspace에 포함된 링크를 번호에 맞게 기입)
@@ -511,22 +552,24 @@ def make_topic_explanation_agent(input_json_str):
 
     print(f"📖 [Agent 2] 주제 배경 및 정보 수집 중: {topic}")
 
-    # 오케스트레이터가 reference를 지정한 경우 파일에서 읽어옴 (Agent 0가 수집한 자료 활용)
-    reference_docs = []
-    for ref in reference:
-        raw_data = read_json_file(ref)
-        if raw_data:
-            reference_docs.append(raw_data.get("workspace", {}))
-
     # reference 자료가 없을 때만 자체 검색 수행 (fallback)
+    has_reference = bool(reference)
     collected_context = []
-    if not reference_docs:
+    if not has_reference:
         print(f"📖 [Agent 2] reference 없음 → 자체 검색 수행")
         explanation_queries = [
             f"{topic} definition and current status 2026",
             f"pros and cons of {topic} major issues",
             f"latest news and statistics about {topic}"
         ]
+
+        _sb_agent2 = None
+        if discussion_id is not None:
+            try:
+                from database import get_supabase_client
+                _sb_agent2 = get_supabase_client()
+            except Exception as e:
+                print(f"⚠️ [Agent 2] Supabase 연결 실패: {e}")
 
         for q in explanation_queries:
             print(f"🌐 [Agent 2] 배경 정보 검색: {q}")
@@ -542,38 +585,41 @@ def make_topic_explanation_agent(input_json_str):
             for res in result_list:
                 if isinstance(res, dict):
                     doc = {
-                        "source": res.get("url", "unknown"),
+                        "source_query": q,
                         "title": res.get("title", "No Title"),
                         "url": res.get("url", ""),
                         "content": res.get("content", "")
                     }
                 else:
-                    doc = {"source": "unknown", "title": "No Title", "url": "No url", "content": str(res)}
+                    doc = {"source_query": q, "title": "No Title", "url": "", "content": str(res)}
                 collected_context.append(doc)
 
-        if discussion_id is not None and collected_context:
-            try:
-                from database import get_supabase_client
-                sb = get_supabase_client()
-                rows = [
-                    {
-                        "discussion_id": str(discussion_id),
-                        "turn_number": int(turn_number),
-                        "query": str(doc["source"]),
-                        "title": str(doc["title"]),
-                        "url": str(doc["source"]),
-                        "content": str(doc["content"]),
-                    }
-                    for doc in collected_context
-                ]
-                sb.table("discussion_search_results").insert(rows).execute()
-                print(f"💾 [Agent 2] 배경 자료 {len(rows)}건 Supabase 저장 완료")
-            except Exception as e:
-                print(f"⚠️ [Agent 2] Supabase 저장 실패: {e}")
-    else:
-        print(f"📖 [Agent 2] reference {len(reference_docs)}개 자료 사용 (자체 검색 생략)")
+                # Tavily 결과 즉시 저장 (개별 저장으로 실패 격리)
+                if _sb_agent2 and doc["url"]:
+                    try:
+                        _sb_agent2.table("discussion_search_results").insert({
+                            "discussion_id": str(discussion_id),
+                            "turn_number": int(turn_number),
+                            "query": str(q),
+                            "title": str(doc["title"]),
+                            "url": str(doc["url"]),
+                            "content": str(doc["content"]),
+                        }).execute()
+                    except Exception:
+                        pass  # 중복 등 개별 실패는 무시
 
-    source_data = reference_docs if reference_docs else collected_context
+        print(f"💾 [Agent 2] 배경 자료 {len(collected_context)}건 저장 완료")
+    else:
+        print(f"📖 [Agent 2] reference {len(reference)}개 자료 사용 (자체 검색 생략)")
+
+    # reference가 있으면 포맷된 문서, 없으면 자체 검색 결과 사용
+    if has_reference:
+        formatted_docs = _format_reference_docs(reference)
+    else:
+        formatted_docs = "\n\n".join(
+            f"[자료 {i+1}]\n제목: {d.get('title','')}\nURL: {d.get('url','')}\n내용: {d.get('content','')[:600]}"
+            for i, d in enumerate(collected_context)
+        ) or "(참고 자료 없음)"
 
     explanation_prompt = f"""
     당신은 토론 시스템의 **2번 주제 설명 에이전트(Topic Explainer)**입니다.
@@ -586,7 +632,7 @@ def make_topic_explanation_agent(input_json_str):
     "{instruction}"
 
     **[검색 자료]**
-    "{source_data}"
+    {formatted_docs}
 
     ## [작성 규칙]
     1. **객관성 유지**: 특정 입장에 치우치지 말고 중립적인 정보를 제공하십시오.
@@ -600,7 +646,7 @@ def make_topic_explanation_agent(input_json_str):
     ## [출력 형식]
     주제 정의 및 배경: (내용)
     핵심 쟁점 요약: (내용)
-    [참조 문헌]
+    [참고 자료]
     [1] 링크...
     """
 
@@ -632,11 +678,7 @@ def make_opinion_agent(input_json_str):
 
     print(f"🔍 [Agent 1] 주장 생성 중: {topic}")
 
-    reference_docs = []
-    for ref in reference:
-        raw_data = read_json_file(ref)
-        if raw_data:
-            reference_docs.append(raw_data.get("workspace", {}))
+    formatted_docs = _format_reference_docs(reference)
 
     opinion_prompt = f"""
     당신은 토론 시스템의 **1번 주장 생성 에이전트**입니다.
@@ -647,7 +689,7 @@ def make_opinion_agent(input_json_str):
     "{instruction}"
 
     **[전달된 자료(workspace)]**
-    "{reference_docs}"
+    {formatted_docs}
 
 
     ## [핵심 규칙 — 반드시 모두 준수]
@@ -699,7 +741,7 @@ def make_opinion_agent(input_json_str):
 
     결론: (핵심 주장 재강조 및 요약)
 
-    [참조 문헌]
+    [참고 자료]
     [1] 링크
     [2] 링크
     (필요 시 계속 추가)
@@ -712,7 +754,7 @@ def make_opinion_agent(input_json_str):
     근거: 자료에 따르면 원자력은 발전 과정에서 온실가스 배출이 거의 없으며[1], 태양광 대비 발전 효율이 약 50배 이상 높다[2]. 일부에서는 안전성을 우려하지만 최신 SMR 기술은 폐기물 발생량을 크게 줄였다[3].
     결론: 따라서 탄소 중립을 위해 원자력 확대는 필수적이다.
 
-    [참조 문헌]
+    [참고 자료]
     [1] https://example1.com
     [2] https://example2.com
     [3] https://example3.com
@@ -748,11 +790,7 @@ def simplify_output_agent(input_json_str):
 
     print(f"✏️ [Agent 4] 쉬운 설명으로 변환 중: {topic}")
 
-    reference_docs = []
-    for ref in reference:
-        raw_data = read_json_file(ref)
-        if raw_data:
-            reference_docs.append(raw_data.get("workspace", {}))
+    formatted_docs = _format_reference_docs(reference)
 
     simplify_prompt = f"""
     당신은 토론 시스템의 **4번 쉬운 설명 에이전트(Simple Explainer)**입니다.
@@ -765,7 +803,7 @@ def simplify_output_agent(input_json_str):
     "{instruction}"
 
     **[원본 내용 (workspace)]**
-    "{reference_docs}"
+    {formatted_docs}
 
     ## [발언문 작성 가이드라인]
 
@@ -777,9 +815,9 @@ def simplify_output_agent(input_json_str):
     - 발언 전체의 관통하는 가장 중요한 **핵심 주장이 등장하는 문장이나 단어**는 반드시 마크다운 굵게 표시 기호인 `**내용**`을 사용하여 강조하십시오.
     - 단, 본문 내의 일반적인 설명이나 부연 설명에는 마크다운 기호(##, *, - 등)를 절대 사용하지 마십시오.
 
-    3. **인용 및 참조 문헌 형식의 철저한 유지 (필수)**
+    3. **인용 및 참고 자료 형식의 철저한 유지 (필수)**
     - 본문 중에서 근거를 제시할 때 원본에 있던 참조 번호(`[1]`, `[2]` 등)를 알맞은 위치에 누락 없이 그대로 포함하여 말하십시오.
-    - **[중요]** 발언문 작성이 끝난 후, 맨 아래에 원본에 있는 `[참조 문헌]` 목록을 줄바꿈을 포함하여 원본 형태 그대로 반드시 덧붙여 출력하십시오. 이 목록은 생략되거나 변형되어서는 안 됩니다.
+    - **[중요]** 발언문 작성이 끝난 후, 맨 아래에 원본에 있는 `[참고 자료]` 목록을 줄바꿈을 포함하여 원본 형태 그대로 반드시 덧붙여 출력하십시오. 이 목록은 생략되거나 변형되어서는 안 됩니다.
     """
 
     response = llm.invoke(simplify_prompt)
@@ -831,11 +869,7 @@ def normally_output_agent(input_json_str):
 
     print(f"✏️ [Agent 5] 보통 설명으로 변환 중: {topic}")
 
-    reference_docs = []
-    for ref in reference:
-        raw_data = read_json_file(ref)
-        if raw_data:
-            reference_docs.append(raw_data.get("workspace", {}))
+    formatted_docs = _format_reference_docs(reference)
 
     simplify_prompt = f"""
     당신은 토론 시스템의 **5번 보통 설명 에이전트(Normal Explainer)**이며, 현재 고도의 학술적·정책적 판단을 내리는 전문가를 대상으로 발언하는 **[전문가 모드]** 상태입니다.
@@ -848,7 +882,7 @@ def normally_output_agent(input_json_str):
     "{instruction}"
 
     **[원본 내용 (workspace)]**
-    "{reference_docs}"
+    {formatted_docs}
 
     ## [발언문 작성 가이드라인]
 
@@ -864,7 +898,7 @@ def normally_output_agent(input_json_str):
     3. **핵심 주장 및 인용의 엄밀성 (엄격 준수)**
     - [원본 내용]의 핵심 주장과 세부 데이터, 학술적 논리를 단 하나도 왜곡하거나 누락하지 마십시오.
     - 본문 내의 적절한 위치에 원본의 참조 링크 번호(`[1]`, `[2]` 등)를 출처 근거로서 명확하게 명시하십시오.
-    - **[중요]** 발언문 작성이 끝난 후, 맨 아래에 원본에 있는 `[참조 문헌]` 목록을 줄바꿈을 포함하여 원본 형태 그대로 반드시 덧붙여 출력하십시오.
+    - **[중요]** 발언문 작성이 끝난 후, 맨 아래에 원본에 있는 `[참고 자료]` 목록을 줄바꿈을 포함하여 원본 형태 그대로 반드시 덧붙여 출력하십시오.
 
     4. **텍스트 형식 규칙**
     - 시스템 출력의 자연스러운 흐름과 청각적 전달력을 위해 마크다운 기호(##, **, * 등)는 절대 사용하지 마십시오.

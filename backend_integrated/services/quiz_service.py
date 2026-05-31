@@ -410,28 +410,42 @@ def get_quiz_set(topic: str, phase: str, discussion_id: int) -> list[dict]:
     Returns: MultipleChoiceQuiz[] 형식 리스트
     """
     turns = _fetch_turns(discussion_id)
-    logger.info(f"[QuizService] discussion_id={discussion_id} turns={len(turns)} phase={phase}")
+    logger.info(f"[QuizService] ── 퀴즈 생성 시작 ──────────────────────────")
+    logger.info(f"[QuizService] discussion_id={discussion_id} | phase={phase} | turns={len(turns)}개")
+    logger.info(f"[QuizService] topic: {topic}")
 
     if phase == "pre":
         summary = _build_summary(turns) or topic
+        if turns:
+            logger.info(f"[QuizService] 배경 요약 (ai_summary 기반, {len(summary)}자):\n{summary[:500]}{'...' if len(summary) > 500 else ''}")
+        else:
+            logger.warning(f"[QuizService] turns 없음 → topic 문자열만 사용: {topic}")
         quizzes = []
         for qtype in _PRE_TYPES:
+            logger.info(f"[PreQuiz] {qtype} 생성 중...")
             q = _make_pre_quiz(topic, summary, qtype)
             if q:
                 quizzes.append(_to_frontend(q, len(quizzes), topic, phase))
-                logger.info(f"[PreQuiz] {qtype} 완료")
+                logger.info(f"[PreQuiz] {qtype} 완료 → Q: {q.get('question', '')[:60]}")
             else:
                 logger.warning(f"[PreQuiz] {qtype} 생성 실패 — 건너뜀")
+        logger.info(f"[QuizService] 사전 퀴즈 {len(quizzes)}개 완료 ──────────────")
         return quizzes
 
     else:
         history_block = _build_history_block(turns) or f"주제: {topic}"
+        if turns:
+            logger.info(f"[QuizService] 대화 기록 ({len(turns)}턴, {len(history_block)}자):\n{history_block[:500]}{'...' if len(history_block) > 500 else ''}")
+        else:
+            logger.warning(f"[QuizService] turns 없음 → fallback: '주제: {topic}'")
         quizzes = []
         for qtype in _POST_TYPES:
+            logger.info(f"[PostQuiz] {qtype} 생성 중...")
             q = _make_post_quiz(topic, history_block, qtype)
             if q:
                 quizzes.append(_to_frontend(q, len(quizzes), topic, phase))
-                logger.info(f"[PostQuiz] {qtype} 완료")
+                logger.info(f"[PostQuiz] {qtype} 완료 → Q: {q.get('question', '')[:60]}")
             else:
                 logger.warning(f"[PostQuiz] {qtype} 생성 실패 — 건너뜀")
+        logger.info(f"[QuizService] 사후 퀴즈 {len(quizzes)}개 완료 ──────────────")
         return quizzes
