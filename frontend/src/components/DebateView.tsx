@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { DebateTutorial, TUTORIAL_STORAGE_KEY } from './DebateTutorial.tsx';
 import {
   Send,
   FileText,
@@ -26,6 +27,7 @@ import {
   RotateCcw,
   Flag,
   Info,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
@@ -300,193 +302,7 @@ const matchReferencesToMaterials = (content: string, materials: RelatedMaterial[
 
 // ─── 토론 시작 안내 팝업 ────────────────────────────────────────────────────────
 
-const GUIDE_PAGES = [
-  {
-    title: '화면 사용 방법',
-    subtitle: '토론 화면의 주요 기능을 확인해보세요',
-    content: [
-      {
-        icon: BarChart3,
-        color: 'text-primary',
-        bgColor: 'bg-primary/10',
-        title: '실시간 평가 지표 (왼쪽 패널)',
-        desc: '내 발언이 끝날 때마다 AI가 구체성·인과 연결·도메인 폭·정보 자립도·개념 정확도 5가지 항목을 1~5점으로 채점합니다. 오각형 차트로 한눈에 확인하고, 항목 이름을 클릭하면 상세 이유를 볼 수 있어요.',
-      },
-      {
-        icon: FileText,
-        color: 'text-secondary',
-        bgColor: 'bg-secondary/10',
-        title: '관련 자료 (오른쪽 패널)',
-        desc: 'AI가 주장을 만들 때 참고한 자료가 자동으로 표시됩니다. "AI가 참고한 자료" 뱃지가 붙은 항목이 이번 발언에 활용된 자료예요. 제목을 클릭하면 원문 링크로 이동할 수 있습니다.',
-      },
-      {
-        icon: Brain,
-        color: 'text-purple-500',
-        bgColor: 'bg-purple-100',
-        title: '보조 에이전트 (우측 하단 버튼)',
-        desc: '반박·재반박 단계에서 막히면 우측 하단 도움말 버튼을 클릭하세요. "힌트 받기" 버튼을 누르면 AI가 현재 상황에 맞는 반박 또는 재반박 전략을 알려줍니다.',
-      },
-      {
-        icon: RefreshCw,
-        color: 'text-green-500',
-        bgColor: 'bg-green-100',
-        title: '기타 기능',
-        desc: '상단의 [다시 시작] 버튼으로 새 주제로 토론을 시작하거나, [토론 종료] 버튼으로 결과 리포트를 확인할 수 있어요. [전체 화면] 버튼으로 집중 모드로 전환할 수도 있습니다.',
-      },
-    ],
-  },
-  {
-    title: '토론 진행 방법',
-    subtitle: '라운드 구조와 발언 순서를 확인해보세요',
-    content: [
-      {
-        icon: Flag,
-        color: 'text-primary',
-        bgColor: 'bg-primary/10',
-        title: '전체 구조',
-        desc: '토론은 기본 2라운드로 진행됩니다. 각 라운드는 주장 → 반박 → 재반박 3단계로 이루어지며, 마지막 라운드가 끝나면 사후 퀴즈와 결과 리포트가 제공됩니다.',
-      },
-      {
-        icon: MessageCircle,
-        color: 'text-blue-500',
-        bgColor: 'bg-blue-100',
-        title: '1단계 · 주장',
-        desc: '내 입장과 근거를 자유롭게 제시하세요. 구체적인 수치나 사례를 들수록 평가 점수가 높아집니다. 경제·사회·환경 등 여러 관점을 함께 언급하면 더욱 좋습니다.',
-      },
-      {
-        icon: RotateCcw,
-        color: 'text-orange-500',
-        bgColor: 'bg-orange-100',
-        title: '2단계 · 반박',
-        desc: 'AI의 주장에서 논리적 오류나 한계를 찾아 반박하세요. 상대 주장이 적용되지 않는 예외 상황을 제시하거나, 새로운 근거를 추가하는 방식이 효과적입니다.',
-      },
-      {
-        icon: BookOpen,
-        color: 'text-teal-500',
-        bgColor: 'bg-teal-100',
-        title: '3단계 · 재반박',
-        desc: 'AI의 반박에 맞서 내 주장을 더욱 강화하세요. 상대 반박의 논리적 허점을 짚거나 새로운 사례를 추가해 입장을 보완합니다. 재반박이 끝나면 다음 라운드로 넘어갑니다.',
-      },
-    ],
-  },
-];
-
-const GuideModal = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
-  const [pageIndex, setPageIndex] = useState(0);
-  const page = GUIDE_PAGES[pageIndex];
-  const isFirst = pageIndex === 0;
-  const isLast = pageIndex === GUIDE_PAGES.length - 1;
-
-  useEffect(() => {
-    if (isOpen) setPageIndex(0);
-  }, [isOpen]);
-
-  if (!isOpen) return null;
-
-  return (
-    <AnimatePresence>
-      {isOpen && (
-        <motion.div
-          className="fixed inset-0 z-9999 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={onClose}
-        >
-          <motion.div
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden"
-            initial={{ scale: 0.92, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.92, opacity: 0, y: 20 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* 헤더 */}
-            <div className="bg-primary px-8 pt-8 pb-6 text-white relative">
-              <button
-                onClick={onClose}
-                className="absolute top-5 right-5 p-1.5 rounded-full hover:bg-white/20 transition-colors"
-              >
-                <X size={18} />
-              </button>
-              <div className="flex items-center gap-2 mb-2">
-                <Info size={16} className="text-white/70" />
-                <span className="text-xs font-bold text-white/70 uppercase tracking-widest">사용 가이드</span>
-              </div>
-              <h2 className="text-xl font-black">{page.title}</h2>
-              <p className="text-sm text-white/80 mt-1">{page.subtitle}</p>
-              {/* 페이지 인디케이터 */}
-              <div className="flex gap-1.5 mt-4">
-                {GUIDE_PAGES.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setPageIndex(i)}
-                    className={`h-1.5 rounded-full transition-all ${i === pageIndex ? 'w-6 bg-white' : 'w-1.5 bg-white/40'}`}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* 본문 */}
-            <div className="px-8 py-6 flex flex-col gap-4 max-h-[55vh] overflow-y-auto custom-scrollbar">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={pageIndex}
-                  initial={{ opacity: 0, x: 16 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -16 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex flex-col gap-3"
-                >
-                  {page.content.map((item, i) => {
-                    const Icon = item.icon;
-                    return (
-                      <div key={i} className="flex gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100">
-                        <div className={`w-10 h-10 rounded-xl ${item.bgColor} flex items-center justify-center shrink-0`}>
-                          <Icon size={20} className={item.color} />
-                        </div>
-                        <div className="flex flex-col gap-1">
-                          <p className="text-sm font-black text-on-surface">{item.title}</p>
-                          <p className="text-xs text-outline leading-relaxed">{item.desc}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
-            {/* 푸터 */}
-            <div className="px-8 pb-8 flex items-center justify-between">
-              <button
-                onClick={() => setPageIndex(p => p - 1)}
-                disabled={isFirst}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-bold text-outline hover:text-on-surface hover:bg-gray-100 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft size={16} /> 이전
-              </button>
-              {isLast ? (
-                <button
-                  onClick={onClose}
-                  className="px-6 py-2 bg-primary text-white rounded-xl text-sm font-black hover:bg-primary/90 transition-colors"
-                >
-                  토론 시작하기
-                </button>
-              ) : (
-                <button
-                  onClick={() => setPageIndex(p => p + 1)}
-                  className="flex items-center gap-1.5 px-5 py-2 bg-primary text-white rounded-xl text-sm font-black hover:bg-primary/90 transition-colors"
-                >
-                  다음 <ChevronRight size={16} />
-                </button>
-              )}
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-};
+// GUIDE_PAGES and GuideModal commented out
 
 export const DebateView = ({
   topic,
@@ -533,7 +349,10 @@ export const DebateView = ({
   const [chatbotSize, setChatbotSize] = useState({ width: 480, height: 350 });
   const [isFirstInput, setIsFirstInput] = useState(true);
   const [placeholder, setPlaceholder] = useState('');
-  const [isGuideOpen, setIsGuideOpen] = useState(true);
+  const [isTutorialRunning, setIsTutorialRunning] = useState(
+    () => localStorage.getItem(TUTORIAL_STORAGE_KEY) !== 'true'
+  );
+  // const [isGuideOpen, setIsGuideOpen] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -942,14 +761,15 @@ export const DebateView = ({
 
   return (
     <div className={`flex ${isFullScreen ? 'h-screen' : 'h-[calc(100vh-72px)]'} overflow-hidden relative`}>
-      <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+      <DebateTutorial run={isTutorialRunning} onFinish={() => setIsTutorialRunning(false)} />
+      {/* <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} /> */}
       {/* Left Sidebar: 실시간 평가 점수 */}
       <motion.aside
         initial={false}
         animate={{ width: isScoreSidebarOpen ? 320 : 0, opacity: isScoreSidebarOpen ? 1 : 0 }}
         className="bg-white flex flex-col border-r border-gray-200 overflow-hidden relative md:flex order-first"
       >
-        <div className="p-6 flex flex-col gap-3 h-full w-80 overflow-y-auto custom-scrollbar">
+        <div id="tutorial-score-panel" className="p-6 flex flex-col gap-3 h-full w-80 overflow-y-auto custom-scrollbar">
           <div className="flex items-center gap-2">
             <BarChart3 size={20} className={evaluationScore ? 'text-primary' : 'text-outline'} />
             <h2 className="text-base font-black font-headline">실시간 평가 지표</h2>
@@ -1035,6 +855,7 @@ export const DebateView = ({
 
       {/* Left Sidebar Toggle Button */}
       <button
+        id="tutorial-score-toggle"
         onClick={() => setIsScoreSidebarOpen(!isScoreSidebarOpen)}
         className={`absolute top-1/2 -translate-y-1/2 z-50 p-2 bg-white border border-gray-200 rounded-full shadow-lg transition-all ${isScoreSidebarOpen ? 'left-75' : 'left-2'}`}
       >
@@ -1047,7 +868,7 @@ export const DebateView = ({
         <div className={`bg-white border-b border-gray-100 p-4 shadow-sm z-10 transition-all duration-300 ${isScoreSidebarOpen && isRelatedMaterialsSidebarOpen ? 'md:px-4' : isScoreSidebarOpen || isRelatedMaterialsSidebarOpen ? 'md:px-8' : 'md:px-14'}`}>
           <div className={`w-full py-0 transition-all duration-300 ${isScoreSidebarOpen && isRelatedMaterialsSidebarOpen ? 'px-2 md:px-3' : isScoreSidebarOpen || isRelatedMaterialsSidebarOpen ? 'px-3 md:px-4' : 'px-4 md:px-7'}`}>
             <div className="flex flex-row items-center justify-between gap-3">
-              <div className="flex flex-col gap-1 flex-1">
+              <div id="tutorial-header" className="flex flex-col gap-1 flex-1">
                 <h2 className="text-lg md:text-xl font-black font-headline line-clamp-1">{topic}</h2>
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -1061,27 +882,29 @@ export const DebateView = ({
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <div className="flex flex-col gap-0.5 px-5 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
+                <div id="tutorial-round-badge" className="flex flex-col gap-0.5 px-5 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
                   <span className="text-[10px] font-bold text-outline uppercase">라운드</span>
                   <span className="text-xs font-black text-on-surface">
                     {currentRound} / {totalRounds}
                   </span>
                 </div>
-                <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
-                  <RefreshCw size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '다시 시작'}
-                </button>
-                <button onClick={onFinish} className="px-2 py-1 bg-secondary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
-                  <Power size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '토론 종료'}
-                </button>
-                <button onClick={toggleFullScreen} className="px-2 py-1 bg-gray-100 text-on-surface rounded-xl font-bold text-xs transition-all flex items-center gap-1">
-                  {isFullScreen ? <Minimize size={14} /> : <Maximize size={14} />} {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '전체 화면'}
-                </button>
+                <div id="tutorial-action-buttons" className="flex items-center gap-3">
+                  <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                    <RefreshCw size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '다시 시작'}
+                  </button>
+                  <button onClick={onFinish} className="px-2 py-1 bg-secondary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                    <Power size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '토론 종료'}
+                  </button>
+                  <button onClick={toggleFullScreen} className="px-2 py-1 bg-gray-100 text-on-surface rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                    {isFullScreen ? <Minimize size={14} /> : <Maximize size={14} />} {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '전체 화면'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        <div className={`flex-1 overflow-y-auto py-2 md:py-6 ${debatePhase === 'debating' ? 'pb-32 md:pb-36' : 'pb-8'} flex flex-col gap-6 md:gap-8 custom-scrollbar relative transition-all duration-300 ${isScoreSidebarOpen && isRelatedMaterialsSidebarOpen ? 'px-6 md:px-7' : isScoreSidebarOpen || isRelatedMaterialsSidebarOpen ? 'px-7 md:px-12' : 'px-8 md:px-21'}`} ref={scrollRef} style={{ overscrollBehavior: 'contain' }}>
+        <div id="tutorial-chat-area" className={`flex-1 overflow-y-auto py-2 md:py-6 ${debatePhase === 'debating' ? 'pb-32 md:pb-36' : 'pb-8'} flex flex-col gap-6 md:gap-8 custom-scrollbar relative transition-all duration-300 ${isScoreSidebarOpen && isRelatedMaterialsSidebarOpen ? 'px-6 md:px-7' : isScoreSidebarOpen || isRelatedMaterialsSidebarOpen ? 'px-7 md:px-12' : 'px-8 md:px-21'}`} ref={scrollRef} style={{ overscrollBehavior: 'contain' }}>
 
           {/* ── intro 단계: turn=0 로딩 스피너 ── */}
           {debatePhase === 'intro' && isGenerating && (
@@ -1252,7 +1075,7 @@ export const DebateView = ({
               </div>
             ) : (
               <>
-                <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 gap-2">
+                <div id="tutorial-input-area" className="flex items-center bg-white px-3 py-1.5 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 gap-2">
                   <textarea
                     ref={textareaRef}
                     className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-xs md:text-sm resize-none custom-scrollbar"
@@ -1384,6 +1207,7 @@ export const DebateView = ({
           </AnimatePresence>
 
           <button
+            id="tutorial-help-button"
             onClick={() => setIsHelpOpen(!isHelpOpen)}
             className="w-12 h-12 md:w-14 md:h-14 bg-transparent border-none flex items-center justify-center overflow-hidden hover:scale-110 transition-transform pointer-events-auto"
           >
@@ -1405,7 +1229,7 @@ export const DebateView = ({
         animate={{ width: isRelatedMaterialsSidebarOpen ? 360 : 0, opacity: isRelatedMaterialsSidebarOpen ? 1 : 0 }}
         className="bg-white flex flex-col border-l border-gray-200 overflow-hidden relative md:flex order-last" // order-last로 우측 정렬
       >
-        <div className="p-6 flex flex-col gap-3 h-full w-90 overflow-y-auto custom-scrollbar">
+        <div id="tutorial-materials-panel" className="p-6 flex flex-col gap-3 h-full w-90 overflow-y-auto custom-scrollbar">
           <div className="flex items-center gap-2">
             <FileText size={20} className="text-secondary" />
             <h2 className="text-base font-black font-headline">관련 자료</h2>
