@@ -98,8 +98,8 @@ const tutorialSteps: Step[] = [
           <li>내 발언 위에 뜨는 <strong>평가 완료 · 보기</strong> 버튼을 누르면 해당 발언의 평가를 볼 수 있어요.</li>
         </ul>
         <div style={{ marginTop: '5px', padding: '10px 12px', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', borderRadius: '8px', fontSize: '13px' }}>
-          <p style={{ fontWeight: 'bold', color: 'var(--color-primary)', marginBottom: '4px' }}>📝 사전·사후 퀴즈</p>
-          <p>토론 <strong>시작 전</strong>에는 주제 이해도를 확인하는 <strong>사전 퀴즈</strong>가 표시돼요.</p>
+          <p style={{ fontWeight: 'bold', color: 'var(--color-primary)', marginBottom: '4px' }}>📝 주제 설명 및 사전·사후 퀴즈</p>
+          <p>토론 <strong>시작 전</strong>에는 주제에 대한 설명과 주제 이해도를 확인하는 <strong>사전 퀴즈</strong>가 표시돼요.</p>
           <p style={{ marginTop: '4px' }}>토론이 <strong>종료</strong>되면 토론 이해도를 점검하는 <strong>사후 퀴즈</strong>가 나와요.</p>
           {/* <p style={{ marginTop: '4px', color: '#6b7280' }}>두 퀴즈 모두 이 채팅 영역 안에서 진행됩니다.</p> */}
         </div>
