@@ -200,7 +200,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
                   <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center relative z-10">
                     <div>
                       {/* bg-primary 제거 */}
-                      <span className="inline-block px-3 py-1  text-white text-[10px] md:text-sm font-bold rounded-full mb-4 md:mb-6 tracking-widest uppercase">
+                      <span className="inline-block px-3 py-1  text-white text-sm md:text-base font-bold rounded-full mb-4 md:mb-6 tracking-widest uppercase">
                         {/* {slide.tag} */}
                       </span>
                       <h1 className="text-xl md:text-3xl lg:text-4xl font-extrabold font-headline tracking-tight mb-6 md:mb-8 leading-tight">
@@ -256,7 +256,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
                   // 기존 트렌딩 토론 슬라이드 내용
                   <div className="grid lg:grid-cols-2 gap-8 md:gap-12 items-center relative z-10">
                     <div>
-                      <span className="inline-block px-3 py-1 bg-primary text-white text-[10px] font-bold rounded-full mb-4 md:mb-6 tracking-widest uppercase">
+                      <span className="inline-block px-3 py-1 bg-primary text-white text-sm font-bold rounded-full mb-4 md:mb-6 tracking-widest uppercase">
                         {slide.tag}
                       </span>
                       <h1 className="text-xl md:text-3xl lg:text-4xl font-extrabold font-headline tracking-tight mb-6 md:mb-8 leading-tight">
@@ -292,7 +292,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
                           <div className="w-12 h-12 bg-primary-fixed rounded-xl flex items-center justify-center text-primary">
                             <Brain size={24} />
                           </div>
-                          <span className="text-[10px] font-bold text-outline uppercase tracking-widest">
+                          <span className="text-sm font-bold text-outline uppercase tracking-widest">
                             Live Debate
                           </span>
                         </div>
@@ -310,7 +310,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
                               />
                             ))}
                           </div>
-                          <span className="text-xs font-bold text-primary">
+                          <span className="text-sm font-bold text-primary">
                             2.4k 참여 중
                           </span>
                         </div>
@@ -321,7 +321,7 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
                             <TrendingUp size={16} />
                           </div>
                           <div>
-                            <p className="text-[10px] font-bold text-outline uppercase">
+                            <p className="text-sm font-bold text-outline uppercase">
                               Conflict Index
                             </p>
                             <p className="text-lg font-black leading-none">
@@ -415,13 +415,13 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
             <h3 className="text-lg md:text-xl font-bold mb-3 md:mb-4">
               {item.title}
             </h3>
-            <p className="text-xs md:text-sm text-outline leading-relaxed">
+            <p className="text-sm md:text-base text-outline leading-relaxed">
               {item.description}
             </p>
             {item.hasDownloadButton && ( // hasDownloadButton이 true일 때만 버튼 렌더링
               <button
                 onClick={handleDownloadSamplePdf}
-                className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors text-sm"
+                className="mt-6 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-dark transition-colors text-base"
               >
                 <Download size={16} /> 샘플 리포트 PDF 다운로드
               </button>

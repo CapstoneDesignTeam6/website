@@ -74,7 +74,7 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
       <div className="max-w-7xl mx-auto px-4 md:px-9 py-3 md:py-4 flex justify-between items-center">
         <div className="flex items-center gap-6 md:gap-12">
           <button onClick={() => navigateTo('/')} className="flex items-center gap-2 md:gap-3 text-xl md:text-2xl font-black tracking-tighter font-headline cursor-pointer group">
-            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl overflow-hidden group-hover:scale-110 transition-transform">
+            <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-xl overflow-hidden group-hover:scale-110 transition-transform shrink-0">
               <img 
                 src={logo} 
                 alt="Agora Logo" 
@@ -83,7 +83,7 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
             </div>
             <span>Agora</span>
           </button>
-          <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
+          <nav className="hidden md:flex items-center gap-8 text-base font-medium">
             {/* <button onClick={() => navigateTo('/about')} className={`${isActive('/about') ? 'text-primary border-b-2 border-primary' : 'text-outline'} pb-1 transition-colors`}>소개</button> */}
             <button onClick={() => navigateTo('/search')} className={`${isActive('/search') ? 'text-primary border-b-2 border-primary' : 'text-outline border-b-2 border-transparent'} py-1 transition-colors`}>주제 탐색</button>
             <button onClick={() => navigateTo('/setup')} className={`${isActive('/debate') || isActive('/setup') ? 'text-primary border-b-2 border-primary' : 'text-outline border-b-2 border-transparent'} py-1 transition-colors`}>토론</button>
@@ -112,14 +112,14 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
               >
                 <button 
                   onClick={handleProfileUpdate}
-                  className="w-full px-4 py-3 text-left text-sm font-bold text-on-surface hover:bg-gray-50 flex items-center gap-3 transition-colors"
+                  className="w-full px-4 py-3 text-left text-base font-bold text-on-surface hover:bg-gray-50 flex items-center gap-3 transition-colors"
                 >
                   <Settings size={16} className="text-outline" />
                   마이페이지
                 </button>
                 <button 
                   onClick={handleLogout}
-                  className="w-full px-4 py-3 text-left text-sm font-bold text-secondary hover:bg-red-50 flex items-center gap-3 transition-colors"
+                  className="w-full px-4 py-3 text-left text-base font-bold text-secondary hover:bg-red-50 flex items-center gap-3 transition-colors"
                 >
                   <Power size={16} />
                   로그아웃
@@ -169,13 +169,13 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
                   <div className="grid grid-cols-2 gap-3">
                     <button 
                       onClick={() => navigateTo('/login')}
-                      className="py-3 px-4 bg-primary/10 text-primary font-bold rounded-xl text-sm"
+                      className="py-3 px-4 bg-primary/10 text-primary font-bold rounded-xl text-base"
                     >
                       로그인
                     </button>
                     <button 
                       onClick={() => navigateTo('/signup')}
-                      className="py-3 px-4 bg-primary text-white font-bold rounded-xl text-sm shadow-lg shadow-primary/20"
+                      className="py-3 px-4 bg-primary text-white font-bold rounded-xl text-base shadow-lg shadow-primary/20"
                     >
                       회원가입
                     </button>
@@ -186,8 +186,8 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
                       <User size={20} />
                     </div>
                     <div className="flex-1 overflow-hidden">
-                      <p className="font-bold text-sm truncate">사용자 님</p>
-                      <button onClick={handleProfileUpdate} className="text-xs text-primary font-medium">회원 정보 관리</button>
+                      <p className="font-bold text-base truncate">사용자 님</p>
+                      <button onClick={handleProfileUpdate} className="text-sm text-primary font-medium">회원 정보 관리</button>
                     </div>
                     <button onClick={handleLogout} className="p-2 text-secondary hover:bg-red-50 rounded-lg transition-colors">
                       <Power size={18} />

@@ -46,7 +46,7 @@ export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
       <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-6 md:p-10 editorial-shadow border border-gray-50 card-hover">
         <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
           <div className="space-y-1.5 md:space-y-2">
-            <label className="text-xs md:text-sm font-bold text-on-surface ml-1">이메일</label>
+            <label className="text-sm md:text-base font-bold text-on-surface ml-1">이메일</label>
             <input 
               type="email" 
               required
@@ -57,7 +57,7 @@ export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
             />
           </div>
           <div className="space-y-1.5 md:space-y-2">
-            <label className="text-xs md:text-sm font-bold text-on-surface ml-1">비밀번호</label>
+            <label className="text-sm md:text-base font-bold text-on-surface ml-1">비밀번호</label>
             <input 
               type="password" 
               required
@@ -77,7 +77,7 @@ export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
 
           <div className="relative py-3 md:py-4">
             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-            <div className="relative flex justify-center text-[10px] md:text-xs uppercase"><span className="bg-white px-2 text-outline">또는</span></div>
+            <div className="relative flex justify-center text-sm md:text-sm uppercase"><span className="bg-white px-2 text-outline">또는</span></div>
           </div>
 
           <button 
@@ -89,7 +89,7 @@ export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
             Google 계정으로 로그인
           </button>
 
-          <p className="text-center text-xs md:text-sm text-outline pt-3 md:pt-4">
+          <p className="text-center text-sm md:text-base text-outline pt-3 md:pt-4">
             계정이 없으신가요? <button type="button" onClick={() => navigate('/signup')} className="text-primary font-bold hover:underline">회원가입</button>
           </p>
         </form>

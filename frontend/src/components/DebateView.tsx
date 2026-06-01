@@ -127,7 +127,7 @@ const InstructionScroller = ({ text }: { text: string }) => {
       <AnimatePresence mode="wait">
         <motion.p
           key={idx}
-          className="text-[12px] text-gray-400 leading-relaxed line-clamp-2"
+          className="text-sm text-gray-400 leading-relaxed line-clamp-2"
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
@@ -192,7 +192,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
           {steps.map((_: unknown, i: number) => (
             <React.Fragment key={i}>
               <motion.div
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] font-bold transition-colors ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-sm font-bold transition-colors ${
                   i === activeStep
                     ? 'bg-primary text-white'
                     : i < activeStep
@@ -231,7 +231,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
               />
             ))}
           </motion.div>
-          <span className="text-[14px] text-outline">{steps[activeStep]?.desc ?? ''}</span>
+          <span className="text-sm text-outline">{steps[activeStep]?.desc ?? ''}</span>
         </div>
         {/* 현재 단계의 실시간 서버 로그 누적 표시 (단계 전환 시 초기화됨) */}
         {agentLog && agentLog.length > 0 && (
@@ -240,7 +240,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
               {agentLog.map((line, i) => (
                 <motion.span
                   key={`${i}-${line}`}
-                  className="text-[12px] text-gray-400 leading-relaxed font-mono"
+                  className="text-sm text-gray-400 leading-relaxed font-mono"
                   initial={{ opacity: 0, x: -4 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0 }}
@@ -826,8 +826,8 @@ export const DebateView = ({
             <div className="flex items-center gap-2 bg-blue-50 border border-primary/20 rounded-xl px-3 py-2">
               <Loader2 size={13} className="animate-spin text-primary shrink-0" />
               <div className="flex flex-col min-w-0">
-                <p className="text-[9px] font-bold text-primary">새 발언 평가 중...</p>
-                <p className="text-[10px] text-gray-600 truncate">{messages[lastUserMsgIdx]?.content}</p>
+                <p className="text-sm font-bold text-primary">새 발언 평가 중...</p>
+                <p className="text-sm text-gray-600 truncate">{messages[lastUserMsgIdx]?.content}</p>
               </div>
             </div>
           )}
@@ -836,18 +836,18 @@ export const DebateView = ({
           {isLoadingScore && !showPrevScoreWhileLoading ? (
             <div className="flex flex-col items-center justify-center gap-3 flex-1">
               <Loader2 size={28} className="animate-spin text-primary" />
-              <p className="text-xs text-outline">점수를 계산하는 중...</p>
+              <p className="text-sm text-outline">점수를 계산하는 중...</p>
             </div>
           ) : !isLoadingScore && !evaluationScore ? (
             <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
-              <p className="text-xs text-outline">첫 발언 후 점수가 표시됩니다.</p>
+              <p className="text-sm text-outline">첫 발언 후 점수가 표시됩니다.</p>
             </div>
           ) : evaluationScore ? (
             <>
             {(viewingMsgIdx ?? lastUserMsgIdx) >= 0 && (
                 <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-                  <p className="text-[11px] font-bold text-primary mb-1">평가 대상 발언</p>
-                  <p className="text-[10px] text-outline leading-relaxed line-clamp-2">
+                  <p className="text-sm font-bold text-primary mb-1">평가 대상 발언</p>
+                  <p className="text-sm text-outline leading-relaxed line-clamp-2">
                     {messages[viewingMsgIdx ?? lastUserMsgIdx]?.content}
                   </p>
                 </div>
@@ -855,7 +855,7 @@ export const DebateView = ({
               <div className="w-full">
                 <PentagonChart score={evaluationScore} />
               </div>
-              <p className="text-[10px] text-outline text-center -mt-5 mb-1">지표 이름을 클릭하면 설명을 볼 수 있어요</p>
+              <p className="text-sm text-outline text-center -mt-5 mb-1">지표 이름을 클릭하면 설명을 볼 수 있어요</p>
               
               <AnimatePresence>
                 {activeTooltip !== null && (
@@ -875,10 +875,10 @@ export const DebateView = ({
                         <X size={14} />
                       </button>
                     </div>
-                    <p className="text-[11px] text-on-surface leading-relaxed mt-1">{scoreLabels[activeTooltip].desc}</p>
+                    <p className="text-sm text-on-surface leading-relaxed mt-1">{scoreLabels[activeTooltip].desc}</p>
                     <div className="flex flex-col gap-1 border-t border-indigo-200 mt-2 pt-2">
-                      <p className="text-[11px] font-bold text-primary">평가 이유</p>
-                      <p className="text-[10px] text-outline leading-relaxed">{evaluationScore[scoreLabels[activeTooltip].key].reason}</p>
+                      <p className="text-sm font-bold text-primary">평가 이유</p>
+                      <p className="text-sm text-outline leading-relaxed">{evaluationScore[scoreLabels[activeTooltip].key].reason}</p>
                     </div>
                   </motion.div>
                 )}
@@ -890,8 +890,8 @@ export const DebateView = ({
                     className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 cursor-pointer hover:bg-indigo-50 transition-colors"
                     onClick={() => setActiveTooltip(activeTooltip === idx ? null : idx)}
                   >
-                    <span className="text-xs font-bold text-on-surface">{label}</span>
-                    <span className="text-xs font-black text-primary">{evaluationScore[key].score} / 5</span>
+                    <span className="text-sm font-bold text-on-surface">{label}</span>
+                    <span className="text-sm font-black text-primary">{evaluationScore[key].score} / 5</span>
                   </div>
                 ))}
               </div>
@@ -925,28 +925,28 @@ export const DebateView = ({
                       className="h-full bg-primary"
                     />
                   </div>
-                  <span className="text-[10px] font-bold text-primary whitespace-nowrap">{progress}%</span>
+                  <span className="text-sm font-bold text-primary whitespace-nowrap">{progress}%</span>
                 </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <div id="tutorial-round-badge" className="flex flex-col gap-0.5 px-5 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
-                  <span className="text-[10px] font-bold text-outline uppercase">라운드</span>
-                  <span className="text-xs font-black text-on-surface">
+                  <span className="text-sm font-bold text-outline uppercase">라운드</span>
+                  <span className="text-sm font-black text-on-surface">
                     {currentRound} / {totalRounds}
                   </span>
                 </div>
                 <div id="tutorial-action-buttons" className="flex items-center gap-3">
 
-                  <button onClick={() => setIsTutorialRunning(true)} className="px-2 py-1 bg-gray-50  text-on-surface rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                  <button onClick={() => setIsTutorialRunning(true)} className="px-2 py-1 bg-gray-50  text-on-surface rounded-xl font-bold text-sm transition-all flex items-center gap-1">
                     <Info size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '튜토리얼'}
                   </button>
-                  <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                  <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-sm transition-all flex items-center gap-1">
                     <RefreshCw size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '다시 시작'}
                   </button>
-                  <button onClick={onFinish} className="px-2 py-1 bg-secondary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                  <button onClick={onFinish} className="px-2 py-1 bg-secondary text-white rounded-xl font-bold text-sm transition-all flex items-center gap-1">
                     <Power size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '토론 종료'}
                   </button>
-                  <button onClick={toggleFullScreen} className="px-2 py-1 bg-gray-50  text-on-surface rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                  <button onClick={toggleFullScreen} className="px-2 py-1 bg-gray-50  text-on-surface rounded-xl font-bold text-sm transition-all flex items-center gap-1">
                     {isFullScreen ? <Minimize size={14} /> : <Maximize size={14} />} {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '전체 화면'}
                   </button>
                                     
@@ -994,7 +994,7 @@ export const DebateView = ({
                     )}
                     {showRoundIndicator && (
                       <div className="flex justify-center">
-                        <span className="px-3 py-1 bg-gray-100 border border-gray-800  text-on-surface text-[10px] font-black rounded-full tracking-widest">
+                        <span className="px-3 py-1 bg-gray-100 border border-gray-800  text-on-surface text-sm font-black rounded-full tracking-widest">
                           라운드 {msg.round} 
                         </span>
                       </div>
@@ -1009,31 +1009,31 @@ export const DebateView = ({
                             {msg.role === 'user' && evaluationScores[idx] && idx !== lastUserMsgIdx && (
                               <button
                                 onClick={() => { setIsScoreSidebarOpen(true); setShowPrevScoreWhileLoading(false); setViewingMsgIdx(idx); setEvaluationScore(evaluationScores[idx]); }}
-                                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-sm font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                               >
                                 <BarChart3 size={10} /> 평가 완료 · 보기
                               </button>
                             )}
                             {msg.role === 'user' && idx === lastUserMsgIdx && (!!evaluationScores[idx] || isLoadingScore) && (
                               isLoadingScore ? (
-                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-gray-100 text-outline">
+                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-sm font-bold bg-gray-100 text-outline">
                                   <Loader2 size={9} className="animate-spin" /> 평가 중
                                 </span>
                               ) : (
                                 <button
                                   onClick={() => { setIsScoreSidebarOpen(true); setViewingMsgIdx(idx); setEvaluationScore(evaluationScores[idx]); }}
-                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                                 >
                                   <BarChart3 size={10} /> 평가 완료 · 보기
                                 </button>
                               )
                             )}
-                            <span className="text-[10px] md:text-xs font-bold text-on-surface">
+                            <span className="text-sm md:text-sm font-bold text-on-surface">
                               {msg.role === 'user' ? '나 (사용자)' : msg.agentName || 'AI 에이전트'}
                             </span>
-                            <span className="text-[9px] md:text-[10px] text-outline">{msg.timestamp || '14:02'}</span>
+                            <span className="text-sm md:text-sm text-outline">{msg.timestamp || '14:02'}</span>
                           </div>
-                          <div className={`p-4 md:p-6 rounded-2xl text-xs md:text-sm leading-relaxed prose prose-sm max-w-none ${msg.role === 'user' ? 'bg-blue-50 border-2 border-primary text-gray-800' : 'bg-red-50 border-2 border-secondary text-gray-800'}`}>
+                          <div className={`p-4 md:p-6 rounded-2xl text-sm md:text-base leading-relaxed prose prose-sm max-w-none ${msg.role === 'user' ? 'bg-blue-50 border-2 border-primary text-gray-800' : 'bg-red-50 border-2 border-secondary text-gray-800'}`}>
                             <ReactMarkdown
                               components={{
                                 h2: () => null,
@@ -1111,13 +1111,7 @@ export const DebateView = ({
         {debatePhase === 'debating' && (
         <div className="absolute bottom-0 left-0 right-0 pt-2 md:pt-3 pb-6 md:pb-6 bg-transparent">
           <div
-            className="mx-auto"
-            style={{
-              paddingLeft: '1rem',
-              paddingRight: '5rem',
-              maxWidth: '60%',
-              minWidth: '650px',
-            }}
+            className="mx-auto w-full md:max-w-[80%] lg:max-w-[70%] px-4 md:pr-20"
           >
             {/* 계속 진행 선택 */}
             {waitingForContinue ? (
@@ -1145,7 +1139,7 @@ export const DebateView = ({
                 <div id="tutorial-input-area" className="flex items-center bg-white px-3 py-1.5 rounded-2xl md:rounded-3xl shadow-xl border border-gray-100 gap-2">
                   <textarea
                     ref={textareaRef}
-                    className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-xs md:text-sm resize-none custom-scrollbar"
+                    className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm md:text-base resize-none custom-scrollbar"
                     style={{ height: '2rem', minHeight: '2rem', maxHeight: '16rem', overflowY: 'hidden', padding: '0.375rem' }}
                     placeholder={placeholder}
                     value={inputText}
@@ -1224,7 +1218,7 @@ export const DebateView = ({
                     <X size={20} />
                   </button>
                 </div>
-                <div ref={chatbotScrollRef} className="flex-1 p-4 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col gap-2 custom-scrollbar">
+                <div ref={chatbotScrollRef} className="flex-1 p-4 overflow-y-auto bg-gray-50 text-sm text-outline leading-relaxed flex flex-col gap-2 custom-scrollbar">
                   {chatbotMessages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                       <div className={`w-full p-3 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
@@ -1242,7 +1236,7 @@ export const DebateView = ({
                         ) : (
                           <p className="text-sm">{msg.text}</p>
                         )}
-                        <span className={`block text-[9px] mt-1 ${msg.sender === 'user' ? 'text-white/70' : 'text-gray-500'}`}>{msg.timestamp}</span>
+                        <span className={`block text-sm mt-1 ${msg.sender === 'user' ? 'text-white/70' : 'text-gray-500'}`}>{msg.timestamp}</span>
                       </div>
                     </div>
                   ))}
@@ -1259,7 +1253,7 @@ export const DebateView = ({
                     <button
                       onClick={() => handleHintRequest(speechTurn === 2 ? '반박 힌트' : '재반박 힌트')}
                       disabled={isHintGenerating}
-                      className={`w-full text-xs py-2 px-3 font-bold rounded-xl transition-colors disabled:opacity-50 bg-primary/10 text-primary hover:bg-primary/20`}
+                      className={`w-full text-sm py-2 px-3 font-bold rounded-xl transition-colors disabled:opacity-50 bg-primary/10 text-primary hover:bg-primary/20`}
                     >
                       {isHintGenerating ? (
                         <span className="flex items-center justify-center gap-1"><Loader2 size={13} className="animate-spin" /> 힌트 생성 중...</span>
@@ -1314,22 +1308,22 @@ export const DebateView = ({
               {relatedMaterials.map((material, i) => (
                 <article key={i} className={`flex flex-col gap-2 bg-white rounded-2xl border p-5 card-hover ${material.used ? 'border-primary/40 ring-1 ring-primary/20' : 'border-gray-100'}`}>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[10px] font-bold ${material.color}`}>{material.category}</span>
-                    {material.used && <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">AI가 참고한 자료</span>}
+                    <span className={`text-sm font-bold ${material.color}`}>{material.category}</span>
+                    {material.used && <span className="text-sm font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">AI가 참고한 자료</span>}
                   </div>
-                  <h3 className="text-sm font-bold leading-tight">{material.title}</h3>
+                  <h3 className="text-base font-bold leading-tight">{material.title}</h3>
                   {material.description && (
-                    <p className="text-[11px] text-outline leading-relaxed line-clamp-3">{material.description}</p>
+                    <p className="text-sm text-outline leading-relaxed line-clamp-3">{material.description}</p>
                   )}
                   <div className="flex justify-between items-center pt-3 border-t border-gray-50">
-                    <span className="text-[10px] font-bold text-outline uppercase">출처: {material.source}</span>
+                    <span className="text-sm font-bold text-outline uppercase">출처: {material.source}</span>
                     {material.url ? (
                       material.url.toLowerCase().endsWith('.pdf') ? (
                         <a
                           href={material.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] font-bold text-red-500 hover:underline flex items-center gap-1"
+                          className="text-sm font-bold text-red-500 hover:underline flex items-center gap-1"
                         >
                           <FileText size={11} /> PDF 보기 →
                         </a>
@@ -1338,13 +1332,13 @@ export const DebateView = ({
                           href={material.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-[10px] font-bold text-primary hover:underline"
+                          className="text-sm font-bold text-primary hover:underline"
                         >
                           원문 보기 →
                         </a>
                       )
                     ) : (
-                      <span className="text-[10px] text-gray-300">링크 없음</span>
+                      <span className="text-sm text-gray-300">링크 없음</span>
                     )}
                   </div>
                 </article>
@@ -1352,7 +1346,7 @@ export const DebateView = ({
             </div>
           ) : hasFetchedMaterials ? (
             <div className="flex flex-col items-center justify-center gap-2 flex-1 text-center opacity-50">
-              <p className="text-xs text-outline">참고 자료 없음</p>
+              <p className="text-sm text-outline">참고 자료 없음</p>
             </div>
           ) : null}
         </div>
@@ -1411,11 +1405,11 @@ const InlineQuizPanel = ({ quizzes, isLoading, type, isDone = false, onComplete,
         </div>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2 px-1">
-            <span className="text-[10px] md:text-xs font-bold text-on-surface">AI 에이전트</span>
+            <span className="text-sm md:text-sm font-bold text-on-surface">AI 에이전트</span>
           </div>
           <div className="p-4 md:p-5 rounded-2xl bg-white border-2 border-gray-200 flex items-center gap-3">
             <Loader2 size={18} className="animate-spin text-gray-400 shrink-0" />
-            <span className="text-xs md:text-sm text-gray-600">퀴즈를 불러오는 중입니다...</span>
+            <span className="text-sm md:text-base text-gray-600">퀴즈를 불러오는 중입니다...</span>
           </div>
         </div>
       </div>
@@ -1431,13 +1425,13 @@ const InlineQuizPanel = ({ quizzes, isLoading, type, isDone = false, onComplete,
         </div>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-2 px-1">
-            <span className="text-[10px] md:text-xs font-bold text-on-surface">AI 에이전트</span>
+            <span className="text-sm md:text-sm font-bold text-on-surface">AI 에이전트</span>
           </div>
           <div className="p-4 md:p-5 rounded-2xl bg-white border-2 border-gray-200 flex flex-col gap-3">
-            <p className="text-xs md:text-sm text-gray-600">퀴즈를 불러오지 못했습니다.</p>
+            <p className="text-sm md:text-base text-gray-600">퀴즈를 불러오지 못했습니다.</p>
             <button
               onClick={() => onComplete?.()}
-              className="self-start px-5 py-2 bg-gray-400 text-white font-bold rounded-full text-xs flex items-center gap-1.5 hover:bg-gray-500 transition-colors"
+              className="self-start px-5 py-2 bg-gray-400 text-white font-bold rounded-full text-sm flex items-center gap-1.5 hover:bg-gray-500 transition-colors"
             >
               {type === 'pre' ? '토론 시작' : '결과 보기'} <ArrowRight size={14} />
             </button>
@@ -1460,7 +1454,7 @@ const InlineQuizPanel = ({ quizzes, isLoading, type, isDone = false, onComplete,
       <div className="flex flex-col gap-1 md:gap-1.5 max-w-[82%]">
         {/* 발신자 · 퀴즈 진행 표시 */}
         <div className="flex items-center gap-2 px-1">
-          <span className="text-primary text-[10px] md:text-xs font-bold">
+          <span className="text-primary text-sm md:text-sm font-bold">
             {isDone
               ? `${type === 'pre' ? '토론 전 퀴즈' : '토론 후 퀴즈'}`
               : `${type === 'pre' ? '토론 전 퀴즈' : '토론 후 퀴즈'} ${currentIndex + 1} / ${quizzes.length}`}
@@ -1475,7 +1469,7 @@ const InlineQuizPanel = ({ quizzes, isLoading, type, isDone = false, onComplete,
               <p className="text-sm font-bold text-on-surface">
                 {type === 'pre' ? '사전 퀴즈를 모두 완료했습니다!' : '사후 퀴즈를 모두 완료했습니다!'}
               </p>
-              <p className="text-xs text-outline">
+              <p className="text-sm text-outline">
                 {type === 'pre' ? '토론을 시작해주세요.' : '결과를 불러오는 중입니다.'}
               </p>
             </div>
@@ -1544,7 +1538,7 @@ const InlineMCQuizCard = ({ quiz, isLast, type, isCompleting, onNext }: InlineMC
     <div className="flex flex-col gap-4">
       {/* 문제 */}
       <div className="flex items-start gap-2.5">
-        <p className="text-sm md:text-base font-bold leading-snug">{quiz.question}</p>
+        <p className="text-base md:text-lg font-bold leading-snug">{quiz.question}</p>
       </div>
 
       {/* 선택지 */}
@@ -1554,9 +1548,9 @@ const InlineMCQuizCard = ({ quiz, isLast, type, isCompleting, onNext }: InlineMC
             key={index}
             disabled={submitted}
             onClick={() => setSelected(index)}
-            className={`flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-xl border-2 text-left transition-all text-xs md:text-sm font-medium ${getButtonClass(index)}`}
+            className={`flex items-center gap-2.5 w-full px-3.5 py-2.5 rounded-xl border-2 text-left transition-all text-sm md:text-base font-medium ${getButtonClass(index)}`}
           >
-            <span className="font-bold shrink-0 text-sm">{optionLabels[index]}</span>
+            <span className="font-bold shrink-0 text-base">{optionLabels[index]}</span>
             <span className="flex-1">{option}</span>
             {submitted && quiz.correctIndex === index && (
               <CheckCircle2 size={15} className="shrink-0 text-primary" />
@@ -1580,13 +1574,13 @@ const InlineMCQuizCard = ({ quiz, isLast, type, isCompleting, onNext }: InlineMC
               {isCorrect
                 ? <CheckCircle2 size={14} className="text-primary shrink-0" />
                 : <XCircle size={14} className="text-secondary shrink-0" />}
-              <span className={`font-bold text-xs ${isCorrect ? 'text-primary' : 'text-secondary'}`}>
+              <span className={`font-bold text-sm ${isCorrect ? 'text-primary' : 'text-secondary'}`}>
                 {isCorrect
                   ? '정답입니다!'
                   : `아쉽네요! 정답은 ${optionLabels[quiz.correctIndex]} ${quiz.options[quiz.correctIndex]}`}
               </span>
             </div>
-            <p className="text-[11px] text-outline leading-relaxed">
+            <p className="text-sm text-outline leading-relaxed">
               <span className="font-bold text-on-surface">해설: </span>{quiz.explanation}
             </p>
           </motion.div>
@@ -1599,7 +1593,7 @@ const InlineMCQuizCard = ({ quiz, isLast, type, isCompleting, onNext }: InlineMC
           <button
             onClick={() => setSubmitted(true)}
             disabled={selected === null}
-            className="px-6 py-2 bg-primary text-white font-bold rounded-full disabled:opacity-40 transition-all text-xs"
+            className="px-6 py-2 bg-primary text-white font-bold rounded-full disabled:opacity-40 transition-all text-sm"
           >
             정답 확인
           </button>
@@ -1607,7 +1601,7 @@ const InlineMCQuizCard = ({ quiz, isLast, type, isCompleting, onNext }: InlineMC
           <button
             onClick={onNext}
             disabled={isCompleting}
-            className="px-6 py-2 bg-primary text-white font-bold rounded-full flex items-center gap-1.5 hover:bg-gray-500 transition-all text-xs disabled:opacity-40"
+            className="px-6 py-2 bg-primary text-white font-bold rounded-full flex items-center gap-1.5 hover:bg-gray-500 transition-all text-sm disabled:opacity-40"
           >
             {isCompleting ? (
               <><Loader2 size={14} className="animate-spin" /> 토론 준비 중...</>

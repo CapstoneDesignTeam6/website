@@ -49,8 +49,8 @@ const DebateCard = ({
         onClick={onSelect}
       >
         <div className="flex gap-2 mb-4">
-          <span className="px-2 py-0.5 bg-gray-100 text-[10px] font-bold text-outline rounded uppercase">{debate.category}</span>
-          {debate.isHot && <span className="px-2 py-0.5 bg-red-50 text-[10px] font-bold text-secondary rounded uppercase tracking-widest">Hot</span>}
+          <span className="px-2 py-0.5 bg-gray-100 text-sm font-bold text-outline rounded uppercase">{debate.category}</span>
+          {debate.isHot && <span className="px-2 py-0.5 bg-red-50 text-sm font-bold text-secondary rounded uppercase tracking-widest">Hot</span>}
         </div>
         <h3 className={`text-lg md:text-xl font-bold mb-3 md:mb-4 transition-colors ${isHovered ? 'text-primary' : ''}`}>{debate.title}</h3>
 
@@ -60,7 +60,7 @@ const DebateCard = ({
             {isHovered ? (
               <motion.p
                 key="full"
-                className="text-xs md:text-sm text-outline leading-relaxed"
+                className="text-sm md:text-base text-outline leading-relaxed"
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -4 }}
@@ -71,7 +71,7 @@ const DebateCard = ({
             ) : (
               <motion.p
                 key="clamp"
-                className="text-xs md:text-sm text-outline leading-relaxed line-clamp-3"
+                className="text-sm md:text-base text-outline leading-relaxed line-clamp-3"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -84,7 +84,7 @@ const DebateCard = ({
         </div>
 
         <div className="pt-4 md:pt-6 border-t border-gray-50 flex justify-between items-center">
-          <div className="flex flex-col gap-1 text-outline text-[10px] md:text-xs">
+          <div className="flex flex-col gap-1 text-outline text-sm md:text-sm">
             <div className="flex items-center gap-2">
               <MessageSquare size={14} /> {debate.participants}명 참여 중
             </div>
@@ -94,7 +94,7 @@ const DebateCard = ({
             )}
           </div>
           <motion.span
-            className="text-[10px] md:text-xs font-bold text-primary flex items-center gap-1"
+            className="text-sm md:text-sm font-bold text-primary flex items-center gap-1"
             animate={{ x: isHovered ? 4 : 0 }}
             transition={{ type: 'spring', stiffness: 400, damping: 20 }}
           >
@@ -106,11 +106,11 @@ const DebateCard = ({
       {/* 그리드 공간 유지용 invisible placeholder — 항상 3줄 clamp 높이 */}
       <div className="invisible p-6 md:p-8 flex flex-col" aria-hidden="true">
         <div className="flex gap-2 mb-4">
-          <span className="px-2 py-0.5 text-[10px]">{debate.category}</span>
+          <span className="px-2 py-0.5 text-sm">{debate.category}</span>
         </div>
         <div className="text-lg md:text-xl font-bold mb-3 md:mb-4">{debate.title}</div>
-        <p className="text-xs md:text-sm leading-relaxed line-clamp-3 mb-6 md:mb-8">{debate.description}</p>
-        <div className="pt-4 md:pt-6 border-t border-transparent text-[10px] md:text-xs">placeholder</div>
+        <p className="text-sm md:text-base leading-relaxed line-clamp-3 mb-6 md:mb-8">{debate.description}</p>
+        <div className="pt-4 md:pt-6 border-t border-transparent text-sm md:text-sm">placeholder</div>
       </div>
     </div>
   );
@@ -163,7 +163,7 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
           <input
             type="text"
             placeholder="주제, 키워드, 카테고리 등으로 검색해보세요"
-            className="w-full bg-white border border-gray-100 rounded-2xl md:rounded-3xl py-4 pl-10 md:pl-12 pr-4 md:pr-6 text-sm outline-none focus:outline-none focus:ring-0 transition-all shadow-xl"
+            className="w-full bg-white border border-gray-100 rounded-2xl md:rounded-3xl py-4 pl-10 md:pl-12 pr-4 md:pr-6 text-base outline-none focus:outline-none focus:ring-0 transition-all shadow-xl"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
