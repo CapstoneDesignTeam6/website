@@ -74,7 +74,7 @@ class DebateMessageRequest(BaseModel):
     message: str
     history: list = []
     discussion_id: int | None = None
-    round_number: int = 1
+    turn: int = 0
     difficulty: str = "normal"
 
 class DebateAnalyzeRequest(BaseModel):
@@ -134,7 +134,7 @@ async def send_message(
         loop = asyncio.get_running_loop()
         future = loop.run_in_executor(None, lambda: start_new_turn(
             discussion_id=discussion_id,
-            now_turn=body.round_number,
+            now_turn=body.turn,
             raw_user_message=body.message,
             topic_str=body.topic,
             stage_str=body.difficulty,

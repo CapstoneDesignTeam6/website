@@ -169,9 +169,15 @@ def _call_llm(news_data: list[dict]) -> list[dict]:
         if not isinstance(topics, list):
             raise ValueError("응답이 배열 형식이 아닙니다.")
 
+        all_urls = [u for u in url_map.values() if u]
         for topic in topics:
             indices = topic.pop("source_indices", [])
-            topic["related_news"] = [url_map[i] for i in indices if i in url_map]
+            related = [url_map[i] for i in indices if i in url_map]
+            # source_indices가 비었거나 매칭에 실패하면 입력 뉴스 URL로 폴백
+            # (한 건씩 호출하므로 해당 기사의 URL이 채워진다)
+            if not related:
+                related = all_urls
+            topic["related_news"] = related
 
         return topics
 
