@@ -97,6 +97,7 @@ function buildTutorialSteps(isDebating: boolean): Step[] {
       content: (
         <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
           <p>AI의 발언은 <strong>왼쪽</strong>, 내 발언은 <strong>오른쪽</strong>에 표시돼요.</p>
+          <p>AI가 답변을 생성하는 동안 자료 탐색 · 논거 구성 등 <strong>단계별 사고 과정</strong>이 자동으로 표시돼요.</p>
           <p>실시간 평가 이후에 뜨는 <strong>평가 완료 · 보기</strong> 버튼을 누르면 해당 발언의 평가를 볼 수 있어요.</p>
           <div style={{ marginTop: '0.3125rem', padding: '0.625rem 0.75rem', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
             <p style={{ fontWeight: 'bold', color: 'var(--color-primary)', marginBottom: '0.25rem' }}>📝 주제 설명 및 사전·사후 퀴즈</p>
