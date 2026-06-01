@@ -7,7 +7,7 @@ export const Footer = () => (
           읽는 뉴스에서 생각하는 뉴스로, AI 에이전트와 함께 깊이 있는 이해를 경험해보세요.
         </p>
       </div>
-      <div className="grid grid-cols-2 gap-8 md:gap-16">
+      {/* <div className="grid grid-cols-2 gap-8 md:gap-16">
         <div className="space-y-4">
           <h4 className="font-bold text-sm md:text-base text-on-surface">고객 지원</h4>
           <ul className="space-y-2 text-sm md:text-base text-outline">
@@ -22,7 +22,7 @@ export const Footer = () => (
             <li><a href="#" className="hover:text-primary">이용약관</a></li>
           </ul>
         </div>
-      </div>
+      </div> */}
     </div>
     <div className="max-w-7xl mx-auto px-4 md:px-0 mt-8 md:mt-10 pt-6 md:pt-8 border-t border-gray-200 flex justify-between text-sm md:text-sm text-outline">
       <span>© 2026 Agora. All rights reserved.</span>

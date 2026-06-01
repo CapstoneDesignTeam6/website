@@ -25,17 +25,6 @@ export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    setIsLoggedIn(true);
-    setUserData({
-      id: 0,
-      username: 'google_user',
-      nickname: 'Google User',
-      email: 'google_user@gmail.com'
-    });
-    navigate('/');
-  };
-
   return (
     <div className="max-w-lg mx-auto px-4 md:px-8 py-12 md:py-24">
       <header className="text-center mb-8 md:mb-12">
@@ -47,8 +36,8 @@ export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
         <form onSubmit={handleLogin} className="space-y-4 md:space-y-6">
           <div className="space-y-1.5 md:space-y-2">
             <label className="text-sm md:text-base font-bold text-on-surface ml-1">이메일</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               required
               className="w-full bg-surface-container p-3 md:p-4 rounded-xl border-none focus:ring-2 focus:ring-primary transition-all text-sm md:text-base"
               placeholder="example@email.com"
@@ -58,8 +47,8 @@ export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
           </div>
           <div className="space-y-1.5 md:space-y-2">
             <label className="text-sm md:text-base font-bold text-on-surface ml-1">비밀번호</label>
-            <input 
-              type="password" 
+            <input
+              type="password"
               required
               className="w-full bg-surface-container p-3 md:p-4 rounded-xl border-none focus:ring-2 focus:ring-primary transition-all text-sm md:text-base"
               placeholder="비밀번호를 입력하세요"
@@ -68,25 +57,11 @@ export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
             />
           </div>
 
-          <button 
+          <button
             type="submit"
             className="w-full py-3 md:py-4 bg-primary text-white font-bold rounded-xl transition-all text-sm md:text-base"
           >
             로그인
-          </button>
-
-          <div className="relative py-3 md:py-4">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-            <div className="relative flex justify-center text-sm md:text-sm uppercase"><span className="bg-white px-2 text-outline">또는</span></div>
-          </div>
-
-          <button 
-            type="button"
-            onClick={handleGoogleLogin}
-            className="w-full py-3 md:py-4 border border-gray-200 text-on-surface font-bold rounded-xl flex items-center justify-center gap-2 md:gap-3 hover:bg-gray-50 transition-all text-sm md:text-base"
-          >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-4 h-4 md:w-5 md:h-5" />
-            Google 계정으로 로그인
           </button>
 
           <p className="text-center text-sm md:text-base text-outline pt-3 md:pt-4">
