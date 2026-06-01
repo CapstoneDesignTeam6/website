@@ -62,8 +62,8 @@ interface DebateViewProps {
   postQuizzes?: MultipleChoiceQuiz[];
   isQuizLoading?: boolean;
   onStartQuiz?: () => void;          // "퀴즈 풀기" 버튼 클릭 → pre-quiz 단계로 전환
-  onPreQuizComplete?: () => void;   // 사전 퀴즈 완료 → turn=0 요청 후 debating 전환
-  onPostQuizComplete?: () => void;  // 사후 퀴즈 완료 → ResultView 이동
+  onPreQuizComplete?: (answers: number[]) => void;   // 사전 퀴즈 완료 → turn=0 요청 후 debating 전환
+  onPostQuizComplete?: (answers: number[]) => void;  // 사후 퀴즈 완료 → ResultView 이동
   onRestart?: () => void;           // "다시 시작" → 토론 상태 초기화 후 /setup 이동
   onRegisterExitHandler?: (handler: (path: string) => void) => void; // 이탈 가로채기 핸들러 등록
   userData?: UserData | null;
@@ -1099,7 +1099,7 @@ export const DebateView = ({
                         isLoading={isQuizLoading && debatePhase === 'pre-quiz'}
                         type="pre"
                         isDone={isPreQuizDone}
-                        onComplete={() => { setIsPreQuizDone(true); onPreQuizComplete?.(); }}
+                        onComplete={(answers) => { setIsPreQuizDone(true); onPreQuizComplete?.(answers); }}
                         isCompleting={false}
                       />
                     )}
@@ -1182,7 +1182,7 @@ export const DebateView = ({
                   isLoading={isQuizLoading && debatePhase === 'pre-quiz'}
                   type="pre"
                   isDone={isPreQuizDone}
-                  onComplete={() => { setIsPreQuizDone(true); onPreQuizComplete?.(); }}
+                  onComplete={(answers) => { setIsPreQuizDone(true); onPreQuizComplete?.(answers); }}
                   isCompleting={false}
                 />
               )}
@@ -1206,7 +1206,7 @@ export const DebateView = ({
                   isLoading={isQuizLoading}
                   type="post"
                   isDone={isPostQuizDone}
-                  onComplete={() => { setIsPostQuizDone(true); onPostQuizComplete?.(); }}
+                  onComplete={(answers) => { setIsPostQuizDone(true); onPostQuizComplete?.(answers); }}
                   isCompleting={false}
                 />
               )}
@@ -1491,23 +1491,27 @@ interface InlineQuizPanelProps {
   isLoading: boolean;
   type: 'pre' | 'post';
   isDone?: boolean;
-  onComplete?: () => void;
+  onComplete?: (answers: number[]) => void;
   isCompleting?: boolean; // onComplete 처리 중 (turn=0 API 호출 중)
 }
 
 const InlineQuizPanel = ({ quizzes, isLoading, type, isDone = false, onComplete, isCompleting }: InlineQuizPanelProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<number[]>([]);
 
-  // 퀴즈 목록이 바뀌면 인덱스 초기화
+  // 퀴즈 목록이 바뀌면 인덱스·답안 초기화
   useEffect(() => {
     setCurrentIndex(0);
+    setAnswers([]);
   }, [quizzes]);
 
-  const handleNext = () => {
+  const handleNext = (selected: number) => {
+    const nextAnswers = [...answers, selected];
     if (currentIndex < quizzes.length - 1) {
+      setAnswers(nextAnswers);
       setCurrentIndex(currentIndex + 1);
     } else {
-      onComplete?.();
+      onComplete?.(nextAnswers);
     }
   };
 
@@ -1545,7 +1549,7 @@ const InlineQuizPanel = ({ quizzes, isLoading, type, isDone = false, onComplete,
           <div className="p-4 md:p-5 rounded-2xl bg-white border-2 border-gray-200 flex flex-col gap-3">
             <p className="text-sm md:text-base text-gray-600">퀴즈를 불러오지 못했습니다.</p>
             <button
-              onClick={() => onComplete?.()}
+              onClick={() => onComplete?.([])}
               className="self-start px-5 py-2 bg-gray-400 text-white font-bold rounded-full text-sm flex items-center gap-1.5 hover:bg-gray-500 transition-colors"
             >
               {type === 'pre' ? '토론 시작' : '결과 보기'} <ArrowRight size={14} />
@@ -1620,7 +1624,7 @@ interface InlineMCQuizCardProps {
   isLast: boolean;
   type: 'pre' | 'post';
   isCompleting: boolean;
-  onNext: () => void;
+  onNext: (selected: number) => void;
 }
 
 const InlineMCQuizCard = ({ quiz, isLast, type, isCompleting, onNext }: InlineMCQuizCardProps) => {
@@ -1714,7 +1718,7 @@ const InlineMCQuizCard = ({ quiz, isLast, type, isCompleting, onNext }: InlineMC
           </button>
         ) : (
           <button
-            onClick={onNext}
+            onClick={() => onNext(selected!)}
             disabled={isCompleting}
             className="px-6 py-2 bg-primary text-white font-bold rounded-full flex items-center gap-1.5 hover:bg-gray-500 transition-all text-sm disabled:opacity-40"
           >

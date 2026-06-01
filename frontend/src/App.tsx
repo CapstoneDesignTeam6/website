@@ -259,7 +259,10 @@ export default function App() {
    *
    * 사용 위치: DebateView 내 인라인 사전퀴즈 완료 콜백
    */
-  const handlePreQuizComplete = () => {
+  const handlePreQuizComplete = async (answers: number[]) => {
+    if (discussionId != null && preQuizzes.length > 0) {
+      await debateApi.submitQuiz(discussionId, 'pre', preQuizzes, answers);
+    }
     setDebatePhase('debating');
   };
 
@@ -409,7 +412,11 @@ export default function App() {
    *
    * 사용 위치: DebateView 내 인라인 사후퀴즈 완료 콜백
    */
-  const showResult = async () => {
+  const showResult = async (answers: number[]) => {
+    if (discussionId != null && postQuizzes.length > 0) {
+      await debateApi.submitQuiz(discussionId, 'post', postQuizzes, answers);
+    }
+
     navigate("/result", { replace: true });
     setDebateResult("토론 결과를 분석 중입니다...");
 
