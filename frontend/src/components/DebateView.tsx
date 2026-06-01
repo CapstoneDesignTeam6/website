@@ -500,9 +500,17 @@ export const DebateView = ({
     fetchScore();
   }, [messages.length, discussionId]);
 
-  // 참고 자료 fetch — AI 응답이 추가될 때마다 갱신 (에이전트가 매 턴 새 자료를 저장하므로)
+  // 의견 생성 시작 시 참고자료 로딩 상태 활성화
+  useEffect(() => {
+    if (isGenerating) {
+      setIsLoadingRelatedMaterials(true);
+    }
+  }, [isGenerating]);
+
+  // 참고 자료 fetch — 첫 AI 응답 이후부터 매 턴 갱신 (에이전트가 매 턴 새 자료를 저장하므로)
   const aiMessageCount = messages.filter(m => m.role !== 'user').length;
   useEffect(() => {
+    if (aiMessageCount === 0) return; // 첫 AI 응답 전에는 fetch 하지 않음 (로딩 화면 유지)
     if (!discussionId) {
       setHasMaterialsFetchError(true);
       setHasFetchedMaterials(true);
@@ -1309,7 +1317,7 @@ export const DebateView = ({
           {isLoadingRelatedMaterials ? (
             <div className="flex flex-col items-center justify-center gap-4 h-full">
               <Loader2 size={32} className="animate-spin text-primary" />
-              <p className="text-outline">참고 자료를 불러오는 중입니다...</p>
+              <p className="text-outline text-center">참고 자료를 불러오는 중입니다...</p>
             </div>
           ) : relatedMaterials.length > 0 ? (
             <div className="flex flex-col gap-5">
@@ -1358,7 +1366,7 @@ export const DebateView = ({
             </div>
           ) : hasFetchedMaterials ? (
             <div className="flex flex-col items-center justify-center gap-2 flex-1 text-center opacity-50">
-              <p className="text-sm text-outline">참고 자료 없음</p>
+              <p className="text-sm text-outline">참고 자료가 없습니다.</p>
             </div>
           ) : null}
         </div>
