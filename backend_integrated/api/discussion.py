@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from supabase import Client
 from pydantic import BaseModel
@@ -13,41 +13,14 @@ from services.discussion_service import DiscussionService
 from services.auth_service import AuthService
 from services.agent_service import AgentService
 from database import get_db, get_supabase
-import asyncio
 import logging
 
 _logger = logging.getLogger(__name__)
-_refresh_running = False  # 동시 갱신 방지 플래그
 
-
-async def _refresh_if_needed():
-    """뉴스/주제가 만료됐으면 백그라운드에서 갱신한다.
-    Render 상시 실행 환경이므로 타임아웃 없이 Playwright 크롤링도 가능.
-    """
-    global _refresh_running
-    if _refresh_running:
-        return
-    _refresh_running = True
-    try:
-        from services.news import is_news_expired, crawl_and_replace_news
-        from services.topic import generate_and_save_topics
-
-        if is_news_expired():
-            _logger.info("🔄 [bg] 뉴스 만료 → 크롤링 시작...")
-            try:
-                crawl_result = await crawl_and_replace_news()
-                _logger.info(f"🔄 [bg] 크롤링 결과: {crawl_result}")
-            except Exception as crawl_err:
-                _logger.error(f"❌ [bg] 크롤링 실패 — {type(crawl_err).__name__}: {crawl_err}")
-
-        loop = asyncio.get_event_loop()
-        try:
-            result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=False))
-            _logger.info(f"💬 [bg] 주제 갱신 결과: {result}")
-        except Exception as topic_err:
-            _logger.error(f"❌ [bg] 주제 생성 실패 — {type(topic_err).__name__}: {topic_err}")
-    finally:
-        _refresh_running = False
+# 뉴스 크롤링/주제 생성은 별도 Render Cron Job에서 수행한다:
+#   - cron_crawl_news.py        : 뉴스 크롤링 (매일)
+#   - cron_generate_topics.py   : 토론 주제 생성 (주 1회)
+# 웹 프로세스에서는 무거운 Playwright를 띄우지 않는다.
 
 
 # 1대1 토론 라우터 (단수형)
@@ -570,7 +543,7 @@ async def get_related_materials(topic: str = "", discussion_id: int = 0):
 
 
 @public_router.get("/trending")
-async def get_trending_debates(background_tasks: BackgroundTasks):
+async def get_trending_debates():
     """Supabase discussion_topics 테이블 기반 트렌딩 토론 주제 목록.
     기존 DB 데이터를 즉시 반환하고, 만료 여부에 따라 백그라운드에서 갱신한다.
     """
@@ -589,10 +562,11 @@ async def get_trending_debates(background_tasks: BackgroundTasks):
     except Exception:
         rows = []
 
-    # 2. 응답 후 백그라운드에서 만료 체크 & 갱신
-    background_tasks.add_task(_refresh_if_needed)
+    # 뉴스 크롤링/주제 생성은 별도 Render Cron Job(cron_crawl_news.py /
+    # cron_generate_topics.py)에서 수행한다. 무거운 Playwright를 웹 프로세스에서
+    # 띄우지 않기 위해 여기서는 더 이상 백그라운드 갱신을 트리거하지 않는다.
 
-    # 3. 즉시 반환
+    # 즉시 반환
     result = []
     for i, row in enumerate(rows):
         result.append({

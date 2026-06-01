@@ -4,7 +4,7 @@ import vertexai
 from langchain_google_vertexai import ChatVertexAI
 from langchain_core.messages import SystemMessage, HumanMessage
 from datetime import datetime, timezone, timedelta
-from database import get_supabase_client
+from db import get_supabase_client
 
 logger = logging.getLogger(__name__)
 

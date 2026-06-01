@@ -3,7 +3,7 @@ import logging
 import random
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone, timedelta
-from database import get_supabase_client
+from db import get_supabase_client
 
 # bs4, playwright 는 크롤링 실행 시점에 임포트 (서버 startup 오류 방지)
 

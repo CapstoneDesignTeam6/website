@@ -1,0 +1,37 @@
+name: Generate Topics (weekly)
+
+# 주 1회 토론 주제 생성 — Vertex AI(Gemini) 사용
+on:
+  schedule:
+    # 15:00 UTC 일요일 = 한국시간(KST) 월요일 00:00. 요일은 원하는 날로 변경 가능
+    - cron: "0 15 * * 0"
+  workflow_dispatch: {}   # 수동 실행 버튼
+
+jobs:
+  topics:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crawler
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --no-cache-dir -r requirements.txt
+
+      # Vertex AI 인증 — 서비스 계정 키(JSON)를 GOOGLE_APPLICATION_CREDENTIALS로 설정
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Run topic generation
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python cron_generate_topics.py

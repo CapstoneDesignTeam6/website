@@ -1,0 +1,16 @@
+# 크롤러(batch) 전용 의존성 — 웹(backend_integrated)과 독립
+
+# 공통
+requests>=2.31.0
+supabase==2.13.0
+python-dotenv>=1.0.0
+
+# 뉴스 크롤링 (cron_crawl_news.py)
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+playwright>=1.40.0
+
+# 토론 주제 생성 (cron_generate_topics.py) — Vertex AI Gemini
+google-cloud-aiplatform==1.153.1
+langchain-google-vertexai==3.2.3
+langchain-core==1.4.0
