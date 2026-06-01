@@ -110,17 +110,6 @@ def _incr_count() -> int:
     _set_count(n)
     return n
 
-# agent_id → SSE step 타입
-_AGENT_STEP_TYPE: dict[int, str] = {
-    0: "search",
-    1: "generate",
-    2: "generate",
-    3: "generate",
-    4: "simplify",
-    5: "simplify",
-    6: "orchestrator",
-}
-
 
 def _cleanup_stale_stores() -> None:
     """TTL 초과 토론 스토어를 한 번에 정리 (start_new_turn 시 호출)."""
@@ -460,6 +449,7 @@ def run_explorer_agent(input_json_str):
         except Exception as e:
             print(f"⚠️ [Agent 0] Supabase 연결 실패: {e}")
 
+    saved_count = 0
     for q in search_queries:
         _log(f"🌐 [Agent 0] 검색 수행: {q}")
         search_response = search_tool.invoke({"query": q})
@@ -493,10 +483,11 @@ def run_explorer_agent(input_json_str):
                         "url": str(doc["url"]),
                         "content": str(doc["content"]),
                     }).execute()
-                except Exception:
-                    pass  # 중복 등 개별 실패는 무시
+                    saved_count += 1
+                except Exception as e:
+                    print(f"⚠️ [Agent 0] 검색결과 저장 실패: {e}")
 
-    _log(f"💾 [Agent 0] 검색 결과 {len(collected_documents)}건 저장 완료")
+    _log(f"💾 [Agent 0] 검색 결과 {saved_count}/{len(collected_documents)}건 Supabase 저장 완료")
 
     input_json = {
         "discussion_id": discussion_id,
@@ -509,9 +500,6 @@ def run_explorer_agent(input_json_str):
         "refutation_turn": input_data.get("refutation_turn", 0),
         "now_turn": input_data.get("now_turn", 0),
     }
-    _emit({"type": "step", "step": "search", "status": "done",
-           "data": {"agent_id": 0,
-                    "workspace_summary": f"검색 결과 {len(collected_documents)}건 수집 완료"}})
     return run_step(input_json)
 
 
@@ -597,8 +585,6 @@ def make_refute_agent(input_json_str):
         "refutation_turn": input_data.get("refutation_turn", 0),
         "now_turn": input_data.get("now_turn", 0),
     }
-    _emit({"type": "step", "step": "generate", "status": "done",
-           "data": {"agent_id": 3, "workspace_summary": "반론 생성 완료"}})
     return run_step(output_json)
 
 
@@ -633,6 +619,7 @@ def make_topic_explanation_agent(input_json_str):
             except Exception as e:
                 print(f"⚠️ [Agent 2] Supabase 연결 실패: {e}")
 
+        saved_count = 0
         for q in explanation_queries:
             print(f"🌐 [Agent 2] 배경 정보 검색: {q}")
             search_response = search_tool.invoke({"query": q})
@@ -666,10 +653,11 @@ def make_topic_explanation_agent(input_json_str):
                             "url": str(doc["url"]),
                             "content": str(doc["content"]),
                         }).execute()
-                    except Exception:
-                        pass  # 중복 등 개별 실패는 무시
+                        saved_count += 1
+                    except Exception as e:
+                        print(f"⚠️ [Agent 2] 검색결과 저장 실패: {e}")
 
-        print(f"💾 [Agent 2] 배경 자료 {len(collected_context)}건 저장 완료")
+        print(f"💾 [Agent 2] 배경 자료 {saved_count}/{len(collected_context)}건 Supabase 저장 완료")
     else:
         print(f"📖 [Agent 2] reference {len(reference)}개 자료 사용 (자체 검색 생략)")
 
@@ -726,8 +714,6 @@ def make_topic_explanation_agent(input_json_str):
         "refutation_turn": input_data.get("refutation_turn", 0),
         "now_turn": input_data.get("now_turn", 0),
     }
-    _emit({"type": "step", "step": "generate", "status": "done",
-           "data": {"agent_id": 2, "workspace_summary": "주제 설명 생성 완료"}})
     return run_step(output_json)
 
 
@@ -826,8 +812,6 @@ def make_opinion_agent(input_json_str):
     """
     response = llm.invoke(opinion_prompt)
     result = response.content
-    _emit({"type": "step", "step": "generate", "status": "done",
-           "data": {"agent_id": 1, "workspace_summary": "주장 생성 완료"}})
     input_json = {
         "discussion_id": discussion_id,
         "topic": topic,
@@ -913,8 +897,6 @@ def simplify_output_agent(input_json_str):
     print(result)
 
     # 턴 저장은 start_new_turn의 단일 종료 지점에서 일괄 처리한다 (여기서 저장하지 않음)
-    _emit({"type": "step", "step": "simplify", "status": "done",
-           "data": {"agent_id": 4, "workspace_summary": "쉬운 설명 변환 완료"}})
     return result
 
 
@@ -995,8 +977,6 @@ def normally_output_agent(input_json_str):
     print(result)
 
     # 턴 저장은 start_new_turn의 단일 종료 지점에서 일괄 처리한다 (여기서 저장하지 않음)
-    _emit({"type": "step", "step": "simplify", "status": "done",
-           "data": {"agent_id": 5, "workspace_summary": "보통 설명 변환 완료"}})
     return result
 
 
@@ -1101,8 +1081,7 @@ def run_step(context_json):
     print(f"⚙️  [Step {count}] 오케스트레이터 호출 시작")
     print(f"📊 [Orchestrator] 현재 반박 완료 횟수(refutation_turn): {refutation_turn}")
 
-    _emit({"type": "step", "step": "orchestrator", "status": "running",
-           "data": {"agent_id": 6}})
+    _log("🧭 다음 전략 수립 중...")
 
     messages = [
         SystemMessage(content=get_system_prompt(refutation_turn)),
@@ -1120,15 +1099,6 @@ def run_step(context_json):
         print(f"\n[Orchestrator Decision]:\n{json.dumps(result, indent=2, ensure_ascii=False)}")
 
         make_json_file(filename, context_json, result)
-
-        _emit({"type": "step", "step": "orchestrator", "status": "done", "data": {
-            "agent_id": 6,
-            "next_agent_id": result.get("next_agent_id"),
-            "instruction": result.get("instruction", "")[:300],
-            "workspace_summary": result.get("workspace_summary", ""),
-            "context_summary": result.get("context_summary", "")[:200],
-            "reference": result.get("reference", []),
-        }})
     except Exception as e:
         print(f"❌ 오케스트레이터가 유효한 JSON을 반환하지 않았습니다. 오류: {e}")
         print(response.content)
@@ -1173,11 +1143,6 @@ def run_orchestrator_test(result):
     if user_cmd == "stop":
         print("🛑 실행을 중단합니다.")
         return
-
-    step_type = _AGENT_STEP_TYPE.get(agent_id, "generate")
-    _emit({"type": "step", "step": step_type, "status": "running",
-           "data": {"agent_id": agent_id,
-                    "instruction": result2.get("instruction", "")[:300]}})
 
     if agent_id == 0:
         print("🔄 Agent 0 (Explorer) 실행 중...")

@@ -201,7 +201,9 @@ def _generate_feedback(
     if not queries:
         return feedback
 
+    print(f"🌐 [Summary] 피드백 보완 검색 {len(queries)}건 수행")
     search_results = _tavily_search(queries)
+    print(f"🌐 [Summary] 검색 결과 {len(search_results)}건 수집")
     if not search_results:
         return feedback
 
@@ -232,10 +234,13 @@ def get_summary(discussion_id: int, topic: str) -> dict:
     Returns: DiscussionSummaryResponse 형식
       {summary, issues, logic_feedback, extra_info}
     """
+    print(f"📝 [Summary] 요약 시작 | discussion_id={discussion_id} | topic={topic}")
     turns = _fetch_turns(discussion_id)
     history = _build_history(turns)
+    print(f"📝 [Summary] 턴 {len(turns)}개 로드 (history {len(history)}개)")
 
     if not history:
+        print("⚠️ [Summary] 토론 기록 없음 → 빈 요약 반환")
         return {
             "summary": "토론 기록을 찾을 수 없습니다.",
             "issues": "",
@@ -248,24 +253,30 @@ def get_summary(discussion_id: int, topic: str) -> dict:
 
     # 1. 무효 발언 필터
     invalid_contents, clean_history_block = _filter_invalid_turns(history, topic)
+    print(f"🔎 [Summary] 무효 발언 필터 완료 (제외 {len(invalid_contents)}건)")
 
     # 2. 발언 추출
     extracted = _extract_claims(clean_history_block)
+    print(f"📤 [Summary] 발언 추출 완료 ({len(extracted)}자)")
 
     # 3. 핵심 논점 구조화
     structured = _structure_issues(extracted)
+    print(f"🧩 [Summary] 핵심 논점 구조화 완료 ({len(structured)}자)")
 
     # 4. 서술형 요약
     summary = _polish_summary(extracted, structured, invalid_contents)
+    print(f"✍️ [Summary] 서술형 요약 완료 ({len(summary)}자)")
 
     # 5. 논리 피드백 + 검색 보완
     logic_feedback = _generate_feedback(clean_history_block, topic, summary, user_turn_count)
+    print(f"💬 [Summary] 논리 피드백 완료 ({len(logic_feedback)}자)")
 
     # extra_info: 무효 발언 메모
     extra_info = ""
     if invalid_contents:
         extra_info = f"무효 발언 {len(invalid_contents)}건이 요약에서 제외됐습니다."
 
+    print(f"✅ [Summary] 요약 생성 완료 (discussion_id={discussion_id})")
     return {
         "summary": summary,
         "issues": structured,

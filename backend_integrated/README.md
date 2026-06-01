@@ -66,8 +66,10 @@ pip install -r requirements.txt
 SECRET_KEY=your-secret-key-change-in-production
 DEBUG=True
 DATABASE_URL=sqlite:///./discussion_agent.db
-NAVER_CLIENT_ID=your-naver-client-id
-NAVER_CLIENT_SECRET=your-naver-client-secret
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_KEY=your-supabase-key
+# Vertex AI(Gemini) 인증: 서비스 계정 키 경로
+GOOGLE_APPLICATION_CREDENTIALS=secrets/gcp-key.json
 ```
 
 ### 4. 서버 실행

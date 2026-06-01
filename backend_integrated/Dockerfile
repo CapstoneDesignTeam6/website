@@ -12,9 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # --no-deps로 메타데이터 체크 우회해서 설치
 RUN pip install --no-cache-dir --no-deps langchain-tavily==0.1.5
 
-# Playwright 브라우저 바이너리 + OS 의존 라이브러리 설치
-# (slim 이미지엔 chromium 실행에 필요한 .so가 없어 --with-deps 필수)
-RUN playwright install --with-deps chromium
+# 크롤링(Playwright/Chromium)은 별도 crawler/(GitHub Actions)로 분리됨 →
+# 웹 이미지에는 더 이상 브라우저를 설치하지 않는다 (이미지 크기·메모리 절감).
 
 COPY . .
 
