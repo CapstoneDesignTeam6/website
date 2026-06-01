@@ -937,7 +937,7 @@ export const DebateView = ({
                 </div>
                 <div id="tutorial-action-buttons" className="flex items-center gap-3">
 
-                  <button onClick={() => setIsTutorialRunning(true)} className="px-2 py-1 bg-gray-50  text-on-surface rounded-xl font-bold text-sm transition-all flex items-center gap-1">
+                  <button onClick={() => setIsTutorialRunning(true)} className="px-2 py-1 bg-gray-100 text-on-surface rounded-xl font-bold text-sm transition-all flex items-center gap-1">
                     <Info size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '튜토리얼'}
                   </button>
                   <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-sm transition-all flex items-center gap-1">
@@ -946,7 +946,7 @@ export const DebateView = ({
                   <button onClick={onFinish} className="px-2 py-1 bg-secondary text-white rounded-xl font-bold text-sm transition-all flex items-center gap-1">
                     <Power size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '토론 종료'}
                   </button>
-                  <button onClick={toggleFullScreen} className="px-2 py-1 bg-gray-50  text-on-surface rounded-xl font-bold text-sm transition-all flex items-center gap-1">
+                  <button onClick={toggleFullScreen} className="px-2 py-1 bg-gray-100 text-on-surface rounded-xl font-bold text-sm transition-all flex items-center gap-1">
                     {isFullScreen ? <Minimize size={14} /> : <Maximize size={14} />} {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '전체 화면'}
                   </button>
                                     
