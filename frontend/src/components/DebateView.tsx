@@ -808,6 +808,7 @@ export const DebateView = ({
         run={isTutorialRunning}
         onFinish={() => setIsTutorialRunning(false)}
         userId={userData?.id && !userData.is_guest ? userData.id : undefined}
+        isDebating={debatePhase === 'debating'}
       />
       {/* <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} /> */}
       {/* Left Sidebar: 실시간 평가 점수 */}
