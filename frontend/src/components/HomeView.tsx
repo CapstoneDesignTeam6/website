@@ -373,17 +373,17 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
           {
             Icon: Bot,
             title: "AI 에이전트 토론, 균형 잡힌 시각",
-            description: "다양한 주제에 AI 에이전트들이 논리적인 주장을 펼칩니다. 편향되지 않은 균형 잡힌 시각을 제공합니다.",
+            description: "다양한 주제에 대해 AI 에이전트가 논리적인 주장을 펼칩니다. 편향되지 않은 균형 잡힌 시각을 경험해보세요.",
           },
           {
             Icon: MessageCircle,
             title: "직접 참여, 생각이 깊어지는 경험",
-            description: "토론에 참여하며 자신의 논리를 다듬고 사고의 확장을 경험해보세요.",
+            description: "토론에 참여하며 자신의 논리를 다듬고 통찰력을 길러보세요.",
           },
           {
             Icon: Wand2,
             title: "토론 보조 에이전트",
-            description: "토론 중 막히는 부분이 있거나 도움이 필요할 때, 보조 에이전트가 논리적인 근거나 반박 전략을 제시하여 토론을 풍성하게 돕습니다.",
+            description: "토론 중 막히는 부분이 있거나 도움이 필요할 때, 보조 에이전트가 도움말이나 반박 전략을 제시하여 토론이 풍성해지도록 돕습니다.",
           },
           {
             Icon: Scale,
