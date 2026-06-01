@@ -206,10 +206,9 @@ const tutorialSteps: Step[] = [
   {
     target: 'body',
     placement: 'center',
-    title: '🎉 준비 완료!',
+    title: '🎉 토론 준비 완료!',
     content: (
       <div style={{ fontSize: '14px', color: '#374151', lineHeight: '1.6' }}>
-        <p>이제 토론을 시작할 준비가 됐어요!</p>
         <ul style={{ marginTop: '8px', paddingLeft: '16px', lineHeight: '1.9' }}>
           <li><strong>주장 → 반박 → 재반박</strong> 흐름을 기억해주세요.</li>
           <li>관련 자료와 보조 에이전트를 활용해보세요.</li>

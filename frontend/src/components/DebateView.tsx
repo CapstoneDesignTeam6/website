@@ -366,6 +366,8 @@ export const DebateView = ({
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isPreQuizDone, setIsPreQuizDone] = useState(false);
+  const [isPostQuizDone, setIsPostQuizDone] = useState(false);
   const [isScoreSidebarOpen, setIsScoreSidebarOpen] = useState(true);
   const [evaluationScores, setEvaluationScores] = useState<Record<number, UserEvaluationScore>>({});
   const [evaluationScore, setEvaluationScore] = useState<UserEvaluationScore | null>(null);
@@ -414,9 +416,9 @@ export const DebateView = ({
   }, [navigate]);
 
   const SPEECH_GUIDE: Record<number, string> = {
-    1: `📢 **주장 단계입니다.** 나의 입장과 근거를 이야기해주세요. 💡 **도움말**  • 구체적인 사례나 수치를 제시해보세요. • 경제·사회·환경 등 여러 측면을 함께 언급해보세요.`, 
-    2: `✅ **반박 단계입니다.** 상대방 주장 속 논리적 오류를 짚어 반박해주세요. 💡 **도움말** • 상대방 주장이 적용되지 않는 특수한 상황이나 예외적인 사례를 설명해보세요. • 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요. `, 
-    3: `🔄 **재반박 단계입니다.** 상대방 반박의 논리적 모순이나 근거 오류를 제시하여 나의 주장을 더 보완해보세요. 💡 **도움말**  • 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요. • 주장을 뒷받침하는 새로운 사례나 이유를 추가해보세요.  `,
+    1: `📢 **주장 단계입니다.**  \n나의 입장과 근거를 이야기해주세요.\n\n💡 **도움말**  \n• 구체적인 사례나 수치를 제시해보세요.  \n• 경제·사회·환경 등 여러 측면을 함께 언급해보세요.`,
+    2: `✅ **반박 단계입니다.**  \n상대방 주장 속 논리적 오류를 짚어 반박해주세요.\n\n💡 **도움말**  \n• 상대방 주장이 적용되지 않는 특수한 상황이나 예외적인 사례를 설명해보세요.  \n• 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요.`,
+    3: `🔄 **재반박 단계입니다.**  \n상대방 반박의 논리적 모순이나 근거 오류를 제시하여 나의 주장을 더 보완해보세요.\n\n💡 **도움말**  \n• 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요.  \n• 주장을 뒷받침하는 새로운 사례나 이유를 추가해보세요.`,
   };
 
   // speechTurn 변화 시 챗봇 자동 팝업 (speechGuide + 힌트 질문)
@@ -975,8 +977,21 @@ export const DebateView = ({
                 const prevMsg = idx > 0 ? messages[idx - 1] : null;
                 const showRoundIndicator = msg.round && (!prevMsg || prevMsg.round !== msg.round);
 
+                const isFirstUserMsg = msg.role === 'user' && !messages.slice(0, idx).some(m => m.role === 'user');
+
                 return (
                   <React.Fragment key={idx}>
+                    {/* ── 사전 퀴즈: 첫 번째 사용자 메시지 바로 위에 고정 삽입 ── */}
+                    {isFirstUserMsg && (debatePhase === 'pre-quiz' || debatePhase === 'debating') && (preQuizzes.length > 0 || isPreQuizDone || (isQuizLoading && debatePhase === 'pre-quiz')) && (
+                      <InlineQuizPanel
+                        quizzes={preQuizzes}
+                        isLoading={isQuizLoading && debatePhase === 'pre-quiz'}
+                        type="pre"
+                        isDone={isPreQuizDone}
+                        onComplete={() => { setIsPreQuizDone(true); onPreQuizComplete?.(); }}
+                        isCompleting={false}
+                      />
+                    )}
                     {showRoundIndicator && (
                       <div className="flex justify-center">
                         <span className="px-3 py-1 bg-gray-100 border border-gray-800  text-on-surface text-[10px] font-black rounded-full tracking-widest">
@@ -1049,6 +1064,18 @@ export const DebateView = ({
                 );
               })}
 
+              {/* ── 사전 퀴즈 fallback: 사용자 메시지가 아직 없을 때 ── */}
+              {(debatePhase === 'pre-quiz' || (debatePhase === 'debating' && isPreQuizDone)) && !messages.some(m => m.role === 'user') && (
+                <InlineQuizPanel
+                  quizzes={preQuizzes}
+                  isLoading={isQuizLoading && debatePhase === 'pre-quiz'}
+                  type="pre"
+                  isDone={isPreQuizDone}
+                  onComplete={() => { setIsPreQuizDone(true); onPreQuizComplete?.(); }}
+                  isCompleting={false}
+                />
+              )}
+
               {/* ── intro 단계: turn=0 메시지 아래 "퀴즈 풀기" 버튼 ── */}
               {debatePhase === 'intro' && !isGenerating && messages.length > 0 && (
                 <div className="flex justify-center">
@@ -1061,24 +1088,14 @@ export const DebateView = ({
                 </div>
               )}
 
-              {/* ── 사전 퀴즈 (pre-quiz 단계, turn=0 메시지 아래에 이어서 표시) ── */}
-              {debatePhase === 'pre-quiz' && (
-                <InlineQuizPanel
-                  quizzes={preQuizzes}
-                  isLoading={isQuizLoading}
-                  type="pre"
-                  onComplete={onPreQuizComplete}
-                  isCompleting={false}
-                />
-              )}
-
-              {/* ── 사후 퀴즈 (post-quiz 단계, 메시지 아래에 이어서 표시) ── */}
+              {/* ── 사후 퀴즈 (post-quiz 완료 후에도 계속 표시) ── */}
               {debatePhase === 'post-quiz' && (
                 <InlineQuizPanel
                   quizzes={postQuizzes}
                   isLoading={isQuizLoading}
                   type="post"
-                  onComplete={onPostQuizComplete}
+                  isDone={isPostQuizDone}
+                  onComplete={() => { setIsPostQuizDone(true); onPostQuizComplete?.(); }}
                   isCompleting={false}
                 />
               )}
@@ -1210,7 +1227,7 @@ export const DebateView = ({
                 <div ref={chatbotScrollRef} className="flex-1 p-4 overflow-y-auto bg-gray-50 text-xs text-outline leading-relaxed flex flex-col gap-2 custom-scrollbar">
                   {chatbotMessages.map((msg, index) => (
                     <div key={index} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`max-w-[80%] p-2 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
+                      <div className={`w-full p-3 rounded-lg ${msg.sender === 'user' ? 'bg-primary text-white' : 'bg-white text-gray-800 border border-gray-100'}`}>
                         {msg.sender === 'bot' ? (
                           <div className="text-sm prose prose-sm max-w-none">
                             <ReactMarkdown
@@ -1231,7 +1248,7 @@ export const DebateView = ({
                   ))}
                   {isHintGenerating && (
                     <div className="flex justify-start">
-                      <div className="max-w-[80%] p-2 rounded-lg bg-white text-gray-800 border border-gray-100">
+                      <div className="w-full p-3 rounded-lg bg-white text-gray-800 border border-gray-100">
                         <Loader2 size={16} className="animate-spin text-gray-400" />
                       </div>
                     </div>
@@ -1364,11 +1381,12 @@ interface InlineQuizPanelProps {
   quizzes: MultipleChoiceQuiz[];
   isLoading: boolean;
   type: 'pre' | 'post';
+  isDone?: boolean;
   onComplete?: () => void;
   isCompleting?: boolean; // onComplete 처리 중 (turn=0 API 호출 중)
 }
 
-const InlineQuizPanel = ({ quizzes, isLoading, type, onComplete, isCompleting }: InlineQuizPanelProps) => {
+const InlineQuizPanel = ({ quizzes, isLoading, type, isDone = false, onComplete, isCompleting }: InlineQuizPanelProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // 퀴즈 목록이 바뀌면 인덱스 초기화
@@ -1443,29 +1461,43 @@ const InlineQuizPanel = ({ quizzes, isLoading, type, onComplete, isCompleting }:
         {/* 발신자 · 퀴즈 진행 표시 */}
         <div className="flex items-center gap-2 px-1">
           <span className="text-primary text-[10px] md:text-xs font-bold">
-            {type === 'pre' ? '토론 전 퀴즈' : '토론 후 퀴즈'} {currentIndex + 1} / {quizzes.length}
+            {isDone
+              ? `${type === 'pre' ? '토론 전 퀴즈' : '토론 후 퀴즈'}`
+              : `${type === 'pre' ? '토론 전 퀴즈' : '토론 후 퀴즈'} ${currentIndex + 1} / ${quizzes.length}`}
           </span>
         </div>
 
         {/* 말풍선 — 흰색 배경 */}
         <div className="p-4 md:p-5 rounded-2xl bg-white border-2 border-gray-200 text-gray-800">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentIndex}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-            >
-              <InlineMCQuizCard
-                quiz={quizzes[currentIndex]}
-                isLast={isLast}
-                type={type}
-                isCompleting={!!isCompleting}
-                onNext={handleNext}
-              />
-            </motion.div>
-          </AnimatePresence>
+          {isDone ? (
+            <div className="flex flex-col items-center gap-3 py-2 text-center">
+              <CheckCircle2 size={32} className="text-primary" />
+              <p className="text-sm font-bold text-on-surface">
+                {type === 'pre' ? '사전 퀴즈를 모두 완료했습니다!' : '사후 퀴즈를 모두 완료했습니다!'}
+              </p>
+              <p className="text-xs text-outline">
+                {type === 'pre' ? '토론을 시작해주세요.' : '결과를 불러오는 중입니다.'}
+              </p>
+            </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentIndex}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+              >
+                <InlineMCQuizCard
+                  quiz={quizzes[currentIndex]}
+                  isLast={isLast}
+                  type={type}
+                  isCompleting={!!isCompleting}
+                  onNext={handleNext}
+                />
+              </motion.div>
+            </AnimatePresence>
+          )}
         </div>
       </div>
     </div>
