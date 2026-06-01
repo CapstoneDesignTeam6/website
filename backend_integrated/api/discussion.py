@@ -151,7 +151,6 @@ async def send_message(
                     "discussion_id": discussion_id,
                     "side": "con",
                     "content": response_text or "응답을 생성할 수 없습니다.",
-                    "timestamp": dt.now().strftime("%H:%M"),
                 },
             }
             yield f"data: {_json.dumps(result_event, ensure_ascii=False)}\n\n"

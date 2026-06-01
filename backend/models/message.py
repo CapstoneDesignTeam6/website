@@ -1,22 +1,14 @@
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Text
-from sqlalchemy.orm import relationship
-from datetime import datetime
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.sql import func
 from database import Base
 
+
 class Message(Base):
-    __tablename__ = "messages"
-    
+    __tablename__ = "messages_local"
+
     id = Column(Integer, primary_key=True, index=True)
-    session_id = Column(Integer, ForeignKey("discussion_sessions.id"), index=True)
-    
-    speaker = Column(String)                # 발언자 (에이전트 이름 또는 사용자)
-    content = Column(Text)                  # 메시지 내용
-    role = Column(String)                   # agent / user
-    
-    created_at = Column(DateTime, default=datetime.utcnow)
-    
-    # 관계
-    session = relationship("DiscussionSession", back_populates="messages")
-    
-    def __repr__(self):
-        return f"<Message(id={self.id}, speaker={self.speaker}, content_len={len(self.content)})>"
+    session_id = Column(Integer, ForeignKey("discussion_sessions_local.id"), nullable=False, index=True)
+    speaker = Column(String, nullable=False)
+    content = Column(String, nullable=False)
+    role = Column(String, nullable=False)        # user | agent
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

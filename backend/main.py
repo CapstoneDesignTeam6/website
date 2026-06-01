@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from database import create_all_tables
@@ -10,8 +12,7 @@ from api import auth, discussion, level
 from api.auth import auth_router
 from database import SessionLocal
 from config import settings
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.cron import CronTrigger
+import asyncio
 import logging
 import time
 import json
@@ -62,8 +63,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         
         return response
 
-# 스케줄러 (매일 12시 뉴스 크롤링)
-scheduler = AsyncIOScheduler(timezone="Asia/Seoul")
+
 
 # FastAPI 앱 생성
 app = FastAPI(
@@ -71,6 +71,23 @@ app = FastAPI(
     description="AI 토론 에이전트 백엔드 API",
     version="1.0.0"
 )
+
+# Pydantic 유효성 검사 에러 → 읽기 쉬운 문자열로 변환
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    if errors:
+        first = errors[0]
+        field = first["loc"][-1] if first.get("loc") else "입력값"
+        msg = first.get("msg", "유효하지 않은 값입니다.")
+        # 이메일 관련 에러 메시지 한국어로
+        if "email" in str(field) or "email" in str(msg).lower():
+            detail = "올바른 이메일 형식을 입력해주세요."
+        else:
+            detail = f"{field}: {msg}"
+    else:
+        detail = "입력값이 올바르지 않습니다."
+    return JSONResponse(status_code=422, content={"detail": detail})
 
 # 로깅 미들웨어 추가 (CORS 이전)
 app.add_middleware(LoggingMiddleware)
@@ -115,49 +132,21 @@ async def startup_event():
     finally:
         db.close()
     
-    # 뉴스 크롤링 스케줄러 등록 (매일 오전 12시 = 정오)
-    from services.news import crawl_and_replace_news
+    logger.info("✅ 요청 기반 자동 갱신 활성화 (뉴스: 1일, 주제: 7일)")
 
-    async def scheduled_news_crawl():
-        import asyncio
-        from services.topic import generate_and_save_topics
-
-        logger.info("🗞️ [스케줄러] 뉴스 크롤링 시작...")
-        crawl_result = await crawl_and_replace_news()
-        logger.info(f"🗞️ [스케줄러] 크롤링 결과: {crawl_result}")
-
-        if crawl_result.get("success"):
-            logger.info("💬 [스케줄러] 토론 주제 생성 시작 (7일 경과 여부 확인)...")
-            loop = asyncio.get_event_loop()
-            topic_result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=False))
-            logger.info(f"💬 [스케줄러] 주제 생성 결과: {topic_result}")
-
-    scheduler.add_job(
-        scheduled_news_crawl,
-        trigger=CronTrigger(hour=12, minute=0, timezone="Asia/Seoul"),
-        id="daily_news_crawl",
-        name="매일 12시 뉴스 크롤링",
-        replace_existing=True,
-    )
-    scheduler.start()
-    logger.info("✅ 뉴스 크롤링 스케줄러 등록 완료 (매일 12:00 KST)")
-
-    # Redis 연결 상태 확인
-    logger.info("Checking Redis connection...")
+    # LLM 설정 상태 확인
+    logger.info("Checking LLM configuration...")
     health = AgentService.health_check()
 
-    if health["redis"]:
-        logger.info("✅ Redis 연결 정상")
+    if health["vertex"]:
+        logger.info("✅ Vertex AI 설정됨")
     else:
-        logger.warning("⚠️ Redis 연결 실패. 워커와 통신 불가.")
+        logger.warning("⚠️ Vertex AI 미설정 — 토론 응답 생성 불가")
 
-    if not health["all_healthy"]:
-        logger.warning("⚠️ Redis 연결에 문제가 있습니다. 폴백 응답을 사용합니다.")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """앱 종료 시 정리"""
-    scheduler.shutdown(wait=False)
     logger.info("Shutting down application...")
 
 @app.get("/")
@@ -178,51 +167,23 @@ async def health_check():
         "version": "1.0.0"
     }
 
-@app.post("/admin/news/crawl")
-async def trigger_news_crawl():
-    """뉴스 크롤링 수동 실행 (관리자용)"""
-    from services.news import crawl_and_replace_news
-    logger.info("🗞️ [수동] 뉴스 크롤링 시작...")
-    result = await crawl_and_replace_news()
-    return result
-
-@app.post("/admin/topics/generate")
-async def trigger_topic_generate(force: bool = False):
-    """
-    토론 주제 생성 수동 실행 (관리자용)
-    - force=true: 7일 미경과여도 강제 재생성
-    - force=false (기본): 7일 지난 경우에만 생성
-    """
-    from services.topic import generate_and_save_topics
-    import asyncio
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=force))
-    return result
-
-@app.post("/admin/news/crawl-and-generate")
-async def trigger_crawl_and_generate(force_topics: bool = False):
-    """
-    뉴스 크롤링 + 토론 주제 생성 한 번에 실행 (관리자용)
-    - force_topics=true: 주제 7일 미경과여도 강제 재생성
-    """
-    from services.news import crawl_and_replace_news
-    from services.topic import generate_and_save_topics
-    import asyncio
-
-    logger.info("🗞️ [수동] 뉴스 크롤링 + 주제 생성 시작...")
-    crawl_result = await crawl_and_replace_news()
-    if not crawl_result.get("success"):
-        return {"crawl": crawl_result, "topics": {"success": False, "message": "크롤링 실패로 주제 생성 건너뜀"}}
-
-    loop = asyncio.get_event_loop()
-    topic_result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=force_topics))
-    return {"crawl": crawl_result, "topics": topic_result}
+# 뉴스 크롤링 / 주제 생성은 별도 crawler/ 폴더의 배치 잡(GitHub Actions cron)에서
+# 수행한다. 무거운 작업을 512MB 웹 프로세스에서 돌리지 않기 위해 관리자 크롤링
+# 엔드포인트는 제거했다. 웹은 아래처럼 저장된 결과를 읽기만 한다.
 
 @app.get("/news")
 async def get_news(limit: int = 50):
-    """저장된 뉴스 목록 조회"""
-    from services.news import get_news_list
-    return get_news_list(limit=limit)
+    """저장된 뉴스 목록 조회 (읽기 전용)"""
+    from database import get_supabase_client
+    sb = get_supabase_client()
+    resp = (
+        sb.table("news")
+        .select("*")
+        .order("crawled_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return resp.data
 
 if __name__ == "__main__":
     import uvicorn

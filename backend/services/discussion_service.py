@@ -102,18 +102,4 @@ class DiscussionService:
             "average_score": avg_score
         }
     
-    @staticmethod
-    def check_guest_daily_limit(user: dict, db: Session) -> bool:
-        """게스트 일일 토론 제한 확인"""
-        if not user.get('is_guest', False):
-            return True
 
-        from datetime import date
-        today = date.today()
-
-        today_discussions = db.query(DiscussionSession).filter(
-            DiscussionSession.user_id == user['id'],
-            DiscussionSession.created_at >= datetime(today.year, today.month, today.day)
-        ).count()
-        
-        return today_discussions < settings.GUEST_DAILY_LIMIT

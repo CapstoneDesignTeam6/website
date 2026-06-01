@@ -87,10 +87,15 @@ _STORE_TTL = 7200  # 2시간 이상 비활성 토론은 자동 해제
 _discussion_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
     "discussion_id", default="local"
 )
-_discussion_stores: dict[str, dict[str, dict]] = {}
 _discussion_timestamps: dict[str, float] = {}   # 마지막 접근 시각
 _discussion_counters: dict[str, int] = {}        # 토론별 output_N 카운터 (전역 공유 금지)
 _event_queues: dict[str, _queue_module.Queue] = {}
+
+# output_N.json을 인메모리 dict가 아니라 실제 디스크 폴더에 저장한다.
+# 토론별로 output_files/<discussion_id>/ 하위에 파일이 쌓인다.
+import shutil
+
+_OUTPUT_BASE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output_files")
 
 
 def _current_id() -> str:
@@ -111,23 +116,32 @@ def _incr_count() -> int:
     return n
 
 
+def _store_dir() -> str:
+    """현재 토론의 output 파일 폴더 경로 (없으면 생성)."""
+    cid = _current_id()
+    _discussion_timestamps[cid] = _time.time()
+    d = os.path.join(_OUTPUT_BASE, cid)
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _list_output_files() -> list[str]:
+    """현재 토론 폴더의 output_*.json 파일명 목록."""
+    d = _store_dir()
+    return [f for f in os.listdir(d) if f.startswith("output_") and f.endswith(".json")]
+
+
 def _cleanup_stale_stores() -> None:
-    """TTL 초과 토론 스토어를 한 번에 정리 (start_new_turn 시 호출)."""
+    """TTL 초과 토론 폴더를 한 번에 정리 (start_new_turn 시 호출)."""
     now = _time.time()
     stale = [k for k, t in _discussion_timestamps.items() if now - t > _STORE_TTL]
     for k in stale:
-        _discussion_stores.pop(k, None)
         _discussion_timestamps.pop(k, None)
         _discussion_counters.pop(k, None)
         _event_queues.pop(k, None)
+        shutil.rmtree(os.path.join(_OUTPUT_BASE, k), ignore_errors=True)
     if stale:
         print(f"🧹 [Store] 만료 토론 {len(stale)}건 정리: {stale}")
-
-
-def _store() -> dict[str, dict]:
-    cid = _current_id()
-    _discussion_timestamps[cid] = _time.time()
-    return _discussion_stores.setdefault(cid, {})
 
 
 def _emit(event: dict) -> None:
@@ -157,8 +171,9 @@ def clear_event_queue(discussion_id) -> None:
 def _next_turn_number(sb, discussion_id) -> int:
     """이 토론의 누적 턴 번호 = discussion_turns 기존 행 수 + 1.
 
-    insert_turn_row가 그 턴의 유일한 discussion_turns insert이며 턴 시작 시 한 번만
-    호출되므로, 호출 시점의 카운트는 '이전 턴 수'와 같다 → +1이 현재 턴 번호.
+    한 턴 안에서 여러 번 호출돼도(검색 결과 저장 + 턴 저장) 같은 값을 돌려준다 —
+    턴 저장(save_turn_file)이 그 턴의 유일한 discussion_turns insert이며 맨 마지막에
+    실행되므로, 그 전까지 카운트는 '이전 턴 수'로 동일하기 때문.
     """
     try:
         existing = (
@@ -173,39 +188,9 @@ def _next_turn_number(sb, discussion_id) -> int:
         return 1
 
 
-def insert_turn_row(raw_user_message, discussion_id=None, turn_type=0, topic="") -> int | None:
-    """턴 시작 시 행을 먼저 만든다 (user_message 포함, AI 결과는 update_turn_ai로 채움).
-
-    이렇게 행을 먼저 만들어두면, 유저 발언 직후 호출되는 /evaluation이
-    '이 턴'의 행을 찾아 점수를 붙일 수 있다 (점수가 직전 턴에 밀려 들어가는 문제 해소).
-    누적 turn_number를 반환 — 이후 같은 행을 update할 때 사용.
-    turn_type: 발언 유형(0=주제설명, 1=반박, 2=주장, 3=재반박)
-    """
-    if discussion_id is None:
-        print(f"⚠️ [Turn Manager] discussion_id 없음 — 턴 저장 건너뜀")
-        return None
-    try:
-        from database import get_supabase_client
-        sb = get_supabase_client()
-        turn_number = _next_turn_number(sb, discussion_id)  # 누적 고유 번호
-        sb.table("discussion_turns").insert({
-            "discussion_id": discussion_id,
-            "turn_number": turn_number,
-            "turn_type": turn_type,
-            "topic": topic,
-            "user_message": raw_user_message,
-        }).execute()
-        print(f"💾 [Turn Manager] 턴 {turn_number}(type={turn_type}) 행 생성 — user_message 저장 (discussion_id={discussion_id})")
-        return turn_number
-    except Exception as e:
-        print(f"⚠️ [Turn Manager] 턴 행 생성 실패: {e}")
-        return None
-
-
-def update_turn_ai(ai_response, discussion_id=None, turn_number=None) -> None:
-    """턴 종료 시 같은 행(turn_number)에 AI 요약/응답을 채운다."""
-    if discussion_id is None or turn_number is None:
-        return
+def save_turn_file(raw_user_message, ai_response, discussion_id=None, turn_type=0, topic=""):
+    # turn_type: 발언 유형(0=주제설명, 1=반박, 2=주장, 3=재반박) — 그대로 저장
+    # turn_number: 누적 고유 번호 — 저장 시 DB의 기존 행 수 + 1로 계산
     summary_prompt = (
         f"아래 토론 발언을 핵심 주장 위주로 2~3문장으로 요약하십시오. "
         f"불필요한 수식어 없이 간결하게 작성하십시오.\n\n"
@@ -215,16 +200,27 @@ def update_turn_ai(ai_response, discussion_id=None, turn_number=None) -> None:
         ai_summary = llm.invoke(summary_prompt).content.strip()
     except Exception:
         ai_summary = ai_response[:300] + "..."
-    try:
-        from database import get_supabase_client
-        sb = get_supabase_client()
-        sb.table("discussion_turns").update({
-            "ai_summary": ai_summary,
-            "ai_response": ai_response,
-        }).eq("discussion_id", discussion_id).eq("turn_number", turn_number).execute()
-        print(f"💾 [Turn Manager] 턴 {turn_number} AI 응답 update 완료 (discussion_id={discussion_id})")
-    except Exception as e:
-        print(f"⚠️ [Turn Manager] AI 응답 update 실패: {e}")
+
+    if discussion_id is not None:
+        try:
+            from database import get_supabase_client
+            sb = get_supabase_client()
+            # 누적 턴 번호 (다회차에서도 시간순 정렬 보장)
+            turn_number = _next_turn_number(sb, discussion_id)
+            sb.table("discussion_turns").insert({
+                "discussion_id": discussion_id,
+                "turn_number": turn_number,   # 누적 고유 번호
+                "turn_type": turn_type,       # 발언 유형 (0/1/2/3)
+                "topic": topic,
+                "user_message": raw_user_message,
+                "ai_summary": ai_summary,
+                "ai_response": ai_response,
+            }).execute()
+            print(f"💾 [Turn Manager] 턴 {turn_number}(type={turn_type}) Supabase 저장 완료 (discussion_id={discussion_id})")
+        except Exception as e:
+            print(f"⚠️ [Turn Manager] Supabase 저장 실패: {e}")
+    else:
+        print(f"⚠️ [Turn Manager] discussion_id 없음 — 턴 저장 건너뜀")
 
 
 def build_compact_user_input(nowturn, raw_message, discussion_id=None, max_recent_turns=5, topic_str=""):
@@ -291,11 +287,11 @@ def build_compact_user_input(nowturn, raw_message, discussion_id=None, max_recen
 
 
 def clear_discussion_store(discussion_id) -> None:
-    """토론 종료 후 해당 discussion_id의 인메모리 파일 스토어를 해제."""
+    """토론 종료 후 해당 discussion_id의 output 파일 폴더를 삭제."""
     key = str(discussion_id or "local")
-    _discussion_stores.pop(key, None)
     _discussion_timestamps.pop(key, None)
     _discussion_counters.pop(key, None)
+    shutil.rmtree(os.path.join(_OUTPUT_BASE, key), ignore_errors=True)
     print(f"🗑️ [Store] discussion_id={discussion_id} 스토어 해제 완료")
 
 
@@ -303,13 +299,13 @@ def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", di
     _cleanup_stale_stores()  # 새 턴 시작 시 만료 스토어 정리
     # 이 스레드/태스크 컨텍스트에 현재 토론 id를 격리 (동시 토론 간 공유 방지)
     _discussion_id_var.set(str(discussion_id or "local"))
-    # 이전 턴 파일을 보존하기 위해 스토어를 지우지 않음.
+    # 이전 턴 파일을 보존하기 위해 폴더를 지우지 않음.
     # 카운터는 이 토론에서 마지막으로 사용한 번호부터 이어감.
-    existing = _store()
-    if existing:
+    existing_files = _list_output_files()
+    if existing_files:
         count = max(
             (int(k.replace("output_", "").replace(".json", ""))
-             for k in existing if k.startswith("output_") and k.endswith(".json")),
+             for k in existing_files),
             default=0,
         )
     else:
@@ -319,18 +315,12 @@ def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", di
 
     compact_input = build_compact_user_input(now_turn, raw_user_message, discussion_id=discussion_id, topic_str=topic_str)
 
-    # 턴 행을 먼저 생성(user_message 포함). build_compact 이후라 현재 턴이 과거 기록에 안 섞인다.
-    # 이렇게 미리 만들어두면 유저 발언 직후 /evaluation이 '이 턴' 행에 점수를 저장할 수 있다.
-    turn_number = insert_turn_row(
-        raw_user_message, discussion_id=discussion_id, turn_type=now_turn, topic=topic_str,
-    )
-
     # 이전 턴에서 생성된 파일들을 json_info에 복원 → 오케스트레이터가 이전 자료를 참조 가능
-    restored_json_info = {
-        fname: data.get("workspace_summary", "")
-        for fname, data in _store().items()
-        if fname.startswith("output_") and fname.endswith(".json")
-    }
+    restored_json_info = {}
+    for fname in existing_files:
+        data = read_json_file(fname)
+        if data:
+            restored_json_info[fname] = data.get("workspace_summary", "")
 
     context = {
         "discussion_id": discussion_id,
@@ -345,17 +335,29 @@ def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", di
     }
     result = run_step(context)
 
-    # 단일 종료 지점에서, 위에서 만든 그 행에 AI 응답을 채운다.
-    update_turn_ai(result or "", discussion_id=discussion_id, turn_number=turn_number)
+    # 단일 종료 지점에서 한 번만 저장한다. 4/5/-1/실패 등 어느 경로로 끝나든
+    # 모든 턴이 이 지점으로 bubble up 되므로, 누락 없이 정확히 한 번 저장된다.
+    save_turn_file(
+        raw_user_message, result or "",
+        discussion_id=discussion_id, turn_type=now_turn, topic=topic_str,
+    )
     return result
 
 
-# ── 인메모리 I/O (파일 대신 dict 사용) ─────────────────────────────────
+# ── 디스크 파일 I/O ───────────────────────────────────────────────────
 
 def read_json_file(filename: str) -> dict | None:
     if not filename.endswith(".json"):
         filename = f"{filename}.json"
-    return _store().get(filename)
+    path = os.path.join(_store_dir(), filename)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"⚠️ [Store] {filename} 읽기 실패: {e}")
+        return None
 
 read_step = read_json_file
 
@@ -367,7 +369,7 @@ def make_json_file(filename: str, input_json: dict, output_json: dict) -> dict:
     json_info_accumulated = input_json.get("json_info", {}).copy()
 
     prev_filename = f"output_{_get_count() - 1}.json"
-    prev_data = _store().get(prev_filename)
+    prev_data = read_json_file(prev_filename)
     if prev_data:
         json_info_accumulated.update(prev_data.get("json_info", {}))
 
@@ -395,7 +397,9 @@ def make_json_file(filename: str, input_json: dict, output_json: dict) -> dict:
         'workspace_summary': output_json.get("workspace_summary", "no_workspace_summary"),
     }
 
-    _store()[filename] = merged
+    path = os.path.join(_store_dir(), filename)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(merged, f, ensure_ascii=False, indent=2)
     return merged
 
 

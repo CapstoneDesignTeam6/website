@@ -1,51 +1,54 @@
-from sqlalchemy import Column, Integer, String, Text
+from sqlalchemy import Column, Integer, String
 from database import Base
+
 
 class LevelConfig(Base):
     __tablename__ = "level_configs"
-    
-    level = Column(Integer, primary_key=True, index=True)               # 레벨 (1-10)
-    required_exp = Column(Integer)                                      # 해당 레벨까지 필요한 누적 경험치
-    title = Column(String)                                              # 레벨 제목 (금메달, 은메달 등)
-    description = Column(Text, nullable=True)                           # 설명
-    
-    def __repr__(self):
-        return f"<LevelConfig(level={self.level}, required_exp={self.required_exp}, title={self.title})>"
 
-# 기본 레벨 설정 데이터
+    id = Column(Integer, primary_key=True, index=True)
+    level = Column(Integer, unique=True, nullable=False)
+    required_exp = Column(Integer, nullable=False)
+    title = Column(String, nullable=False, default="토론가")
+
+
+# 레벨별 필요 경험치 및 칭호
 LEVEL_CONFIG_DATA = [
-    {"level": 1, "required_exp": 0, "title": "🥇 초보자 (Bronze)", "description": "토론을 시작한 초보 사용자"},
-    {"level": 2, "required_exp": 100, "title": "🥈 숙련자 (Silver)", "description": "기본기를 갖춘 사용자"},
-    {"level": 3, "required_exp": 250, "title": "🥉 전문가 (Gold)", "description": "깊이 있는 토론을 하는 사용자"},
-    {"level": 4, "required_exp": 450, "title": "💎 마스터 (Platinum)", "description": "우수한 토론 능력을 보인 사용자"},
-    {"level": 5, "required_exp": 700, "title": "👑 그랜드마스터", "description": "최고 수준의 토론자"},
+    {"level": 1,  "required_exp": 0,    "title": "입문 토론가"},
+    {"level": 2,  "required_exp": 100,  "title": "초급 토론가"},
+    {"level": 3,  "required_exp": 250,  "title": "중급 토론가"},
+    {"level": 4,  "required_exp": 500,  "title": "숙련 토론가"},
+    {"level": 5,  "required_exp": 900,  "title": "고급 토론가"},
+    {"level": 6,  "required_exp": 1400, "title": "전문 토론가"},
+    {"level": 7,  "required_exp": 2000, "title": "논리가"},
+    {"level": 8,  "required_exp": 2700, "title": "변론가"},
+    {"level": 9,  "required_exp": 3500, "title": "웅변가"},
+    {"level": 10, "required_exp": 5000, "title": "토론 마스터"},
 ]
 
-# 점수에 따른 경험치 정의
-SCORE_TO_EXP = {
-    (90, 100): 50,   # 90-100점: 50 exp (⭐⭐⭐⭐⭐)
-    (70, 89): 30,    # 70-89점: 30 exp (⭐⭐⭐⭐)
-    (50, 69): 15,    # 50-69점: 15 exp (⭐⭐⭐)
-    (30, 49): 5,     # 30-49점: 5 exp (⭐⭐)
-    (0, 29): 0,      # 0-29점: 0 exp (⭐)
-}
 
 def get_exp_from_score(score: float) -> int:
-    """점수에서 경험치로 변환"""
-    for (min_score, max_score), exp in SCORE_TO_EXP.items():
-        if min_score <= score <= max_score:
-            return exp
-    return 0
+    """토론 점수(0~100)를 경험치로 변환"""
+    if score >= 90:
+        return 50
+    elif score >= 75:
+        return 35
+    elif score >= 60:
+        return 25
+    elif score >= 40:
+        return 15
+    else:
+        return 5
+
 
 def get_star_rating(score: float) -> str:
-    """점수에 따른 별점 반환"""
-    if 90 <= score <= 100:
+    """토론 점수를 별점 문자열로 변환"""
+    if score >= 90:
         return "⭐⭐⭐⭐⭐"
-    elif 70 <= score < 90:
+    elif score >= 75:
         return "⭐⭐⭐⭐"
-    elif 50 <= score < 70:
+    elif score >= 60:
         return "⭐⭐⭐"
-    elif 30 <= score < 50:
+    elif score >= 40:
         return "⭐⭐"
     else:
         return "⭐"

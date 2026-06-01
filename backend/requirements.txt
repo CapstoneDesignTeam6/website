@@ -1,34 +1,29 @@
-fastapi==0.104.1
-uvicorn==0.24.0
+# 웹 프레임워크 — 버전 고정 X, pip가 google-cloud-aiplatform 의존성과 함께 자동 해결
+fastapi>=0.111.0
+uvicorn[standard]>=0.24.0
+starlette>=0.37.0
 sqlalchemy==2.0.23
-pydantic==2.3.0
-pydantic-settings==2.0.3
+pydantic>=2.7.0
+pydantic-settings>=2.4.0
 python-jose[cryptography]==3.3.0
 bcrypt>=4.0.0
-python-multipart==0.0.6
-pyjwt==2.12.1
-email-validator==2.1.0
-requests==2.31.0
+python-multipart>=0.0.6
+pyjwt>=2.8.0
+email-validator>=2.1.0
+requests>=2.31.0
 
-# Database - Supabase SDK
-supabase>=2.9.0
+# Database
+supabase==2.13.0
 
 # Utils
-python-dotenv==1.0.0
-openai>=1.30.0
+python-dotenv>=1.0.0
 
-# Scheduler
-apscheduler==3.10.4
+# 뉴스 크롤링(playwright/bs4/lxml)은 별도 crawler/로 분리됨 → 웹에서는 제거
 
-# Web scraping
-beautifulsoup4==4.12.3
-lxml==5.2.2
-playwright==1.44.0
-
-# Redis (worker 큐 통신)
-redis>=5.0.0
-
-# Testing
-pytest==7.4.3
-pytest-asyncio==0.21.1
-
+# Vertex AI / DebateOrchestrator — 핵심 패키지는 고정
+google-cloud-aiplatform==1.153.1
+langchain-google-vertexai==3.2.3
+langchain-core==1.4.0
+tavily-python>=0.5.0
+langchain-tavily>=0.1.0
+aiohttp>=3.9.0  # langchain-tavily 런타임 의존성 (--no-deps 설치 시 누락)

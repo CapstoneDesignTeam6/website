@@ -181,7 +181,7 @@ export default function App() {
         },
         (msg) => setAgentLog(prev => [...prev, msg]),
       );
-      const initialMsg: DebateMessage = { ...data.aiResponse, turn: 0, round: 1 };
+      const initialMsg: DebateMessage = { ...data.aiResponse, turn: 0, round: 1, timestamp: formatTime() };
       setMessages([initialMsg]);
       setDiscussionId(initialMsg.discussion_id ?? null);
     } catch {
@@ -341,9 +341,7 @@ export default function App() {
           */
           turn: getSpeechTurn(nextspeechTurn > 3 ? 3 : nextspeechTurn) as Turn,
           content: data.aiResponse.content,
-          timestamp: data.aiResponse.timestamp
-            ? formatTime(data.aiResponse.timestamp)
-            : formatTime(),
+          timestamp: formatTime(),
           round: currentRound,
         },
       ]);

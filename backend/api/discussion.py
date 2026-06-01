@@ -3,20 +3,25 @@ from sqlalchemy.orm import Session
 from supabase import Client
 from pydantic import BaseModel
 from typing import List
-from datetime import datetime
+import re
 
 from schemas.discussion import (
-    DiscussionCreate,
-    DiscussionResponse,
     DiscussionDetailResponse,
-    DiscussionEndRequest,
     DiscussionHistoryResponse
 )
 from services.discussion_service import DiscussionService
 from services.auth_service import AuthService
 from services.agent_service import AgentService
-from agents.discussion_agent import DiscussionAgent
 from database import get_db, get_supabase
+import logging
+
+_logger = logging.getLogger(__name__)
+
+# 뉴스 크롤링/주제 생성은 별도 Render Cron Job에서 수행한다:
+#   - cron_crawl_news.py        : 뉴스 크롤링 (매일)
+#   - cron_generate_topics.py   : 토론 주제 생성 (주 1회)
+# 웹 프로세스에서는 무거운 Playwright를 띄우지 않는다.
+
 
 # 1대1 토론 라우터 (단수형)
 router = APIRouter(prefix="/api/debate", tags=["debates"])
@@ -37,191 +42,237 @@ async def get_current_user(request: Request, supabase: Client = Depends(get_supa
     # 토큰 없거나 유효하지 않으면 게스트로 처리
     return {"id": 0, "is_guest": True, "level": 1, "experience_points": 0}
 
-class DebateStartRequest(BaseModel):
-    topic: str
-
 class DebateMessageRequest(BaseModel):
     topic: str
     message: str
     history: list = []
-    discussion_id: int = None   # 세션 ID (메시지 저장용)
-    round_number: int = 1
+    discussion_id: int | None = None
+    turn: int = 0
+    difficulty: str = "normal"
 
 class DebateAnalyzeRequest(BaseModel):
     topic: str
     messages: list = []
-    discussion_id: int = None   # 세션 ID (결과 저장용)
+    discussion_id: int | None = None
 
-
-def _get_supabase():
-    from database import get_supabase_client
-    return get_supabase_client()
-
-
-@router.post("/start")
-async def start_discussion(
-    body: DebateStartRequest,
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
-):
-    """토론 시작 - Supabase에 세션 생성 후 id 반환
-    프론트: { topic } → { id, agentName, side, content, timestamp }
-    """
-    import random
-    from datetime import datetime as dt
-
-    agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
-    agent_name = random.choice(agents)
-
-    intro = AgentService.get_intro(topic=body.topic)
-    content = intro.get("summary", f'"{body.topic}"에 대한 토론을 시작합니다.')
-
-    # Supabase에 세션 생성
-    session_id = None
-    try:
-        sb = _get_supabase()
-        user_id = user.get("id") if not user.get("is_guest") else None
-        res = sb.table("discussion_sessions").insert({
-            "user_id": user_id,
-            "topic": body.topic,
-            "agent_name": agent_name,
-            "status": "ongoing",
-        }).execute()
-        session_id = res.data[0]["id"] if res.data else None
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"세션 생성 실패: {e}")
-
-    return {
-        "id": session_id,
-        "agentName": agent_name,
-        "side": "con",
-        "content": content,
-        "timestamp": dt.now().strftime("%H:%M"),
-    }
 
 
 @router.post("/message")
 async def send_message(
     body: DebateMessageRequest,
-    db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    """메시지 전송 - 사용자/AI 메시지를 Supabase에 저장
-    프론트: { topic, message, history, discussion_id, round_number } → { userSide, aiResponse }
-    """
-    import random
-    import logging
+    import asyncio
+    import queue as _q
+    import json as _json
     from datetime import datetime as dt
+    from fastapi.responses import StreamingResponse
+    from services.debate_orchestrator import start_new_turn, set_event_queue, clear_event_queue
 
-    logger = logging.getLogger(__name__)
-    agents = ["논리적 비판가", "창의적 대안제시자", "균형잡힌 중재자"]
-    agent_name = random.choice(agents)
+    discussion_id = body.discussion_id or int(dt.now().timestamp() * 1000)
+    event_queue: _q.Queue = _q.Queue()
+    set_event_queue(discussion_id, event_queue)
 
-    # "agent" → "assistant" 변환 (GPT 형식)
-    history = [
-        {
-            "role": "assistant" if m.get("role") == "agent" else "user",
-            "content": m.get("content", "")
-        }
-        for m in body.history
-        if m.get("content", "").strip()
-    ]
-
-    ai_result = AgentService.generate_response(
-        agent_name=agent_name,
-        agent_role="토론 에이전트",
-        topic=body.topic,
-        conversation_history=history,
-    )
-    ai_content = ai_result.get("response", "응답을 생성할 수 없습니다.")
-    timestamp = dt.now().strftime("%H:%M")
-
-    # Supabase에 메시지 저장
-    if body.discussion_id:
+    # 새 토론 시작 시 (discussion_id가 없었을 때) → session 저장 + participants 증가
+    if not body.discussion_id:
         try:
-            sb = _get_supabase()
-            sb.table("discussion_messages").insert([
-                {
-                    "session_id": body.discussion_id,
-                    "role": "user",
-                    "agent_name": None,
-                    "side": "pro",
-                    "content": body.message,
-                    "round_number": body.round_number,
-                },
-                {
-                    "session_id": body.discussion_id,
-                    "role": "agent",
-                    "agent_name": agent_name,
-                    "side": "con",
-                    "content": ai_content,
-                    "round_number": body.round_number,
-                },
-            ]).execute()
-        except Exception as e:
-            logger.error(f"메시지 저장 실패: {e}")
+            from database import get_supabase_client
+            _sb = get_supabase_client()
 
-    return {
-        "userSide": "pro",
-        "aiResponse": {
-            "agentName": agent_name,
-            "side": "con",
-            "content": ai_content,
-            "timestamp": timestamp,
-        }
-    }
+            # 세션 저장: 로그인 유저는 정수 user_id, 게스트는 "GUEST_<discussion_id>"
+            if user.get('id') and not user.get('is_guest'):
+                uid = user['id']
+            else:
+                uid = f"GUEST_{discussion_id}"
+            _sb.table("discussion_sessions").insert({
+                "id": discussion_id,
+                "user_id": uid,
+                "topic": body.topic,
+                "difficulty": body.difficulty,
+            }).execute()
+
+            # 게스트 포함 모든 유저 → 해당 주제 participants +1
+            _topic_row = (
+                _sb.table("discussion_topics")
+                .select("id, participants")
+                .eq("title", body.topic)
+                .limit(1)
+                .execute()
+                .data
+            )
+            if _topic_row:
+                _new_count = (_topic_row[0].get("participants") or 0) + 1
+                _sb.table("discussion_topics").update({"participants": _new_count}).eq("id", _topic_row[0]["id"]).execute()
+        except Exception as e:
+            _logger.warning(f"[participants] 업데이트 실패: {e}")
+
+    async def generate():
+        loop = asyncio.get_running_loop()
+        future = loop.run_in_executor(None, lambda: start_new_turn(
+            discussion_id=discussion_id,
+            now_turn=body.turn,
+            raw_user_message=body.message,
+            topic_str=body.topic,
+            stage_str=body.difficulty,
+        ))
+        try:
+            # 스레드 완료까지 큐 이벤트를 실시간 스트리밍
+            while not future.done():
+                try:
+                    event = event_queue.get_nowait()
+                    yield f"data: {_json.dumps(event, ensure_ascii=False)}\n\n"
+                except _q.Empty:
+                    await asyncio.sleep(0.05)
+
+            # future 완료 후 남은 이벤트 소진
+            await asyncio.sleep(0)
+            while not event_queue.empty():
+                try:
+                    event = event_queue.get_nowait()
+                    yield f"data: {_json.dumps(event, ensure_ascii=False)}\n\n"
+                except _q.Empty:
+                    break
+
+            try:
+                response_text = await future
+            except Exception as e:
+                response_text = None
+                print(f"❌ [SSE] start_new_turn 오류: {e}")
+
+            used_materials = list(dict.fromkeys(
+                re.findall(r'https?://[^\s\]\)\'"]+', response_text or '')
+            ))
+            result_event = {
+                "type": "result",
+                "discussion_id": discussion_id,
+                "used_materials": used_materials,
+                "userSide": "pro",
+                "aiResponse": {
+                    "discussion_id": discussion_id,
+                    "side": "con",
+                    "content": response_text or "응답을 생성할 수 없습니다.",
+                    "timestamp": dt.now().strftime("%H:%M"),
+                },
+            }
+            yield f"data: {_json.dumps(result_event, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+
+        finally:
+            # 클라이언트 연결 해제(GeneratorExit) 포함 모든 경우에 정리
+            clear_event_queue(discussion_id)
+            if not future.done():
+                future.cancel()
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",          # 브라우저/프록시 버퍼링 방지
+            "X-Accel-Buffering": "no",             # Render/nginx 버퍼링 방지
+            "Connection": "keep-alive",
+        },
+    )
+
+
+    
+
+
+
+@router.get("/{discussion_id}/evaluation")
+async def get_evaluation(
+    discussion_id: int,
+    topic: str = "",
+):
+    """최신 유저 발언 기준 5개 지표 평가 점수 반환 (UserEvaluationScore 형식)"""
+    import asyncio
+    from services.scoring_service import get_evaluation as _evaluate
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None, lambda: _evaluate(discussion_id=discussion_id, topic=topic)
+    )
+    if result is None:
+        raise HTTPException(status_code=404, detail="평가할 발언이 없습니다.")
+    return result
 
 
 @router.post("/analyze")
 async def analyze_debate(
     body: DebateAnalyzeRequest,
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
 ):
-    """토론 분석 - 결과를 Supabase 세션에 저장
-    프론트: { topic, messages, discussion_id } → { result }
+    """토론 최종 분석 — SummaryAgent 기반 (Supabase discussion_turns 사용)
+    프론트: { topic, messages, discussion_id } → DiscussionSummaryResponse
     """
-    history = [{"role": m.get("role", "user"), "content": m.get("content", "")} for m in body.messages]
+    import asyncio
+    from services.summary_service import get_summary as _summarize
 
-    summary = AgentService.get_summary(
-        topic=body.topic,
-        history=history,
-        turns=len(body.messages),
+    discussion_id = body.discussion_id or 0
+
+    loop = asyncio.get_running_loop()
+    result = await loop.run_in_executor(
+        None, lambda: _summarize(discussion_id=discussion_id, topic=body.topic)
     )
 
-    result_text = "\n\n".join([
-        f"[토론 요약]\n{summary.get('summary', '')}",
-        f"[주요 쟁점]\n{summary.get('issues', '')}",
-        f"[논리 피드백]\n{summary.get('logic_feedback', '')}",
-        f"[추가 정보]\n{summary.get('extra_info', '')}",
-    ])
-
-    # Supabase 세션에 결과 저장 및 완료 처리
+    # 토론 종료 — 인메모리 파일 스토어 해제
     if body.discussion_id:
         try:
-            from datetime import datetime as dt
-            sb = _get_supabase()
-            sb.table("discussion_sessions").update({
-                "status": "completed",
-                "result_text": result_text,
-                "completed_at": dt.utcnow().isoformat(),
-            }).eq("id", body.discussion_id).execute()
-        except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"세션 완료 저장 실패: {e}")
+            from services.debate_orchestrator import clear_discussion_store
+            clear_discussion_store(body.discussion_id)
+        except Exception:
+            pass
 
-    return {"result": result_text}
+    return result
 
 
 @router.get("/quiz")
 async def get_quiz(
     topic: str = "",
-    db: Session = Depends(get_db)
 ):
     """퀴즈 반환 - AI 서버에서 생성"""
     data = AgentService.get_quiz(topic=topic)
     return data
+
+
+@router.get("/quiz/set")
+async def get_quiz_set(
+    topic: str = "",
+    phase: str = "pre",
+    discussion_id: int = 0,
+):
+    """사전(pre)/사후(post) 퀴즈 세트 반환.
+    discussion_id 기준으로 Supabase discussion_turns에서 컨텍스트를 구성해 퀴즈 생성.
+    """
+    from services.quiz_service import get_quiz_set as _get_quiz_set
+    import asyncio
+    loop = asyncio.get_event_loop()
+    data = await loop.run_in_executor(
+        None, lambda: _get_quiz_set(topic=topic, phase=phase, discussion_id=discussion_id)
+    )
+    return data
+
+
+class QuizSubmitRequest(BaseModel):
+    discussion_id: int
+    phase: str = "post"          # "pre" | "post"
+    quizzes: list = []           # 프론트가 받은 퀴즈(정답 correctIndex 포함) 그대로
+    answers: List[int] = []      # 사용자가 고른 보기 인덱스 (quizzes와 같은 순서)
+
+
+@router.post("/quiz/submit")
+async def submit_quiz(body: QuizSubmitRequest):
+    """사전/사후 퀴즈 답안 채점 후 discussion_sessions에 저장."""
+    from services.quiz_service import grade_and_save
+    import asyncio
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: grade_and_save(
+            discussion_id=body.discussion_id,
+            phase=body.phase,
+            quizzes=body.quizzes,
+            answers=body.answers,
+        ),
+    )
 
 
 @router.get("/stats/summary", response_model=dict)
@@ -261,148 +312,122 @@ async def get_discussion(
 async def get_user_discussions(
     skip: int = 0,
     limit: int = 20,
-    db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    """사용자의 토론 히스토리"""
-    discussions = DiscussionService.get_user_discussions(user, db, skip, limit)
-    return discussions
+    """사용자의 토론 히스토리 (Supabase discussion_sessions 기반)"""
+    user_id = user.get('id')
+    if not user_id or user.get('is_guest'):
+        return []
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        rows = (
+            sb.table("discussion_sessions")
+            .select("id, topic, difficulty, created_at")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .range(skip, skip + limit - 1)
+            .execute()
+            .data
+        ) or []
+        return [
+            {
+                "id": r["id"],
+                "topic": r["topic"],
+                "difficulty": r.get("difficulty", "normal"),
+                "status": "completed",
+                "score": 0.0,
+                "exp_earned": 0,
+                "created_at": r["created_at"],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        _logger.error(f"[discussion_sessions] 히스토리 조회 실패: {e}")
+        return []
 
-@router.post("/{discussion_id}/generate-agent-response")
-async def generate_agent_response(
+
+@router.get("/{discussion_id}/turns")
+async def get_discussion_turns(
     discussion_id: int,
-    agent_index: int = 0,
-    db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    """에이전트 응답 생성"""
-    # 토론 조회
-    discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
-    
-    if not discussion:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="토론을 찾을 수 없습니다."
-        )
-    
-    if discussion.user_id != user['id']:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="권한이 없습니다."
-        )
-    
-    # 기본 에이전트 생성
-    agents = DiscussionAgent.create_default_agents()
-    
-    if agent_index >= len(agents):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="유효하지 않은 에이전트 인덱스입니다."
-        )
-    
-    # 기존 대화 히스토리 조회
-    conversation_history = [
-        (msg.speaker, msg.content) for msg in discussion.messages
-    ]
-    
-    # 응답 생성
-    agent = agents[agent_index]
-    response_data = agent.generate_response(discussion.topic, conversation_history)
-    
-    # 응답 저장
-    response_text = response_data["response"]
-    DiscussionService.add_message(discussion, agent.name, response_text, "agent", db)
-    
-    return {
-        "agent_name": agent.name,
-        "agent_role": agent.role,
-        "response": response_text,
-        "is_fallback": response_data.get("is_fallback", False),
-        "timestamp": response_data.get("timestamp"),
-        "note": response_data.get("note", "")
-    }
+    """특정 토론의 턴 기록(메시지) 조회 — discussion_turns 기반."""
+    if user.get('is_guest'):
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        rows = (
+            sb.table("discussion_turns")
+            .select("turn_number, user_message, ai_summary")
+            .eq("discussion_id", discussion_id)
+            .order("turn_number", desc=False)
+            .execute()
+            .data
+        ) or []
+        messages = []
+        for r in rows:
+            if r.get("user_message"):
+                messages.append({"role": "user", "content": r["user_message"], "turn": r["turn_number"]})
+            if r.get("ai_summary"):
+                messages.append({"role": "ai", "content": r["ai_summary"], "turn": r["turn_number"]})
+        return {"discussion_id": discussion_id, "messages": messages}
+    except HTTPException:
+        raise
+    except Exception as e:
+        _logger.error(f"[discussion_turns] 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail="턴 조회에 실패했습니다.")
+
 
 # ====== 평가 에이전트 관련 엔드포인트 ======
+
+def _get_history_from_supabase(discussion_id: int) -> list[dict]:
+    """Supabase discussion_turns에서 history 복원."""
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        rows = (
+            sb.table("discussion_turns")
+            .select("user_message, ai_summary")
+            .eq("discussion_id", discussion_id)
+            .order("turn_number", desc=False)
+            .execute()
+            .data
+        ) or []
+        history = []
+        for r in rows:
+            if r.get("user_message"):
+                history.append({"role": "user", "content": r["user_message"]})
+            if r.get("ai_summary"):
+                history.append({"role": "ai", "content": r["ai_summary"]})
+        return history
+    except Exception:
+        return []
+
 
 @router.post("/{discussion_id}/counter-hint")
 async def get_discussion_counter_hint(
     discussion_id: int,
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
+    topic: str = "",
 ):
-    """재반박 힌트 생성 (AI가 반박한 직후 호출)
-    
-    Response:
-        {"hint": "재반박 힌트 텍스트"}
-    """
-    discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
-    
-    if not discussion:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="토론을 찾을 수 없습니다."
-        )
-    
-    if discussion.user_id != user['id']:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="권한이 없습니다."
-        )
-    
-    # 대화 히스토리 수집
-    history = [
-        {"role": msg.role, "content": msg.content}
-        for msg in discussion.messages
-    ]
-    
-    # 재반박 힌트 요청
-    hint_result = AgentService.get_counter_hint(
-        topic=discussion.topic,
-        history=history,
-        news_data=discussion.news_data
-    )
-    
-    return hint_result
+    """재반박 힌트 생성 — Supabase discussion_turns 기반."""
+    history = _get_history_from_supabase(discussion_id)
+    if not history:
+        raise HTTPException(status_code=404, detail="토론 기록을 찾을 수 없습니다.")
+    return AgentService.get_counter_hint(topic=topic, history=history)
+
 
 @router.post("/{discussion_id}/rebuttal-hint")
 async def get_discussion_rebuttal_hint(
     discussion_id: int,
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
+    topic: str = "",
 ):
-    """반박 힌트 생성 (AI가 새 주장한 직후 호출)
-    
-    Response:
-        {"hint": "반박 힌트 텍스트"}
-    """
-    discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
-    
-    if not discussion:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="토론을 찾을 수 없습니다."
-        )
-    
-    if discussion.user_id != user['id']:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="권한이 없습니다."
-        )
-    
-    # 대화 히스토리 수집
-    history = [
-        {"role": msg.role, "content": msg.content}
-        for msg in discussion.messages
-    ]
-    
-    # 반박 힌트 요청
-    hint_result = AgentService.get_rebuttal_hint(
-        topic=discussion.topic,
-        history=history,
-        news_data=discussion.news_data
-    )
-    
-    return hint_result
+    """반박 힌트 생성 — Supabase discussion_turns 기반."""
+    history = _get_history_from_supabase(discussion_id)
+    if not history:
+        raise HTTPException(status_code=404, detail="토론 기록을 찾을 수 없습니다.")
+    return AgentService.get_rebuttal_hint(topic=topic, history=history)
 
 
 # ====== 트렌딩 및 검색 엔드포인트 (공개 API) ======
@@ -446,15 +471,50 @@ def _source_from_url(url: str) -> str:
 
 
 @public_router.get("/related-materials")
-async def get_related_materials(topic: str = ""):
+async def get_related_materials(topic: str = "", discussion_id: int = 0):
     """
-    토론 주제와 관련된 뉴스 자료 반환.
-    Supabase news 테이블에서 키워드 매칭으로 관련 뉴스를 추출한다.
+    토론 관련 뉴스 자료 반환.
+    discussion_id가 있으면 해당 토론의 discussion_search_results에서,
+    없으면 news 테이블에서 키워드 매칭으로 조회한다.
     """
     from database import get_supabase_client
 
+    sb = get_supabase_client()
+
+    if discussion_id:
+        # discussion_search_results에서 해당 토론 검색 결과 조회
+        try:
+            rows = (
+                sb.table("discussion_search_results")
+                .select("title, url, content")
+                .eq("discussion_id", str(discussion_id))
+                .execute()
+                .data
+            ) or []
+        except Exception:
+            rows = []
+
+        # url 기준 중복 제거
+        seen_urls: set[str] = set()
+        result = []
+        for item in rows:
+            url = item.get("url", "")
+            if not url or url in seen_urls:
+                continue
+            seen_urls.add(url)
+            category = _detect_category(item.get("title", ""))
+            result.append({
+                "category": category,
+                "color": _CATEGORY_COLORS.get(category, "text-gray-600"),
+                "title": item.get("title", ""),
+                "description": (item.get("content") or "")[:120],
+                "source": _source_from_url(url),
+                "url": url,
+            })
+        return result
+
+    # fallback: news 테이블 키워드 매칭
     try:
-        sb = get_supabase_client()
         rows = sb.table("news").select("title, url").order("crawled_at", desc=True).execute().data
     except Exception:
         rows = []
@@ -462,17 +522,14 @@ async def get_related_materials(topic: str = ""):
     if not rows:
         return []
 
-    # 주제 키워드와 매칭 점수 계산
     keywords = [w for w in topic.replace("?", "").replace(".", "").split() if len(w) > 1]
 
     def score(title: str) -> int:
         return sum(1 for kw in keywords if kw in title)
 
     ranked = sorted(rows, key=lambda r: score(r["title"]), reverse=True)
-    top = ranked[:5]  # 상위 5개
-
     result = []
-    for item in top:
+    for item in ranked[:5]:
         category = _detect_category(item["title"])
         result.append({
             "category": category,
@@ -482,19 +539,21 @@ async def get_related_materials(topic: str = ""):
             "source": _source_from_url(item.get("url", "")),
             "url": item.get("url", ""),
         })
-
     return result
 
 
 @public_router.get("/trending")
 async def get_trending_debates():
-    """Supabase discussion_topics 테이블 기반 트렌딩 토론 주제 목록"""
+    """Supabase discussion_topics 테이블 기반 트렌딩 토론 주제 목록.
+    기존 DB 데이터를 즉시 반환하고, 만료 여부에 따라 백그라운드에서 갱신한다.
+    """
+    # 1. 현재 DB 데이터 즉시 조회
     try:
         from database import get_supabase_client
         sb = get_supabase_client()
         rows = (
             sb.table("discussion_topics")
-            .select("id, title, description, category, created_at")
+            .select("id, title, description, category, participants")
             .order("created_at", desc=True)
             .limit(10)
             .execute()
@@ -503,15 +562,20 @@ async def get_trending_debates():
     except Exception:
         rows = []
 
+    # 뉴스 크롤링/주제 생성은 별도 Render Cron Job(cron_crawl_news.py /
+    # cron_generate_topics.py)에서 수행한다. 무거운 Playwright를 웹 프로세스에서
+    # 띄우지 않기 위해 여기서는 더 이상 백그라운드 갱신을 트리거하지 않는다.
+
+    # 즉시 반환
     result = []
     for i, row in enumerate(rows):
         result.append({
             "id": row.get("id", i),
             "category": row.get("category", "시사"),
-            "isHot": i < 3,  # 최신 3개를 Hot으로 표시
+            "isHot": row.get("participants", 0) < 100,
             "title": row.get("title", ""),
             "description": row.get("description", ""),
-            "participants": 0,
+            "participants": row.get("participants", 0),
         })
     return result
 
@@ -524,7 +588,7 @@ async def search_debates(q: str = ""):
         sb = get_supabase_client()
         rows = (
             sb.table("discussion_topics")
-            .select("id, title, description, category, created_at")
+            .select("id, title, description, category, side_a, side_b, related_news, participants, created_at")
             .order("created_at", desc=True)
             .limit(50)
             .execute()
@@ -545,13 +609,14 @@ async def search_debates(q: str = ""):
     data = [
         {
             "id": row.get("id", 0),
-            "topic": row.get("title", ""),
-            "stance": "",
-            "author": "anonymous",
-            "viewCount": 0,
-            "messageCount": 0,
-            "createdAt": row.get("created_at", ""),
-            "updatedAt": row.get("created_at", ""),
+            "category": row.get("category", "시사"),
+            "isHot": False,
+            "title": row.get("title", ""),
+            "description": row.get("description", ""),
+            "participants": row.get("participants", 0),
+            "side_a": row.get("side_a", ""),
+            "side_b": row.get("side_b", ""),
+            "related_news": row.get("related_news") or [],
         }
         for row in rows[:20]
     ]
