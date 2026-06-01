@@ -51,6 +51,7 @@ export default function App() {
   // =========================================================
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   /** 앱 초기 로드 시 토큰으로 로그인 상태 복원 */
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function App() {
           setIsLoggedIn(false);
         }
       }
+      setAuthLoading(false);
     };
     initAuth();
   }, []);
@@ -497,7 +499,7 @@ export default function App() {
               <Route
                 path="/profile"
                 element={
-                  isLoggedIn ? (
+                  authLoading ? null : isLoggedIn ? (
                     <ProfileView
                       isLoggedIn={isLoggedIn}
                       setIsLoggedIn={setIsLoggedIn}
