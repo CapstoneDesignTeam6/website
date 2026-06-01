@@ -68,7 +68,7 @@ interface DebateViewProps {
 
 const STEP_META: Record<string, { icon: React.ElementType; label: string; desc: string }> = {
   orchestrator: { icon: Bot,       label: '오케스트레이터', desc: '전략 수립 중' },
-  search:       { icon: Search,    label: '자료 탐색',      desc: '관련 자료 검색 중' },
+  search:       { icon: Search,    label: '자료 탐색',      desc: '참고 자료 검색 중' },
   generate:     { icon: Brain,     label: '주장 생성',      desc: '논거 구성 중' },
   simplify:     { icon: Lightbulb, label: '난이도 조정',    desc: '표현 변환 중' },
 };
@@ -371,8 +371,8 @@ export const DebateView = ({
   const [showPrevScoreWhileLoading, setShowPrevScoreWhileLoading] = useState(false);
   const [viewingMsgIdx, setViewingMsgIdx] = useState<number | null>(null);
   const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
-  const [relatedMaterials, setRelatedMaterials] = useState<RelatedMaterial[]>([]); // 관련 자료 상태
-  const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 관련 자료 로딩 상태
+  const [relatedMaterials, setRelatedMaterials] = useState<RelatedMaterial[]>([]); // 참고 자료 상태
+  const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 참고 자료 로딩 상태
   const fetchedMaterialsRef = useRef<RelatedMaterial[]>([]); // fetch된 원본 자료 캐시
   const [hasFetchedMaterials, setHasFetchedMaterials] = useState(false);
   const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([]);
@@ -490,7 +490,7 @@ export const DebateView = ({
     fetchScore();
   }, [messages.length, discussionId]);
 
-  // 관련 자료 fetch — AI 응답이 추가될 때마다 갱신 (에이전트가 매 턴 새 자료를 저장하므로)
+  // 참고 자료 fetch — AI 응답이 추가될 때마다 갱신 (에이전트가 매 턴 새 자료를 저장하므로)
   const aiMessageCount = messages.filter(m => m.role !== 'user').length;
   useEffect(() => {
     if (!discussionId) return;
@@ -1267,14 +1267,14 @@ export const DebateView = ({
           {(!hasFetchedMaterials || relatedMaterials.length > 0 || isLoadingRelatedMaterials) && (
             <div className="flex items-center gap-2">
               <FileText size={20} className="text-secondary" />
-              <h2 className="text-base font-black font-headline">관련 자료</h2>
+              <h2 className="text-base font-black font-headline">참고 자료</h2>
             </div>
           )}
 
           {isLoadingRelatedMaterials ? (
             <div className="flex flex-col items-center justify-center gap-4 h-full">
               <Loader2 size={32} className="animate-spin text-primary" />
-              <p className="text-outline">관련 자료를 불러오는 중입니다...</p>
+              <p className="text-outline">참고 자료를 불러오는 중입니다...</p>
             </div>
           ) : relatedMaterials.length > 0 ? (
             <div className="flex flex-col gap-5">
@@ -1319,7 +1319,7 @@ export const DebateView = ({
             </div>
           ) : hasFetchedMaterials ? (
             <div className="flex flex-col items-center justify-center gap-2 flex-1 text-center opacity-50">
-              <p className="text-xs text-outline">관련 자료 없음</p>
+              <p className="text-xs text-outline">참고 자료 없음</p>
             </div>
           ) : null}
         </div>
