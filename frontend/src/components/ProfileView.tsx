@@ -32,9 +32,9 @@ interface HistoryCardProps {
 const HistoryCard = ({ item, formatDate, getScoreColor, inGroup, onClick }: HistoryCardProps) => (
   <button
     onClick={onClick}
-    className={`w-full text-left flex items-start justify-between gap-4 transition-colors hover:bg-gray-50 ${
+    className={`history-card w-full text-left flex items-start justify-between gap-4 transition-shadow ${
       inGroup
-        ? 'px-5 py-4'
+        ? 'px-5 py-4 hover:shadow-sm'
         : 'p-5 md:p-6 bg-white rounded-2xl editorial-shadow border border-gray-50 card-hover'
     }`}
   >
