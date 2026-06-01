@@ -15,9 +15,10 @@ import logo from '../assets/logo.png';
 interface NavbarProps {
   isLoggedIn: boolean;
   setIsLoggedIn: (v: boolean) => void;
+  onNavigate?: (path: string) => void;
 }
 
-export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
+export const Navbar = ({ isLoggedIn, setIsLoggedIn, onNavigate }: NavbarProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -59,8 +60,12 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn }: NavbarProps) => {
   };
 
   const navigateTo = (path: string) => {
-    navigate(path);
     setIsMobileMenuOpen(false);
+    if (onNavigate) {
+      onNavigate(path);
+    } else {
+      navigate(path);
+    }
   };
 
   const isActive = (path: string) => {
