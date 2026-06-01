@@ -457,6 +457,7 @@ export default function App() {
                       onStartQuiz={handleStartQuiz}
                       onPreQuizComplete={handlePreQuizComplete}
                       onPostQuizComplete={showResult}
+                      userData={userData}
                     />
                   ) : (
                     <Navigate to="/setup" replace />

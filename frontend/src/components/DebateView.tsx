@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { DebateTutorial, TUTORIAL_STORAGE_KEY } from './DebateTutorial.tsx';
+import { DebateTutorial, getTutorialStorageKey } from './DebateTutorial.tsx';
 import {
   Send,
   FileText,
@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import ReactMarkdown from 'react-markdown';
-import { DebateMessage, UserEvaluationScore, RelatedMaterial, Difficulty, AgentStep, MultipleChoiceQuiz } from '../types';
+import { DebateMessage, UserEvaluationScore, RelatedMaterial, Difficulty, AgentStep, MultipleChoiceQuiz, UserData } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api';
 import { MOCK_REBUTTAL_HINT, MOCK_COUNTER_HINT } from '../mockData.ts';
@@ -64,6 +64,7 @@ interface DebateViewProps {
   onStartQuiz?: () => void;          // "퀴즈 풀기" 버튼 클릭 → pre-quiz 단계로 전환
   onPreQuizComplete?: () => void;   // 사전 퀴즈 완료 → turn=0 요청 후 debating 전환
   onPostQuizComplete?: () => void;  // 사후 퀴즈 완료 → ResultView 이동
+  userData?: UserData | null;
 }
 
 const STEP_META: Record<string, { icon: React.ElementType; label: string; desc: string }> = {
@@ -361,6 +362,7 @@ export const DebateView = ({
   onStartQuiz,
   onPreQuizComplete,
   onPostQuizComplete,
+  userData,
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -383,9 +385,14 @@ export const DebateView = ({
   const [chatbotSize, setChatbotSize] = useState({ width: 480, height: 350 });
   const [isFirstInput, setIsFirstInput] = useState(true);
   const [placeholder, setPlaceholder] = useState('');
-  const [isTutorialRunning, setIsTutorialRunning] = useState(
-    () => localStorage.getItem(TUTORIAL_STORAGE_KEY) !== 'true'
-  );
+  const [isTutorialRunning, setIsTutorialRunning] = useState(() => {
+    const userId = userData?.id && !userData.is_guest ? userData.id : undefined;
+    const key = getTutorialStorageKey(userId);
+    if (userId) {
+      return localStorage.getItem(key) !== 'true';
+    }
+    return sessionStorage.getItem(key) !== 'true';
+  });
   // const [isGuideOpen, setIsGuideOpen] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -795,7 +802,11 @@ export const DebateView = ({
 
   return (
     <div className={`flex ${isFullScreen ? 'h-screen' : 'h-[calc(100vh-72px)]'} overflow-hidden relative`}>
-      <DebateTutorial run={isTutorialRunning} onFinish={() => setIsTutorialRunning(false)} />
+      <DebateTutorial
+        run={isTutorialRunning}
+        onFinish={() => setIsTutorialRunning(false)}
+        userId={userData?.id && !userData.is_guest ? userData.id : undefined}
+      />
       {/* <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} /> */}
       {/* Left Sidebar: 실시간 평가 점수 */}
       <motion.aside
@@ -923,15 +934,20 @@ export const DebateView = ({
                   </span>
                 </div>
                 <div id="tutorial-action-buttons" className="flex items-center gap-3">
+
+                  <button onClick={() => setIsTutorialRunning(true)} className="px-2 py-1 bg-gray-50  text-on-surface rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                    <Info size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '튜토리얼'}
+                  </button>
                   <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
                     <RefreshCw size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '다시 시작'}
                   </button>
                   <button onClick={onFinish} className="px-2 py-1 bg-secondary text-white rounded-xl font-bold text-xs transition-all flex items-center gap-1">
                     <Power size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '토론 종료'}
                   </button>
-                  <button onClick={toggleFullScreen} className="px-2 py-1 bg-gray-100 text-on-surface rounded-xl font-bold text-xs transition-all flex items-center gap-1">
+                  <button onClick={toggleFullScreen} className="px-2 py-1 bg-gray-50  text-on-surface rounded-xl font-bold text-xs transition-all flex items-center gap-1">
                     {isFullScreen ? <Minimize size={14} /> : <Maximize size={14} />} {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '전체 화면'}
                   </button>
+                                    
                 </div>
               </div>
             </div>

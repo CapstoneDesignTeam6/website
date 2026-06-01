@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
-import { Joyride, STATUS } from 'react-joyride';
+import React, { useState, useRef, useEffect } from 'react';
+import { Joyride, STATUS, ACTIONS } from 'react-joyride';
 import type { EventData, Step, TooltipRenderProps, Options, Styles, PartialDeep } from 'react-joyride';
 import { RefreshCw, Power, Maximize } from 'lucide-react';
 
-const STORAGE_KEY = 'debate_tutorial_skip';
+const STORAGE_KEY_PREFIX = 'debate_tutorial_skip';
+
+function getStorageKey(userId?: number): string {
+  return userId ? `${STORAGE_KEY_PREFIX}_${userId}` : STORAGE_KEY_PREFIX;
+}
 
 const tutorialSteps: Step[] = [
   {
@@ -101,7 +105,6 @@ const tutorialSteps: Step[] = [
           <p style={{ fontWeight: 'bold', color: 'var(--color-primary)', marginBottom: '4px' }}>📝 주제 설명 및 사전·사후 퀴즈</p>
           <p>토론 <strong>시작 전</strong>에는 주제에 대한 설명과 주제 이해도를 확인하는 <strong>사전 퀴즈</strong>가 표시돼요.</p>
           <p style={{ marginTop: '4px' }}>토론이 <strong>종료</strong>되면 토론 이해도를 점검하는 <strong>사후 퀴즈</strong>가 나와요.</p>
-          {/* <p style={{ marginTop: '4px', color: '#6b7280' }}>두 퀴즈 모두 이 채팅 영역 안에서 진행됩니다.</p> */}
         </div>
       </div>
     ),
@@ -140,7 +143,7 @@ const tutorialSteps: Step[] = [
             <p style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>힌트는 참고용이에요. 이해한 내용을 내 말로 정리해보세요.</p>
           </div>
         </div>
-        
+
       </div>
     ),
     skipBeacon: true,
@@ -265,11 +268,6 @@ const tutorialStyles: PartialDeep<Styles> = {
     fontWeight: '600',
     marginRight: '6px',
   },
-  buttonSkip: {
-    color: '#9ca3af',
-    fontSize: '13px',
-    fontWeight: '500',
-  },
   buttonClose: {
     top: '12px',
     right: '12px',
@@ -277,7 +275,7 @@ const tutorialStyles: PartialDeep<Styles> = {
   },
 };
 
-// ── 커스텀 툴팁: "다시 보지 않기" 체크박스 + "건너뛰기" 버튼 포함 ──
+// ── 커스텀 툴팁: "다시 보지 않기" 체크박스 포함, 닫기 버튼이 건너뛰기 역할 ──
 interface CustomTooltipProps extends TooltipRenderProps {
   neverShow: boolean;
   onNeverShowChange: (val: boolean) => void;
@@ -291,7 +289,6 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
   backProps,
   closeProps,
   primaryProps,
-  skipProps,
   tooltipProps,
   neverShow,
   onNeverShowChange,
@@ -310,7 +307,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
         fontFamily: 'inherit',
       }}
     >
-      {/* 닫기 버튼 */}
+      {/* 닫기 버튼 (건너뛰기 역할) */}
       <button
         {...closeProps}
         style={{
@@ -353,8 +350,8 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
           gap: '10px',
         }}
       >
-        {/* 다시 보지 않기 + 건너뛰기 행 */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        {/* 다시 보지 않기 행 */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
           <label
             style={{
               display: 'flex',
@@ -379,23 +376,6 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
             />
             다시 보지 않기
           </label>
-
-          {!isLastStep && (
-            <button
-              {...skipProps}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: '12px',
-                color: '#9ca3af',
-                padding: '2px 4px',
-                fontWeight: '500',
-              }}
-            >
-              건너뛰기
-            </button>
-          )}
         </div>
 
         {/* 스텝 카운터 + 이전/다음 행 */}
@@ -448,21 +428,52 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
 interface DebateTutorialProps {
   run: boolean;
   onFinish: () => void;
+  userId?: number;
 }
 
-export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish }) => {
+export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, userId }) => {
   const [neverShow, setNeverShow] = useState(false);
+  const neverShowRef = useRef(false);
+  const [stepIndex, setStepIndex] = useState(0);
+
+  useEffect(() => {
+    if (run) {
+      setStepIndex(0);
+      neverShowRef.current = false;
+      setNeverShow(false);
+    }
+  }, [run]);
+
+  const handleNeverShowChange = (val: boolean) => {
+    neverShowRef.current = val;
+    setNeverShow(val);
+  };
+
+  const saveNeverShow = () => {
+    const key = getStorageKey(userId);
+    if (userId) {
+      localStorage.setItem(key, 'true');
+    } else {
+      sessionStorage.setItem(key, 'true');
+    }
+  };
 
   const handleEvent = (data: EventData) => {
-    const { status } = data;
+    const { status, action, index, type } = data;
 
     const finished = status === STATUS.FINISHED;
     const skipped = status === STATUS.SKIPPED;
+    const closed = action === ACTIONS.CLOSE;
+
+    if (type === 'step:after' && !closed) {
+      setStepIndex(index + 1);
+    }
 
     if (finished || skipped) {
-      if (neverShow) {
-        localStorage.setItem(STORAGE_KEY, 'true');
-      }
+      if (neverShowRef.current) saveNeverShow();
+      onFinish();
+    } else if (closed) {
+      if (neverShowRef.current) saveNeverShow();
       onFinish();
     }
   };
@@ -471,6 +482,7 @@ export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish })
     <Joyride
       steps={tutorialSteps}
       run={run}
+      stepIndex={stepIndex}
       continuous
       scrollToFirstStep
       onEvent={handleEvent}
@@ -488,11 +500,11 @@ export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish })
         <CustomTooltip
           {...props}
           neverShow={neverShow}
-          onNeverShowChange={setNeverShow}
+          onNeverShowChange={handleNeverShowChange}
         />
       )}
     />
   );
 };
 
-export { STORAGE_KEY as TUTORIAL_STORAGE_KEY };
+export { STORAGE_KEY_PREFIX as TUTORIAL_STORAGE_KEY, getStorageKey as getTutorialStorageKey };
