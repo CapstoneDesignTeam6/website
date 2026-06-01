@@ -86,7 +86,6 @@ export default function App() {
   // 사용 위치: HomeView, SetupView, SearchView → DebateView, ResultView
   // =========================================================
   const [topic, setTopic] = useState("");
-  const [topicDescription, setTopicDescription] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   // const [responseSpeed, setResponseSpeed] = useState<ResponseSpeed>('fast');
 
@@ -149,7 +148,6 @@ export default function App() {
           });
         },
         (msg) => setAgentLog(prev => [...prev, msg]),
-        topicDescription,
       );
       const initialMsg: DebateMessage = { ...data.aiResponse, turn: 0, round: 1 };
       setMessages([initialMsg]);
@@ -480,7 +478,7 @@ export default function App() {
               <Route path="/faq" element={<FAQView />} />
 
               {/* 토론 주제 검색 */}
-              <Route path="/search" element={<SearchView setTopic={setTopic} setTopicDescription={setTopicDescription} />} />
+              <Route path="/search" element={<SearchView setTopic={setTopic} />} />
 
               {/* 로그인 */}
               <Route

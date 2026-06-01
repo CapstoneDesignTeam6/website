@@ -104,12 +104,11 @@ export const debateApi = {
     turn?: DebateMessage['turn'],
     onStep?: (step: AgentStep) => void,
     onLog?: (message: string) => void,
-    description?: string,
   ): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: string[]; agent_steps?: AgentStep[] }> => {
     const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, difficulty, turn: turn ?? 0, description: description ?? '' }),
+      body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, difficulty, turn: turn ?? 0 }),
     });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
 
