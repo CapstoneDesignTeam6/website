@@ -192,7 +192,6 @@ export interface DiscussionHistoryItem {
   title: string;
   topic: string;
   score: number;
-  exp_earned: number;
   created_at: string;
   completed_at: string | null;
 }
@@ -205,7 +204,5 @@ export interface UserData {
   email: string;
   nickname: string;
   is_guest?: boolean;
-  level?: number;
-  experience_points?: number;
 }
 

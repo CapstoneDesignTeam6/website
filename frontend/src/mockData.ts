@@ -1,5 +1,5 @@
 // frontend/src/mockData.ts
-import { DebateMessage, DiscussionSummaryResponse, UserEvaluationScore, BackgroundSummary, OXQuiz, SubjectiveQuiz, MultipleChoiceQuiz } from './types';
+import { DebateMessage, DiscussionSummaryResponse, UserEvaluationScore, BackgroundSummary, OXQuiz, SubjectiveQuiz, MultipleChoiceQuiz, DiscussionHistoryItem } from './types';
 
 // 목(mock) 관련 자료 데이터
 export const MOCK_RELATED_MATERIALS = [
@@ -381,4 +381,37 @@ IPCC 보고서와 프랑스의 사례처럼 객관적인 수치와 구체적인 
   post_quiz_explanation: `토론 후 퀴즈에서 정답을 맞혔습니다.
 AI(반대 측)는 원자력 발전의 탄소 배출을 평가할 때 발전 운영 단계만이 아니라, 발전소 건설과 방사성 폐기물 처리까지 포함하는 전과정평가(LCA) 관점이 필요하다고 주장했습니다. 토론을 통해 상대 논리의 핵심을 정확히 파악했습니다.`,
   quiz_comparison: `토론 전에는 에너지 정책의 복합적 인과관계를 묻는 배경 지식 문항에서 오답을 선택했지만, 토론 후에는 AI가 실제로 펼친 LCA 논리를 정확히 이해하고 정답을 맞혔습니다. 토론 전에는 원자력 정책을 둘러싼 경제적 맥락을 충분히 파악하지 못했지만, 토론 과정에서 상대 측의 핵심 논거를 직접 접하며 새로운 시각을 흡수한 것으로 보입니다. 토론 자체가 지식과 논리력을 키우는 학습 과정으로 작용했음을 보여주는 결과입니다.`,
+};
+
+// ─── 토론 기록 목데이터 ────────────────────────────────────────────────────────
+
+export const MOCK_HISTORY: DiscussionHistoryItem[] = [
+  { id: 1, title: '인공지능 규제 논쟁', topic: '인공지능 기술에 대한 정부 규제가 필요한가?', score: 85, created_at: '2026-05-28T10:00:00Z', completed_at: '2026-05-28T10:30:00Z' },
+  { id: 2, title: '인공지능 규제 논쟁', topic: '인공지능 기술에 대한 정부 규제가 필요한가?', score: 72, created_at: '2026-05-20T14:00:00Z', completed_at: '2026-05-20T14:25:00Z' },
+  { id: 3, title: '사형제도 토론', topic: '사형제도는 폐지되어야 하는가?', score: 91, created_at: '2026-05-15T09:00:00Z', completed_at: '2026-05-15T09:40:00Z' },
+  { id: 4, title: '원격 근무 토론', topic: '원격 근무는 생산성을 향상시키는가?', score: 0, created_at: '2026-06-01T08:00:00Z', completed_at: null },
+  { id: 5, title: '사형제도 토론', topic: '사형제도는 폐지되어야 하는가?', score: 60, created_at: '2026-04-10T11:00:00Z', completed_at: '2026-04-10T11:35:00Z' },
+];
+
+export interface MockTurnMessage {
+  role: 'user' | 'ai';
+  content: string;
+  turn: number;
+}
+
+export const MOCK_TURNS: Record<number, MockTurnMessage[]> = {
+  1: [
+    { role: 'user', content: '인공지능 기술의 급격한 발전은 사회 전반에 걸쳐 광범위한 영향을 미치고 있습니다. 규제 없이 방치할 경우 일자리 소멸, 프라이버시 침해, 차별적 알고리즘 문제 등이 심각해질 수 있습니다.', turn: 1 },
+    { role: 'ai', content: '규제가 오히려 혁신을 저해할 수 있다는 점도 고려해야 합니다. 미국의 빅테크 기업들이 규제가 덜한 환경에서 성장한 것처럼, 과도한 규제는 기술 발전의 속도를 늦추고 국제 경쟁력을 약화시킬 수 있습니다.', turn: 1 },
+    { role: 'user', content: '하지만 EU의 AI Act 사례처럼, 적절한 규제 프레임워크는 오히려 신뢰할 수 있는 AI 생태계를 만들어 장기적으로 산업 발전에 도움이 됩니다. 소비자 신뢰가 없으면 기술 채택 자체가 이루어지지 않습니다.', turn: 2 },
+    { role: 'ai', content: '규제의 적정 수준을 논하기 전에, 현재 AI 기술이 실제로 얼마나 위험한지에 대한 객관적인 데이터가 부족합니다. 섣부른 규제보다는 기술 발전을 지켜보면서 유연하게 대응하는 것이 더 현명할 수 있습니다.', turn: 2 },
+    { role: 'user', content: '위험이 가시화된 후에 규제하면 이미 피해가 발생한 뒤입니다. 예방적 규제의 관점에서 선제적 대응이 필요하며, 이는 금융, 의약품 등 다른 고위험 산업에서도 검증된 방식입니다.', turn: 3 },
+    { role: 'ai', content: '동의합니다. 다만 규제의 방식과 범위가 중요합니다. 고위험 AI 시스템에 집중한 리스크 기반 규제가 혁신을 해치지 않으면서도 안전을 확보하는 균형점이 될 수 있을 것입니다.', turn: 3 },
+  ],
+  3: [
+    { role: 'user', content: '사형제도는 무고한 사람이 처형될 수 있는 돌이킬 수 없는 위험을 내포하고 있습니다. 미국에서만 지난 50년간 190명 이상의 사형수가 무죄임이 밝혀졌습니다.', turn: 1 },
+    { role: 'ai', content: '사형제도의 억제력 효과를 완전히 무시할 수 없습니다. 일부 연구에서는 사형이 범죄 억제에 효과가 있다는 증거를 제시하며, 극악무도한 범죄에 대한 사회적 정의 실현의 관점도 있습니다.', turn: 1 },
+    { role: 'user', content: '억제력 효과에 대한 연구는 결과가 상충됩니다. 사형제도를 폐지한 국가들의 살인율이 오히려 감소하거나 유지된 경우가 많습니다. 종신형으로도 충분한 억제력을 가질 수 있습니다.', turn: 2 },
+    { role: 'ai', content: '피해자 가족의 관점도 고려해야 합니다. 일부 피해자 가족들은 사형이 정의 실현이라고 느끼며, 사회가 범죄의 심각성을 인정하는 방식으로 기능한다고 봅니다.', turn: 2 },
+  ],
 };

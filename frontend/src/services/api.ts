@@ -289,4 +289,12 @@ export const userApi = {
     const data = await res.json();
     return Array.isArray(data) ? data : [];
   },
+  getDiscussionTurns: async (discussionId: number): Promise<{ role: 'user' | 'ai'; content: string; turn: number }[]> => {
+    const res = await fetch(`/api/debate/${discussionId}/turns`, {
+      headers: getHeaders(),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return Array.isArray(data?.messages) ? data.messages : [];
+  },
 };
