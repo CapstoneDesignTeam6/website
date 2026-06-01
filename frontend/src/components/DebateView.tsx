@@ -377,6 +377,7 @@ export const DebateView = ({
   const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
   const [relatedMaterials, setRelatedMaterials] = useState<RelatedMaterial[]>([]); // 참고 자료 상태
   const [isLoadingRelatedMaterials, setIsLoadingRelatedMaterials] = useState(true); // 참고 자료 로딩 상태
+  const [hasMaterialsFetchError, setHasMaterialsFetchError] = useState(false);
   const fetchedMaterialsRef = useRef<RelatedMaterial[]>([]); // fetch된 원본 자료 캐시
   const [hasFetchedMaterials, setHasFetchedMaterials] = useState(false);
   const [chatbotMessages, setChatbotMessages] = useState<Array<{ sender: 'user' | 'bot', text: string, timestamp: string }>>([]);
@@ -502,7 +503,12 @@ export const DebateView = ({
   // 참고 자료 fetch — AI 응답이 추가될 때마다 갱신 (에이전트가 매 턴 새 자료를 저장하므로)
   const aiMessageCount = messages.filter(m => m.role !== 'user').length;
   useEffect(() => {
-    if (!discussionId) return;
+    if (!discussionId) {
+      setHasMaterialsFetchError(true);
+      setHasFetchedMaterials(true);
+      setIsLoadingRelatedMaterials(false);
+      return;
+    }
     const fetchMaterials = async () => {
       try {
         const data = await debateApi.getRelatedMaterials(topic, discussionId);
@@ -511,6 +517,8 @@ export const DebateView = ({
         setRelatedMaterials(data);
       } catch (error) {
         console.error("Failed to fetch related materials:", error);
+        setHasMaterialsFetchError(true);
+        setHasFetchedMaterials(true);
       } finally {
         setIsLoadingRelatedMaterials(false);
       }
@@ -1291,7 +1299,7 @@ export const DebateView = ({
         className="bg-white flex flex-col border-l border-gray-200 overflow-hidden relative md:flex order-last" // order-last로 우측 정렬
       >
         <div id="tutorial-materials-panel" className="p-6 flex flex-col gap-3 h-full w-90 overflow-y-auto custom-scrollbar">
-          {(!hasFetchedMaterials || relatedMaterials.length > 0 || isLoadingRelatedMaterials) && (
+          {(!hasFetchedMaterials || relatedMaterials.length > 0 || isLoadingRelatedMaterials || hasMaterialsFetchError) && (
             <div className="flex items-center gap-2">
               <FileText size={20} className="text-secondary" />
               <h2 className="text-base font-black font-headline">참고 자료</h2>
@@ -1343,6 +1351,10 @@ export const DebateView = ({
                   </div>
                 </article>
               ))}
+            </div>
+          ) : hasMaterialsFetchError ? (
+            <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
+              <p className="text-sm text-outline font-medium">참고 자료를 불러오지 못했습니다.</p>
             </div>
           ) : hasFetchedMaterials ? (
             <div className="flex flex-col items-center justify-center gap-2 flex-1 text-center opacity-50">
