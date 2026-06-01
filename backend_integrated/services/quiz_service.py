@@ -4,7 +4,7 @@ services/quiz_service.py
 사전(pre) / 사후(post) 퀴즈 생성 서비스.
 - 사전 퀴즈: IntroQuizAgent 로직 (topic + discussion_turns ai_summary 기반)
 - 사후 퀴즈: ReviewQuizAgent 로직 (discussion_turns history 기반)
-LLM: OpenAI GPT (gpt-4o-mini)
+LLM: Vertex AI Gemini (gemini-2.5-pro)
 """
 
 import json
@@ -20,20 +20,8 @@ MAX_RETRIES = 3
 # ── GPT 호출 ──────────────────────────────────────────────────────────────────
 
 def _call_gpt(prompt: str, max_tokens: int = 2000) -> str:
-    try:
-        from openai import OpenAI
-        from config import settings
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.7,
-        )
-        return resp.choices[0].message.content or ""
-    except Exception as e:
-        logger.error(f"[QuizService] GPT 호출 실패: {e}")
-        return f"[ERROR] {e}"
+    from services.vertex_llm import call_llm
+    return call_llm(prompt, max_tokens=max_tokens, temperature=0.7)
 
 
 # ── Supabase 조회 ──────────────────────────────────────────────────────────────

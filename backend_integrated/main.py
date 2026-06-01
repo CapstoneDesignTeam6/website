@@ -138,10 +138,10 @@ async def startup_event():
     logger.info("Checking LLM configuration...")
     health = AgentService.health_check()
 
-    if health["openai"]:
-        logger.info("✅ OpenAI API 키 설정됨")
+    if health["vertex"]:
+        logger.info("✅ Vertex AI 설정됨")
     else:
-        logger.warning("⚠️ OpenAI API 키 미설정 — 토론 응답 생성 불가")
+        logger.warning("⚠️ Vertex AI 미설정 — 토론 응답 생성 불가")
 
 
 @app.on_event("shutdown")

@@ -17,24 +17,8 @@ logger = logging.getLogger(__name__)
 # ── GPT 호출 ──────────────────────────────────────────────────────────────────
 
 def _call_gpt(prompt: str, system: str = "", max_tokens: int = 1000) -> str:
-    try:
-        from openai import OpenAI
-        from config import settings
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        messages = []
-        if system:
-            messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=max_tokens,
-            temperature=0.5,
-        )
-        return resp.choices[0].message.content or ""
-    except Exception as e:
-        logger.error(f"[SummaryService] GPT 호출 실패: {e}")
-        return ""
+    from services.vertex_llm import call_llm
+    return call_llm(prompt, system=system, max_tokens=max_tokens, temperature=0.5)
 
 
 # ── Tavily 검색 ────────────────────────────────────────────────────────────────

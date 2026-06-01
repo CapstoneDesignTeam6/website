@@ -2,12 +2,8 @@
 agent_service.py — 통합 버전 (Redis 워커 패턴 제거)
 
 LLM 호출 전략:
-  1) DebateOrchestrator (Vertex AI Gemini + hongcheol 멀티에이전트)
-     - VERTEX_PROJECT_ID가 설정되어 있고 인증 키가 있을 때만 사용
-     - 토론 응답 생성에만 사용 (generate_response)
-  2) OpenAI GPT (gpt-4o-mini)
-     - 위가 실패하거나 미설정이면 자동 폴백
-     - 평가 워커가 하던 기능들(intro, hint, quiz, summary)은 모두 GPT로 처리
+  - Vertex AI Gemini (gemini-2.5-pro, services/vertex_llm.call_llm)
+  - 평가 워커가 하던 기능들(intro, hint, quiz, summary)은 모두 Gemini로 처리
 """
 
 import os
@@ -26,27 +22,13 @@ logger = logging.getLogger(__name__)
 
 
 def _call_gpt(system_prompt: str, user_content: str, max_tokens: int = 500) -> str:
-    """OpenAI GPT 호출 → 텍스트 반환."""
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_content},
-            ],
-            max_tokens=max_tokens,
-            temperature=0.7,
-        )
-        return resp.choices[0].message.content or ""
-    except Exception as e:
-        logger.error(f"[GPT] 호출 실패: {e}")
-        return ""
+    """Vertex AI Gemini 호출 → 텍스트 반환."""
+    from services.vertex_llm import call_llm
+    return call_llm(user_content, system=system_prompt, max_tokens=max_tokens, temperature=0.7)
 
 
 def _call_gpt_json(system_prompt: str, user_content: str, max_tokens: int = 500) -> dict:
-    """OpenAI GPT 호출 → JSON dict 반환. 파싱 실패 시 빈 dict."""
+    """Vertex AI Gemini 호출 → JSON dict 반환. 파싱 실패 시 빈 dict."""
     raw = _call_gpt(system_prompt, user_content, max_tokens)
     if not raw:
         return {}
@@ -153,11 +135,15 @@ class AgentService:
 
     @staticmethod
     def health_check() -> dict:
-        """OpenAI API 키 설정 여부만 확인."""
-        openai_ok = bool(settings.OPENAI_API_KEY)
+        """Vertex AI 설정 여부 확인."""
+        try:
+            from services.vertex_llm import PROJECT_ID
+            vertex_ok = bool(PROJECT_ID)
+        except Exception:
+            vertex_ok = False
         return {
-            "openai": openai_ok,
-            "all_healthy": openai_ok,
+            "vertex": vertex_ok,
+            "all_healthy": vertex_ok,
         }
 
     @staticmethod

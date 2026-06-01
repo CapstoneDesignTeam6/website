@@ -25,7 +25,6 @@ llm = ChatVertexAI(
 )
 
 search_tool = TavilySearch(max_results=1,topic='news')
-current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 info_query_prompt = ChatPromptTemplate.from_template("""
 당신은 **문제 이해 및 자료탐색 에이전트**입니다.
@@ -70,6 +69,7 @@ info_query_prompt = ChatPromptTemplate.from_template("""
     ]
 }}
 
+현재 시각: {current_time}
 주제: "{topic}"
 결과:
 """)
@@ -419,7 +419,8 @@ def run_explorer_agent(input_json_str):
     _log(f"🔍 [Agent 0] 주제 분석 및 쿼리 생성 중: {topic}")
 
     chain = info_query_prompt | llm | JsonOutputParser()
-    generated = chain.invoke({"topic": topic, "current_time": current_time, "instruction": instruction})
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    generated = chain.invoke({"topic": topic, "current_time": now, "instruction": instruction})
 
     _log(f"✅ [Agent 0] 쿼리 생성 완료. 총 {len(generated['queries'])}개의 쿼리가 생성되었습니다.")
     search_queries = [q['query'] for q in generated['queries']]

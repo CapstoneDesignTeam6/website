@@ -7,20 +7,14 @@ content_filter.py — 콘텐츠 안전 필터
 
 import logging
 from typing import Tuple
-from config import settings
 
 logger = logging.getLogger(__name__)
 
-# 즉시 차단 키워드 (GPT 호출 없이 1차 필터)
+# 즉시 차단 키워드 (LLM 호출 없이 1차 필터)
 _HARD_BLOCKED_KEYWORDS = [
     "포르노", "성관계", "음란", "자살 방법", "자해 방법", "마약 제조",
     "폭탄 제조", "살인 방법", "강간", "아동 성",
 ]
-
-
-def _gpt_client():
-    from openai import OpenAI
-    return OpenAI(api_key=settings.OPENAI_API_KEY)
 
 
 # ── 1. 민감 주제 필터 ─────────────────────────────────────────────────────────
@@ -38,12 +32,9 @@ def is_sensitive_topic(topic: str) -> Tuple[bool, str]:
         if kw in topic:
             return True, f"금지 키워드 포함: {kw}"
 
-    # 2차: GPT 분류
-    if not settings.OPENAI_API_KEY:
-        return False, "API 키 없음 — 필터 생략"
-
+    # 2차: LLM 분류 (Vertex AI Gemini)
     try:
-        client = _gpt_client()
+        from services.vertex_llm import call_llm
         system = (
             "당신은 토론 플랫폼의 콘텐츠 심사관입니다. "
             "아래 토론 주제가 다음 중 하나에 해당하면 'BLOCK'이라고만 답하고, "
@@ -56,21 +47,16 @@ def is_sensitive_topic(topic: str) -> Tuple[bool, str]:
             "5. 성적 콘텐츠, 폭력, 자살·자해 관련\n"
             "6. 혐오 발언 또는 특정 집단 적대"
         )
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": f"토론 주제: {topic}"},
-            ],
-            temperature=0,
-            max_tokens=10,
-        )
-        answer = resp.choices[0].message.content.strip().upper()
+        answer = call_llm(
+            f"토론 주제: {topic}", system=system, max_tokens=256, temperature=0
+        ).strip().upper()
+        if not answer:
+            return False, "심사 오류 — 통과"
         if "BLOCK" in answer:
-            return True, f"GPT 심사 차단: {topic}"
+            return True, f"LLM 심사 차단: {topic}"
         return False, "OK"
     except Exception as e:
-        logger.warning(f"is_sensitive_topic GPT 호출 실패: {e} — 통과 처리")
+        logger.warning(f"is_sensitive_topic LLM 호출 실패: {e} — 통과 처리")
         return False, "심사 오류 — 통과"
 
 
@@ -90,15 +76,12 @@ def is_on_topic(topic: str, message: str) -> Tuple[bool, str]:
         (True, "OK")         → 관련 있음, 정상 처리
         (False, fallback_msg) → 무관, fallback 메시지 반환
     """
-    if not settings.OPENAI_API_KEY:
-        return True, "OK"
-
     # 너무 짧은 발언은 관련성 판단 불가 → 통과
     if len(message.strip()) < 5:
         return True, "OK"
 
     try:
-        client = _gpt_client()
+        from services.vertex_llm import call_llm
         system = (
             "당신은 토론 플랫폼의 발언 관련성 검사관입니다. "
             "아래 토론 주제와 사용자 발언을 보고, "
@@ -107,19 +90,10 @@ def is_on_topic(topic: str, message: str) -> Tuple[bool, str]:
             "토론 주제에 대한 찬반, 질문, 배경 설명, 반박 등은 모두 관련 있는 것으로 봅니다."
         )
         user_msg = f"토론 주제: {topic}\n사용자 발언: {message}"
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system},
-                {"role": "user", "content": user_msg},
-            ],
-            temperature=0,
-            max_tokens=5,
-        )
-        answer = resp.choices[0].message.content.strip().upper()
+        answer = call_llm(user_msg, system=system, max_tokens=256, temperature=0).strip().upper()
         if "NO" in answer:
             return False, _OFF_TOPIC_FALLBACK
         return True, "OK"
     except Exception as e:
-        logger.warning(f"is_on_topic GPT 호출 실패: {e} — 통과 처리")
+        logger.warning(f"is_on_topic LLM 호출 실패: {e} — 통과 처리")
         return True, "OK"

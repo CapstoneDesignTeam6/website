@@ -25,20 +25,8 @@ METRICS = [
 # ── GPT 호출 ──────────────────────────────────────────────────────────────────
 
 def _call_gpt(prompt: str, max_tokens: int = 1500) -> str:
-    try:
-        from openai import OpenAI
-        from config import settings
-        client = OpenAI(api_key=settings.OPENAI_API_KEY)
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": prompt}],
-            max_tokens=max_tokens,
-            temperature=0.3,
-        )
-        return resp.choices[0].message.content or ""
-    except Exception as e:
-        logger.error(f"[ScoringService] GPT 호출 실패: {e}")
-        return ""
+    from services.vertex_llm import call_llm
+    return call_llm(prompt, max_tokens=max_tokens, temperature=0.3)
 
 
 # ── Supabase 조회 ──────────────────────────────────────────────────────────────
