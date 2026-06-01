@@ -127,7 +127,7 @@ const InstructionScroller = ({ text }: { text: string }) => {
       <AnimatePresence mode="wait">
         <motion.p
           key={idx}
-          className="text-[10px] text-gray-400 leading-relaxed line-clamp-2"
+          className="text-[12px] text-gray-400 leading-relaxed line-clamp-2"
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
@@ -192,7 +192,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
           {steps.map((_: unknown, i: number) => (
             <React.Fragment key={i}>
               <motion.div
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold transition-colors ${
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-[13px] font-bold transition-colors ${
                   i === activeStep
                     ? 'bg-primary text-white'
                     : i < activeStep
@@ -202,7 +202,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
                 animate={i === activeStep ? { scale: [1, 1.04, 1] } : { scale: 1 }}
                 transition={{ duration: 0.6, repeat: i === activeStep ? Infinity : 0, repeatType: 'loop' }}
               >
-                {React.createElement(steps[i].icon, { size: 13 })}
+                {React.createElement(steps[i].icon, { size: 15 })}
                 <span>{steps[i].label}</span>
               </motion.div>
               {i < steps.length - 1 && (
@@ -211,7 +211,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
                   animate={i === activeStep - 1 ? { opacity: [0.4, 1, 0.4] } : {}}
                   transition={{ duration: 1, repeat: Infinity }}
                 >
-                  <ArrowRight size={12} />
+                  <ArrowRight size={14} />
                 </motion.span>
               )}
             </React.Fragment>
@@ -231,7 +231,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
               />
             ))}
           </motion.div>
-          <span className="text-[11px] text-outline">{steps[activeStep]?.desc ?? ''}</span>
+          <span className="text-[14px] text-outline">{steps[activeStep]?.desc ?? ''}</span>
         </div>
         {/* 현재 단계의 실시간 서버 로그 누적 표시 (단계 전환 시 초기화됨) */}
         {agentLog && agentLog.length > 0 && (
@@ -240,7 +240,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
               {agentLog.map((line, i) => (
                 <motion.span
                   key={`${i}-${line}`}
-                  className="text-[10px] text-gray-400 leading-relaxed font-mono"
+                  className="text-[12px] text-gray-400 leading-relaxed font-mono"
                   initial={{ opacity: 0, x: -4 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0 }}
