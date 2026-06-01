@@ -75,16 +75,40 @@ info_query_prompt = ChatPromptTemplate.from_template("""
 """)
 
 # ── 인메모리 스토어 ──────────────────────────────────────────────────
+import contextvars
 import queue as _queue_module
 import time as _time
 
 _STORE_TTL = 7200  # 2시간 이상 비활성 토론은 자동 해제
 
-json_num_count: int = 0
-_current_discussion_id: str = "local"
+# 동시 토론이 전역 상태를 공유해 서로 섞이지 않도록, "현재 토론 id"를
+# 스레드/태스크 컨텍스트별로 격리한다. run_in_executor로 넘어가는
+# 스레드 경계 안에서도 start_new_turn 진입 시 set() 하므로 안전하다.
+_discussion_id_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "discussion_id", default="local"
+)
 _discussion_stores: dict[str, dict[str, dict]] = {}
 _discussion_timestamps: dict[str, float] = {}   # 마지막 접근 시각
+_discussion_counters: dict[str, int] = {}        # 토론별 output_N 카운터 (전역 공유 금지)
 _event_queues: dict[str, _queue_module.Queue] = {}
+
+
+def _current_id() -> str:
+    return _discussion_id_var.get()
+
+
+def _get_count() -> int:
+    return _discussion_counters.get(_current_id(), 0)
+
+
+def _set_count(n: int) -> None:
+    _discussion_counters[_current_id()] = n
+
+
+def _incr_count() -> int:
+    n = _get_count() + 1
+    _set_count(n)
+    return n
 
 # agent_id → SSE step 타입
 _AGENT_STEP_TYPE: dict[int, str] = {
@@ -105,19 +129,21 @@ def _cleanup_stale_stores() -> None:
     for k in stale:
         _discussion_stores.pop(k, None)
         _discussion_timestamps.pop(k, None)
+        _discussion_counters.pop(k, None)
         _event_queues.pop(k, None)
     if stale:
         print(f"🧹 [Store] 만료 토론 {len(stale)}건 정리: {stale}")
 
 
 def _store() -> dict[str, dict]:
-    _discussion_timestamps[_current_discussion_id] = _time.time()
-    return _discussion_stores.setdefault(_current_discussion_id, {})
+    cid = _current_id()
+    _discussion_timestamps[cid] = _time.time()
+    return _discussion_stores.setdefault(cid, {})
 
 
 def _emit(event: dict) -> None:
     """현재 토론의 SSE 큐에 이벤트를 넣는다."""
-    q = _event_queues.get(_current_discussion_id)
+    q = _event_queues.get(_current_id())
     if q is not None:
         q.put(event)
 
@@ -241,26 +267,28 @@ def clear_discussion_store(discussion_id) -> None:
     """토론 종료 후 해당 discussion_id의 인메모리 파일 스토어를 해제."""
     key = str(discussion_id or "local")
     _discussion_stores.pop(key, None)
+    _discussion_timestamps.pop(key, None)
+    _discussion_counters.pop(key, None)
     print(f"🗑️ [Store] discussion_id={discussion_id} 스토어 해제 완료")
 
 
 def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", discussion_id=None):
-    global json_num_count, _current_discussion_id
-
     _cleanup_stale_stores()  # 새 턴 시작 시 만료 스토어 정리
-    _current_discussion_id = str(discussion_id or "local")
+    # 이 스레드/태스크 컨텍스트에 현재 토론 id를 격리 (동시 토론 간 공유 방지)
+    _discussion_id_var.set(str(discussion_id or "local"))
     # 이전 턴 파일을 보존하기 위해 스토어를 지우지 않음.
-    # json_num_count는 이 토론에서 마지막으로 사용한 번호부터 이어감.
+    # 카운터는 이 토론에서 마지막으로 사용한 번호부터 이어감.
     existing = _store()
     if existing:
-        json_num_count = max(
+        count = max(
             (int(k.replace("output_", "").replace(".json", ""))
              for k in existing if k.startswith("output_") and k.endswith(".json")),
             default=0,
         )
     else:
-        json_num_count = 0
-    print(f"🆕 [Turn {now_turn}] 초기화 완료 | topic={topic_str} | discussion_id={discussion_id} | 파일 카운트={json_num_count}")
+        count = 0
+    _set_count(count)
+    print(f"🆕 [Turn {now_turn}] 초기화 완료 | topic={topic_str} | discussion_id={discussion_id} | 파일 카운트={count}")
 
     compact_input = build_compact_user_input(now_turn, raw_user_message, discussion_id=discussion_id, topic_str=topic_str)
 
@@ -296,14 +324,12 @@ read_step = read_json_file
 
 
 def make_json_file(filename: str, input_json: dict, output_json: dict) -> dict:
-    global json_num_count
-
     if not filename.endswith(".json"):
         filename = f"{filename}.json"
 
     json_info_accumulated = input_json.get("json_info", {}).copy()
 
-    prev_filename = f"output_{json_num_count - 1}.json"
+    prev_filename = f"output_{_get_count() - 1}.json"
     prev_data = _store().get(prev_filename)
     if prev_data:
         json_info_accumulated.update(prev_data.get("json_info", {}))
@@ -854,9 +880,8 @@ def simplify_output_agent(input_json_str):
         "workspace_summary": "[4] 쉬운 설명 변환 완료 - 최종 답변 출력.",
     }
 
-    global json_num_count
-    json_num_count += 1
-    make_json_file(f"output_{json_num_count}.json", input_json_for_file, final_output)
+    count = _incr_count()
+    make_json_file(f"output_{count}.json", input_json_for_file, final_output)
 
     print("\n✅ Orchestrator has decided to end the discussion. Final response:")
     print(result)
@@ -939,9 +964,8 @@ def normally_output_agent(input_json_str):
         "workspace_summary": "[5] 보통 설명 변환 완료 - 최종 답변 출력.",
     }
 
-    global json_num_count
-    json_num_count += 1
-    make_json_file(f"output_{json_num_count}.json", input_json_for_file, final_output)
+    count = _incr_count()
+    make_json_file(f"output_{count}.json", input_json_for_file, final_output)
 
     print("\n✅ Orchestrator has decided to end the discussion. Final response:")
     print(result)
@@ -1030,7 +1054,7 @@ def get_system_prompt(refutation_count=0):
 2. **문서 관리 및 json_info 유지**:
    - 'reference' 리스트에는 'instruction'을 수행하기 위해 다음 에이전트가 반드시 읽어야 할 파일명들을 명시하십시오. 이 파일명들은 'json_info'에 존재하는 문서명(output_1.json, output_2.json 등)과 일치해야 합니다.
    - 참조할 문서는 'json_info'에서 관련 내용을 찾을 수 있습니다.
-   - 'output_{json_num_count}.json'은 반드시 포함되어야 합니다.
+   - 'output_{_get_count()}.json'은 반드시 포함되어야 합니다.
 
 3. **Workspace 및 Context 유지**:
    - 'workspace'에는 에이전트가 생성한 날것의 데이터(Raw Data), 논증 전문, 검색 결과 등을 상세히 기록하십시오.
@@ -1046,13 +1070,12 @@ def get_system_prompt(refutation_count=0):
 
 
 def run_step(context_json):
-    global json_num_count
-    json_num_count += 1
-    filename = f"output_{json_num_count}.json"
+    count = _incr_count()
+    filename = f"output_{count}.json"
 
     refutation_turn = context_json.get("refutation_turn", 0)
     print(f"\n[Current Context]:\n{json.dumps(context_json, indent=2, ensure_ascii=False, default=str)}")
-    print(f"⚙️  [Step {json_num_count}] 오케스트레이터 호출 시작")
+    print(f"⚙️  [Step {count}] 오케스트레이터 호출 시작")
     print(f"📊 [Orchestrator] 현재 반박 완료 횟수(refutation_turn): {refutation_turn}")
 
     _emit({"type": "step", "step": "orchestrator", "status": "running",
@@ -1094,7 +1117,7 @@ def run_step(context_json):
 def run_orchestrator_test(result):
     agent_id = result.get("next_agent_id", None)
 
-    current_filename = f"output_{json_num_count}.json"
+    current_filename = f"output_{_get_count()}.json"
     result2 = read_json_file(current_filename) or {}
 
     if agent_id is None:
