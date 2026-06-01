@@ -374,6 +374,39 @@ async def get_user_discussions(
         return []
 
 
+@router.get("/{discussion_id}/turns")
+async def get_discussion_turns(
+    discussion_id: int,
+    user: dict = Depends(get_current_user)
+):
+    """특정 토론의 턴 기록(메시지) 조회 — discussion_turns 기반."""
+    if user.get('is_guest'):
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        rows = (
+            sb.table("discussion_turns")
+            .select("turn_number, user_message, ai_summary")
+            .eq("discussion_id", discussion_id)
+            .order("turn_number", desc=False)
+            .execute()
+            .data
+        ) or []
+        messages = []
+        for r in rows:
+            if r.get("user_message"):
+                messages.append({"role": "user", "content": r["user_message"], "turn": r["turn_number"]})
+            if r.get("ai_summary"):
+                messages.append({"role": "ai", "content": r["ai_summary"], "turn": r["turn_number"]})
+        return {"discussion_id": discussion_id, "messages": messages}
+    except HTTPException:
+        raise
+    except Exception as e:
+        _logger.error(f"[discussion_turns] 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail="턴 조회에 실패했습니다.")
+
+
 # ====== 평가 에이전트 관련 엔드포인트 ======
 
 def _get_history_from_supabase(discussion_id: int) -> list[dict]:
