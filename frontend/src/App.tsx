@@ -12,12 +12,12 @@ import {
 import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep, Turn, MultipleChoiceQuiz/*, ResponseSpeed*/ } from "./types";
 import { debateApi, userApi } from "./services/api";
 import { formatTime } from "./utils";
-import {
-  MOCK_PRE_QUIZ_MC,
-  MOCK_POST_QUIZ_MC,
-  MOCK_DISCUSSION_ID,
-  MOCK_DEBATE_MESSAGES,
-} from "./mockData";
+// import {
+//   MOCK_PRE_QUIZ_MC,
+//   MOCK_POST_QUIZ_MC,
+//   MOCK_DISCUSSION_ID,
+//   MOCK_DEBATE_MESSAGES,
+// } from "./mockData";
 
 /**
  * 토론 화면 내 진행 단계
@@ -151,11 +151,18 @@ export default function App() {
       );
       const initialMsg: DebateMessage = { ...data.aiResponse, turn: 0, round: 1 };
       setMessages([initialMsg]);
-      setDiscussionId(initialMsg.discussion_id ?? MOCK_DISCUSSION_ID);
+      setDiscussionId(initialMsg.discussion_id ?? null);
     } catch {
-      const mockTurn0 = MOCK_DEBATE_MESSAGES.filter(m => m.turn === 0);
-      setMessages(mockTurn0);
-      setDiscussionId(MOCK_DISCUSSION_ID);
+      setMessages([{
+        discussion_id: 0,
+        role: 'agent',
+        turn: 0,
+        round: 1,
+        content: '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',
+        timestamp: formatTime(),
+        agentName: 'AI 에이전트',
+      }]);
+      setDiscussionId(null);
     } finally {
       setIsGenerating(false);
     }
@@ -206,11 +213,9 @@ export default function App() {
     setDebatePhase('pre-quiz');
     try {
       const data = await debateApi.getQuizSet(topic, 'pre', discussionId);
-      setPreQuizzes(
-        Array.isArray(data) && data.length > 0 ? data : MOCK_PRE_QUIZ_MC
-      );
+      setPreQuizzes(Array.isArray(data) && data.length > 0 ? data : []);
     } catch {
-      setPreQuizzes(MOCK_PRE_QUIZ_MC);
+      setPreQuizzes([]);
     } finally {
       setIsQuizLoading(false);
     }
@@ -352,11 +357,9 @@ export default function App() {
     setIsQuizLoading(true);
     try {
       const data = await debateApi.getQuizSet(topic, 'post', discussionId);
-      setPostQuizzes(
-        Array.isArray(data) && data.length > 0 ? data : MOCK_POST_QUIZ_MC
-      );
+      setPostQuizzes(Array.isArray(data) && data.length > 0 ? data : []);
     } catch {
-      setPostQuizzes(MOCK_POST_QUIZ_MC);
+      setPostQuizzes([]);
     } finally {
       setIsQuizLoading(false);
     }

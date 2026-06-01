@@ -34,7 +34,7 @@ import ReactMarkdown from 'react-markdown';
 import { DebateMessage, UserEvaluationScore, RelatedMaterial, Difficulty, AgentStep, MultipleChoiceQuiz, UserData } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api';
-import { MOCK_REBUTTAL_HINT, MOCK_COUNTER_HINT } from '../mockData.ts';
+// import { MOCK_REBUTTAL_HINT, MOCK_COUNTER_HINT } from '../mockData.ts';
 import { formatTime } from '../utils';
 import type { DebatePhase } from '../App';
 
@@ -614,8 +614,7 @@ export const DebateView = ({
         setChatbotMessages(prev => [...prev, { sender: 'bot', text: data.hint || `${hintType} 힌트를 생성할 수 없습니다.`, timestamp: formatTime() }]);
       } catch (error) {
         console.error(`Error fetching ${hintType} hint:`, error);
-        const fallback = isRebuttal ? MOCK_REBUTTAL_HINT : MOCK_COUNTER_HINT;
-        setChatbotMessages(prev => [...prev, { sender: 'bot', text: fallback ?? `${hintType} 힌트를 가져오는 데 실패했습니다. 다시 시도해주세요.`, timestamp: formatTime() }]);
+        setChatbotMessages(prev => [...prev, { sender: 'bot', text: `서버에 연결할 수 없어 ${hintType} 힌트를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.`, timestamp: formatTime() }]);
       } finally {
         setIsHintGenerating(false);
       }

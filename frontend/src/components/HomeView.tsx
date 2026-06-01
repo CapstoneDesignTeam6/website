@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
-import { MOCK_TOPICS } from "../mockData.ts"; // mockData.ts에서 MOCK_TOPICS 임포트
+// import { MOCK_TOPICS } from "../mockData.ts";
 import { debateApi } from "../services/api";
 import type { DebateTopic, HeroSlide } from "../types";
 
@@ -65,20 +65,10 @@ export const HomeView = ({ setTopic }: HomeViewProps) => {
         if (Array.isArray(response) && response.length > 0) {
           debatesToProcess = response;
         } else {
-          // API 응답이 없거나 비어있을 경우 mock 데이터 사용
-          console.warn(
-            "API 응답이 비어있거나 예상치 못한 형식입니다. Mock 데이터를 사용합니다.",
-            response,
-          );
-          debatesToProcess = MOCK_TOPICS;
+          console.warn("API 응답이 비어있거나 예상치 못한 형식입니다.", response);
         }
       } catch (error) {
-        // API 호출 실패 시 mock 데이터 사용
-        console.error(
-          "트렌딩 토론을 가져오는 데 실패했습니다. MOCK_TOPICS를 사용합니다:",
-          error,
-        );
-        debatesToProcess = MOCK_TOPICS; // MOCK_TOPICS 사용
+        console.error("트렌딩 토론을 가져오는 데 실패했습니다:", error);
       } finally {
         // About Agora 슬라이드를 첫 번째로 추가
         const initialSlides: HeroSlide[] = [aboutAgoraSlide];
