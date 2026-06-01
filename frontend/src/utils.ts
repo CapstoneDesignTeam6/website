@@ -1,8 +1,16 @@
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(customParseFormat);
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 export function formatTime(dateInput?: Date | string): string {
-  const date = dateInput ? new Date(dateInput) : new Date();
-  return date.toLocaleTimeString("ko-KR", {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
+  const parsed = dateInput
+    ? dayjs(dateInput)
+    : dayjs();
+  if (!parsed.isValid()) return '';
+  return parsed.tz('Asia/Seoul').format('HH:mm');
 }

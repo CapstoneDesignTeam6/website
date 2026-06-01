@@ -1,7 +1,7 @@
 import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, RelatedMaterial, DiscussionHistoryItem, MultipleChoiceQuiz, BackgroundSummary } from '../types';
 import type { DebateTopic } from '../types';
 import type { AgentStep } from '../types';
-import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE, MOCK_PRE_QUIZ_MC, MOCK_POST_QUIZ_MC } from '../mockData';
+// import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE, MOCK_PRE_QUIZ_MC, MOCK_POST_QUIZ_MC } from '../mockData';
 
 // 로컬 스토리지에 저장되는 인증 토큰 키
 const TOKEN_KEY = 'agora_token';
@@ -27,8 +27,8 @@ export const debateApi = {
         const data = await res.json();
         if (Array.isArray(data) && data.length > 0) return data;
       }
-    } catch (_) { /* 실패 시 목 데이터 반환 */ }
-    return MOCK_TOPICS;
+    } catch (_) { /* 실패 시 빈 배열 반환 */ }
+    return [];
   },
   search: async (query: string): Promise<DebateTopic[]> => {
     const HOT_IDS = new Set([26, 30, 33]);
@@ -54,8 +54,8 @@ export const debateApi = {
           }));
         }
       }
-    } catch (_) { /* 실패 시 목 데이터 반환 */ }
-    return query ? MOCK_TOPICS.filter(d => d.title.includes(query)) : MOCK_TOPICS;
+    } catch (_) { /* 실패 시 빈 배열 반환 */ }
+    return [];
   },
 
   // ─── 배경 요약 관련 (BackgroundSummary) — QuizView 전용, 현재 미사용 ──────────
@@ -84,9 +84,9 @@ export const debateApi = {
       if (!res.ok) throw new Error(`API error: ${res.statusText}`);
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) return data;
-      return phase === 'pre' ? MOCK_PRE_QUIZ_MC : MOCK_POST_QUIZ_MC;
+      throw new Error('퀴즈 데이터가 없습니다.');
     } catch (_) {
-      return phase === 'pre' ? MOCK_PRE_QUIZ_MC : MOCK_POST_QUIZ_MC;
+      return [];
     }
   },
 
@@ -187,9 +187,9 @@ export const debateApi = {
       if (!res.ok) throw new Error(`API error: ${res.statusText}`);
       const data: RelatedMaterial[] = await res.json();
       if (Array.isArray(data) && data.length > 0) return data;
-      return MOCK_RELATED_MATERIALS as RelatedMaterial[];
+      throw new Error('참고 자료 데이터가 없습니다.');
     } catch (_) {
-      return MOCK_RELATED_MATERIALS as RelatedMaterial[];
+      return [];
     }
   },
   getUserEvaluation: async (discussionId: number, topic?: string): Promise<UserEvaluationScore> => {
@@ -202,7 +202,7 @@ export const debateApi = {
       if (!res.ok) throw new Error(`API error: ${res.statusText}`);
       return res.json();
     } catch (_) {
-      return MOCK_USER_EVALUATION_SCORE;
+      throw new Error('평가 점수를 불러올 수 없습니다.');
     }
   },
 
@@ -217,8 +217,8 @@ export const debateApi = {
       if (!res.ok) throw new Error(`API error: ${res.statusText}`);
       return res.json();
     } catch (error) {
-      console.error("Failed to analyze debate, using mock data:", error);
-      return MOCK_DEBATE_SUMMARY;
+      console.error("Failed to analyze debate:", error);
+      throw error;
     }
   },
 };

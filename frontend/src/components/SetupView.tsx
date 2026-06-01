@@ -42,7 +42,7 @@ export const SetupView = ({
                 value={topic}
                 onChange={(e) => setTopic(e.target.value)}
               />
-              <div className="absolute bottom-3 right-3 md:bottom-4 md:right-4 flex items-center gap-2 text-outline text-[10px] md:text-xs">
+              <div className="absolute bottom-3 right-3 md:bottom-4 md:right-4 flex items-center gap-2 text-outline text-xs md:text-xs">
                 <FileText size={14} /> 명확한 주제일수록 깊이 있는 토론이 가능합니다.
               </div>
             </div>

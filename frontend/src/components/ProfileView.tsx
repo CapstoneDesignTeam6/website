@@ -105,7 +105,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
                   value={formData.nickname}
                   onChange={(e) => setFormData({...formData, nickname: e.target.value})}
                 />
-                <p className="text-[10px] md:text-xs text-outline ml-1">토론 시 표시되는 이름입니다.</p>
+                <p className="text-sm md:text-sm text-outline ml-1">토론 시 표시되는 이름입니다.</p>
               </div>
 
               <div className="space-y-2 md:space-y-3">
@@ -163,7 +163,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
                 <p className="text-outline font-medium">아직 토론 기록이 없습니다.</p>
                 <button
                   onClick={() => navigate('/setup')}
-                  className="mt-6 px-8 py-3 bg-primary text-white font-bold rounded-2xl text-sm"
+                  className="mt-6 px-8 py-3 bg-primary text-white font-bold rounded-2xl text-base"
                 >
                   첫 토론 시작하기
                 </button>
@@ -178,7 +178,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-on-surface text-base md:text-lg truncate">{item.topic}</p>
-                        <div className="flex items-center gap-3 mt-2 text-xs md:text-sm text-outline">
+                        <div className="flex items-center gap-3 mt-2 text-sm md:text-base text-outline">
                           <span className="flex items-center gap-1">
                             <Calendar size={12} />
                             {formatDate(item.created_at)}
@@ -196,7 +196,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
                             <p className={`text-lg md:text-xl font-extrabold ${getScoreColor(item.score)}`}>
                               {Math.round(item.score)}점
                             </p>
-                            <p className="text-xs text-outline flex items-center gap-1 justify-end">
+                            <p className="text-sm text-outline flex items-center gap-1 justify-end">
                               <Trophy size={10} />
                               +{item.exp_earned} EXP
                             </p>

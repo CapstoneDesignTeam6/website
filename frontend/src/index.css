@@ -30,6 +30,13 @@
     color: var(--color-primary) !important;
     box-shadow: inset 0 0 0 2px var(--color-primary) !important;
   }
+
+  /* Secondary buttons: Red background -> White background with Red text and border */
+  button.bg-secondary:not(:disabled):hover {
+    background-color: white !important;
+    color: var(--color-secondary) !important;
+    box-shadow: inset 0 0 0 2px var(--color-secondary) !important;
+  }
   
   /* Outline or Gray buttons: Light background/border -> Blue background with White text */
   button.border:not(:disabled):hover,

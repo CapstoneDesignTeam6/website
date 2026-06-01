@@ -103,12 +103,12 @@ export const ResultView = ({ topic, result }: ResultViewProps) => {
               <h2 className="text-xl md:text-2xl font-black font-headline mb-2">
                 토론 결과 리포트
               </h2>
-              <p className="text-[10px] md:text-xs text-outline">
+              <p className="text-sm md:text-sm text-outline">
                 Agora Editorial Analysis #{new Date().getFullYear()}-
                 {Math.floor(Math.random() * 9000 + 1000)}
               </p>
             </div>
-            <div className="text-left md:text-right text-[10px] md:text-xs text-outline space-y-1">
+            <div className="text-left md:text-right text-sm md:text-sm text-outline space-y-1">
               <p>발행일: {new Date().toLocaleDateString("ko-KR")}</p>
               <p>분석 대상: {topic}</p>
             </div>
@@ -186,21 +186,21 @@ export const ResultView = ({ topic, result }: ResultViewProps) => {
 
       <div className="fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur-xl border-t border-gray-100 py-4 md:py-6 px-4 md:px-8 z-50">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2 text-outline text-[9px] md:text-[10px] font-bold">
+          <div className="flex items-center gap-2 text-outline text-sm font-bold">
             <FileText size={14} /> 이 리포트는 토론 내용과 AI 판정 결과를
             바탕으로 자동 생성되었습니다.
           </div>
           <div className="flex gap-3 md:gap-4 w-full md:w-auto">
             <button
               onClick={() => navigate("/setup")}
-              className="flex-1 md:flex-none px-4 md:px-8 py-2.5 md:py-3 bg-gray-100 text-on-surface font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-all text-xs md:text-sm"
+              className="flex-1 md:flex-none px-4 md:px-8 py-2.5 md:py-3 bg-gray-100 text-on-surface font-bold rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 transition-all text-sm md:text-base"
             >
               <RefreshCw size={16} /> 다시 시작
             </button>
             <button
               onClick={handleDownloadPdf}
               disabled={isDownloadingPdf}
-              className="flex-1 md:flex-none px-6 md:px-10 py-2.5 md:py-3 bg-primary text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all text-xs md:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 md:flex-none px-6 md:px-10 py-2.5 md:py-3 bg-primary text-white font-bold rounded-xl flex items-center justify-center gap-2 transition-all text-sm md:text-base disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isDownloadingPdf ? (
                 "PDF 생성 중..."

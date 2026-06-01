@@ -10,6 +10,7 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "dayjs": "^1.11.21",
     "html2pdf.js": "^0.9.3",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",
