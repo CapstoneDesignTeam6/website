@@ -19,6 +19,10 @@
   body {
     @apply bg-surface text-on-surface antialiased;
   }
+
+  body.modal-open {
+    overflow: hidden;
+  }
   
   button:not(:disabled) {
     @apply transition-all duration-200 cursor-pointer shadow-none;

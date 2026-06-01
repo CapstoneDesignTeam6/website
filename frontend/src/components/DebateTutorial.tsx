@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Joyride, STATUS, ACTIONS } from 'react-joyride';
 import type { EventData, Step, TooltipRenderProps, Options, Styles, PartialDeep } from 'react-joyride';
-import { RefreshCw, Power, Maximize } from 'lucide-react';
+import { RefreshCw, Power, Maximize, Info } from 'lucide-react';
 
 const STORAGE_KEY_PREFIX = 'debate_tutorial_skip';
 
@@ -11,14 +11,57 @@ function getStorageKey(userId?: number): string {
 
 function buildTutorialSteps(isDebating: boolean): Step[] {
   return [
+    
     {
-      target: 'body',
-      placement: 'center',
+      target: '#tutorial-round-badge',
+      placement: 'bottom',
       title: '👋 Agora에 오신 것을 환영합니다!',
       content: (
-        <p style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
-          다음 버튼을 클릭하면서 주요 기능을 살펴보세요.
-        </p>
+        <div>
+          <p>토론은 총 2라운드로 구성되어 있고, 종료 후 계속 진행할지 선택할 수 있어요.</p>
+          {(() => {
+            const userStyle = { padding: '0.25rem 0.5rem', background: 'color-mix(in srgb, var(--color-primary) 12%, transparent)', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-primary)', whiteSpace: 'nowrap' as const };
+            const aiStyle = { padding: '0.25rem 0.5rem', background: 'color-mix(in srgb, var(--color-secondary) 12%, transparent)', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-secondary)', whiteSpace: 'nowrap' as const };
+            const neutralStyle = { padding: '0.25rem 0.5rem', background: 'color-mix(in srgb, var(--color-on-surface) 8%, transparent)', borderRadius: '0.375rem', fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--color-on-surface)', whiteSpace: 'nowrap' as const };
+            const arrow = <span style={{ color: 'color-mix(in srgb, var(--color-on-surface) 35%, transparent)', flexShrink: 0 }}>→</span>;
+            const roundLabelStyle: React.CSSProperties = { fontSize: '0.625rem', fontWeight: 'bold', color: 'var(--color-outline)', letterSpacing: '0.05em', minWidth: '1.5rem' };
+            const row = (label: string, items: React.ReactNode[]) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                <span style={roundLabelStyle}>{label}</span>
+                {items.map((item, i) => <React.Fragment key={i}>{item}</React.Fragment>)}
+              </div>
+            );
+            return (
+              <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                {row('', [
+                  <span style={neutralStyle}>주제 설명</span>,
+                  arrow,
+                  <span style={neutralStyle}>사전 퀴즈</span>,
+                ])}
+                {row('1R', [
+                  <span style={userStyle}>내 주장</span>,
+                  arrow,
+                  <span style={aiStyle}>AI 반박</span>,
+                  arrow,
+                  <span style={userStyle}>내 재반박</span>,
+                ])}
+                {row('2R', [
+                  <span style={aiStyle}>AI 주장</span>,
+                  arrow,
+                  <span style={userStyle}>내 반박</span>,
+                  arrow,
+                  <span style={aiStyle}>AI 재반박</span>,
+                ])}
+              </div>
+            );
+          })()}
+          <div style={{ marginTop: '0.75rem', padding: '0.625rem 0.75rem', background: '#fff4e6', borderRadius: '0.5rem', border: '1px solid #ffc069' }}>
+            <p style={{ fontWeight: 'bold', color: '#d4600a', marginBottom: '0.25rem' }}>⚠️ 주의사항</p>
+            <p style={{ fontSize: '0.75rem' }}>
+              1라운드 마지막 순서인 <strong>내 재반박</strong>에는 AI가 직접적으로 응답하지 않습니다. 핵심 논거를 빠짐없이 담아 <strong>최대한 신중하게 작성</strong>해 주세요.
+            </p>
+          </div>
+        </div>
       ),
       skipBeacon: true,
     },
@@ -27,64 +70,47 @@ function buildTutorialSteps(isDebating: boolean): Step[] {
       placement: 'bottom',
       title: '📌 토론 주제와 진행률',
       content: (
-        <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
-          <p>화면 상단에 현재 <strong>토론 주제</strong>와 전체 진행 상황이 표시돼요.</p>
-          <p style={{ marginTop: '0.375rem', fontSize: '0.875rem', color: 'var(--color-outline)' }}>
-            진행률이 채워질수록 토론 완료에 가까워집니다.
+        <div>
+          <p>현재 <strong>토론 주제</strong>와 전체 진행 상황을 볼 수 있어요.</p>
+          <p style={{ marginTop: '0.375rem', fontSize: '0.75rem', color: 'var(--color-outline)' }}>
+            진행률이 채워질수록 토론 종료에 가까워집니다.
           </p>
         </div>
       ),
       skipBeacon: true,
-    },
-    {
-      target: '#tutorial-round-badge',
-      placement: 'bottom',
-      title: '🔁 라운드 구조',
-      content: (
-        <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
-          <p>현재 라운드와 전체 라운드 수를 확인할 수 있어요.</p>
-          <p style={{ marginTop: '0.375rem', marginBottom: '0.375rem'}}>
-            토론은 <strong>총 2 라운드</strong>이고, 각 라운드는 아래 <strong>3단계</strong>로 진행돼요.
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.875rem' }}>
-            <div style={{ padding: '0.375rem 0.75rem', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', borderRadius: '0.5rem' }}>
-              <strong style={{ color: 'var(--color-primary)' }}>1️⃣ 주장</strong>
-            </div>
-            <span style={{ color: 'color-mix(in srgb, var(--color-on-surface) 45%, transparent)', fontWeight: 'bold' }}>→</span>
-            <div style={{ padding: '0.375rem 0.75rem', background: 'color-mix(in srgb, var(--color-secondary) 10%, transparent)', borderRadius: '0.5rem' }}>
-              <strong style={{ color: 'var(--color-secondary)' }}>2️⃣ 반박</strong>
-            </div>
-            <span style={{ color: 'color-mix(in srgb, var(--color-on-surface) 45%, transparent)', fontWeight: 'bold' }}>→</span>
-            <div style={{ padding: '0.375rem 0.75rem', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', borderRadius: '0.5rem' }}>
-              <strong style={{ color: 'var(--color-primary)' }}>3️⃣ 재반박</strong>
-            </div>
-          </div>
-          <p style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--color-outline)' }}>2 라운드가 완료되면 토론을 계속 진행할지 선택할 수 있어요.</p>
-        </div>
-      ),
-      skipBeacon: true,
-      skipScroll: true,
     },
     {
       target: '#tutorial-action-buttons',
       placement: 'bottom',
-      title: '🎛️ 토론 제어 버튼',
+      title: '🪄 토론 제어 버튼',
       content: (
-        <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
-          <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem', lineHeight: '1.6' }}>
-            <li>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'var(--color-primary)', color: '#ffffff', padding: '0.1875rem 0.5rem', borderRadius: '0.5rem', width: 'fit-content' }}><RefreshCw size={12} /><strong>다시 시작</strong></span>
-              <span style={{ display: 'block', paddingLeft: '1rem', marginTop: '0.25rem', fontSize: '1rem', color: 'var(--color-on-surface)' }}>동일 주제로 토론을 처음부터 시작해요.</span>
-            </li>
-            <li style={{ marginTop: '0.5rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'var(--color-secondary)', color: '#ffffff', padding: '0.1875rem 0.5rem', borderRadius: '0.5rem', width: 'fit-content' }}><Power size={12} /><strong>토론 종료</strong></span>
-              <span style={{ display: 'block', paddingLeft: '1rem', marginTop: '0.25rem', fontSize: '1rem', color: 'var(--color-on-surface)' }}>현재 토론을 마치고 결과 보고서 화면으로 이동해요. 2라운드 전에 종료할 경우 결과가 나오지 않을 수 있습니다.</span>
-            </li>
-            <li style={{ marginTop: '0.5rem' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'var(--color-surface-container)', color: 'var(--color-on-surface)', padding: '0.1875rem 0.5rem', borderRadius: '0.5rem', width: 'fit-content' }}><Maximize size={12} /><strong>전체 화면</strong></span>
-              <span style={{ display: 'block', paddingLeft: '1rem', marginTop: '0.25rem', fontSize: '1rem', color: 'var(--color-on-surface)' }}>화면을 넓게 펼쳐 토론에 더 집중할 수 있어요.</span>
-            </li>
-          </ul>
+        <div>
+          <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+            <div>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'var(--color-surface-container)', color: 'var(--color-on-surface)', padding: '0.1875rem 0.5rem', borderRadius: '0.5rem', verticalAlign: 'middle' }}><Info size={12} /><strong>튜토리얼</strong></span>
+              <ul style={{ marginTop: '0.25rem', paddingLeft: '1rem', fontSize: '0.75rem' }}>
+                <li>튜토리얼을 언제든지 다시 볼 수 있어요.</li>
+              </ul>
+            </div>
+            <div>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'var(--color-primary)', color: '#ffffff', padding: '0.1875rem 0.5rem', borderRadius: '0.5rem', verticalAlign: 'middle' }}><RefreshCw size={12} /><strong>다시 시작</strong></span>
+              <ul style={{ marginTop: '0.25rem', paddingLeft: '1rem', fontSize: '0.75rem' }}>
+                <li>동일 주제로 토론을 처음부터 다시 시작해요. 지금까지의 대화 내용과 평가 점수는 초기화돼요.</li>
+              </ul>
+            </div>
+            <div>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'var(--color-secondary)', color: '#ffffff', padding: '0.1875rem 0.5rem', borderRadius: '0.5rem', verticalAlign: 'middle' }}><Power size={12} /><strong>토론 종료</strong></span>
+              <ul style={{ marginTop: '0.25rem', paddingLeft: '1rem', fontSize: '0.75rem' }}>
+                <li>현재 토론을 마치고 결과 보고서 화면으로 이동해요. 2라운드를 완료하기 전에 종료하면 결과 보고서가 생성되지 않을 수 있어요.</li>
+              </ul>
+            </div>
+            <div>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'var(--color-surface-container)', color: 'var(--color-on-surface)', padding: '0.1875rem 0.5rem', borderRadius: '0.5rem', verticalAlign: 'middle' }}><Maximize size={12} /><strong>전체 화면</strong></span>
+              <ul style={{ marginTop: '0.25rem', paddingLeft: '1rem', fontSize: '0.75rem' }}>
+                <li>화면을 넓게 펼쳐 토론에 더 집중할 수 있어요. 다시 누르면 원래 크기로 돌아와요.</li>
+              </ul>
+            </div>
+          </div>
         </div>
       ),
       skipBeacon: true,
@@ -95,14 +121,14 @@ function buildTutorialSteps(isDebating: boolean): Step[] {
       title: '💬토론 공간',
       width: 300,
       content: (
-        <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
-          <p>AI의 발언은 <strong>왼쪽</strong>, 내 발언은 <strong>오른쪽</strong>에 표시돼요.</p>
-          <p>AI가 답변을 생성하는 동안 자료 탐색 · 논거 구성 등 <strong>단계별 사고 과정</strong>이 자동으로 표시돼요.</p>
+        <div>
+          <p><strong>왼쪽</strong>에는 AI의 발언, <strong>오른쪽</strong>에는 내 발언이 표시돼요.</p>
+          <p>AI가 답변을 생성하는 동안 <strong>사고 과정</strong>이 자동으로 나타나요.</p>
           <p>실시간 평가 이후에 뜨는 <strong>평가 완료 · 보기</strong> 버튼을 누르면 해당 발언의 평가를 볼 수 있어요.</p>
-          <div style={{ marginTop: '0.3125rem', padding: '0.625rem 0.75rem', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+          <div style={{ marginTop: '0.3125rem', padding: '0.625rem 0.75rem', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', borderRadius: '0.5rem' }}>
             <p style={{ fontWeight: 'bold', color: 'var(--color-primary)', marginBottom: '0.25rem' }}>📝 주제 설명 및 사전·사후 퀴즈</p>
-            <p>토론 <strong>시작 전</strong>에는 <strong>주제에 대한 설명</strong>과 주제 이해도를 확인하는 <strong>사전 퀴즈</strong>가 표시돼요.</p>
-            <p style={{ marginTop: '0.25rem' }}>토론이 <strong>종료</strong>되면 토론 이해도를 점검하는 <strong>사후 퀴즈</strong>가 나와요.</p>
+            <p style={{ fontSize: '0.75rem' }}>토론 <strong>시작 전</strong>에는 <strong>주제에 대한 설명</strong>과 주제 이해도를 확인하는 <strong>사전 퀴즈</strong>가 표시돼요.</p>
+            <p style={{ marginTop: '0.25rem', fontSize: '0.75rem' }}>토론이 <strong>종료</strong>되면 토론 이해도를 점검하는 <strong>사후 퀴즈</strong>가 나와요.</p>
           </div>
         </div>
       ),
@@ -113,12 +139,12 @@ function buildTutorialSteps(isDebating: boolean): Step[] {
       placement: isDebating ? 'top' : 'center',
       title: '✍️ 발언 입력하기',
       content: (
-        <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
+        <div>
           {isDebating
-            ? <p>화면 하단의 <strong>입력창</strong>에 의견을 작성해주세요.</p>
+            ? <p>화면 하단의 <strong>입력창</strong>에 의견을 작성해 주세요.</p>
             : <p>퀴즈가 끝나면 화면 하단에 <strong>입력창</strong>이 나타나요.</p>
           }
-          <p><strong>Ctrl + Enter</strong>를 눌러 의견을 제출해주세요.</p>
+          <p><strong>Ctrl + Enter</strong>를 눌러 의견을 제출해 주세요.</p>
         </div>
       ),
       skipBeacon: true,
@@ -128,21 +154,20 @@ function buildTutorialSteps(isDebating: boolean): Step[] {
       placement: isDebating ? 'left' : 'center',
       title: '🤖 보조 에이전트',
       content: (
-        <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
+        <div>
           {isDebating
             ? <p>화면 오른쪽 하단의 <strong>보조 에이전트</strong> 버튼이에요.</p>
-            : <p>퀴즈가 끝나면 화면 오른쪽 하단에 <strong>보조 에이전트</strong> 버튼이 나타나요.</p>
+            : <p>퀴즈가 끝나면 입력창 오른쪽에 <strong>보조 에이전트</strong> 버튼이 나타나요.</p>
           }
-          <p style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--color-outline)' }}>팝업창 왼쪽 상단 모서리를 드래그하면 창 크기를 조절할 수 있어요.</p>
+          <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--color-outline)' }}>팝업창 왼쪽 상단 모서리를 드래그하면 창 크기를 조절할 수 있어요.</p>
           <div style={{ marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <div style={{ padding: '0.5rem 0.75rem', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+            <div style={{ padding: '0.5rem 0.75rem', background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)', borderRadius: '0.5rem'}}>
               <p style={{ fontWeight: 'bold', color: 'var(--color-primary)', marginBottom: '0.25rem' }}>📢 단계별 작성 도움말</p>
-              <p>주장·반박·재반박 단계가 바뀔 때마다 보조 에이전트가 자동으로 현재 단계에 맞는 도움말을 알려줘요.</p>
+              <p style={{ fontSize: '0.75rem' }}>주장·반박·재반박 단계가 바뀔 때마다 보조 에이전트가 자동으로 현재 단계에 어떻게 의견을 작성해야 하는지 알려줘요.</p>
             </div>
-            <div style={{ padding: '0.5rem 0.75rem', background: 'color-mix(in srgb, var(--color-secondary) 10%, transparent)', borderRadius: '0.5rem', fontSize: '0.875rem' }}>
+            <div style={{ padding: '0.5rem 0.75rem', background: 'color-mix(in srgb, var(--color-secondary) 10%, transparent)', borderRadius: '0.5rem'}}>
               <p style={{ fontWeight: 'bold', color: 'var(--color-secondary)', marginBottom: '0.25rem' }}>💡 반박·재반박 힌트</p>
-              <p>반박·재반박 단계에서는 팝업창 하단에 <strong>힌트</strong> 버튼이 나타나요. AI가 이 상황에 맞는 반박 전략을 제안해 줍니다.</p>
-              <p style={{ marginTop: '0.25rem', fontSize: '0.8125rem', color: 'var(--color-outline)' }}>힌트는 참고용이에요. 이해한 내용을 내 말로 정리해보세요.</p>
+              <p style={{ fontSize: '0.75rem' }}>반박·재반박 단계에서는 팝업창 하단에 <strong>힌트</strong> 버튼이 나타나요. AI가 이 상황에 맞는 <strong>반박 전략</strong>을 제안해 줍니다. 힌트를 참고하여 의견을 작성해보세요.</p>
             </div>
           </div>
         </div>
@@ -154,7 +179,7 @@ function buildTutorialSteps(isDebating: boolean): Step[] {
       placement: 'right',
       title: '📊 실시간 발언 평가 지표',
       content: (
-        <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
+        <div>
           <p>발언할 때마다 AI가 5가지 기준으로 내 의견을 자동으로 분석해요.</p>
           <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem', lineHeight: '1.9' }}>
             <li><strong>발언 구체성</strong> : 수치·사례·출처의 정밀도</li>
@@ -163,7 +188,7 @@ function buildTutorialSteps(isDebating: boolean): Step[] {
             <li><strong>정보 자립도</strong> : 스스로 구성한 정보 비율</li>
             <li><strong>개념 정확도</strong> : 전문 용어의 정확한 사용</li>
           </ul>
-          <p style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--color-outline)' }}>
+          <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--color-outline)' }}>
             지표 이름을 클릭하면 점수와 함께 AI의 평가 이유를 볼 수 있어요.
           </p>
         </div>
@@ -175,14 +200,12 @@ function buildTutorialSteps(isDebating: boolean): Step[] {
       placement: 'left',
       title: '📚 관련 자료',
       content: (
-        <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
+        <div>
           <p>토론 주제와 관련된 <strong>참고 자료</strong>가 자동으로 표시돼요.</p>
-          <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem', lineHeight: '1.9' }}>
-            <li>뉴스·논문·보고서 등 다양한 출처의 자료를 확인할 수 있어요.</li>
-            <li><strong>AI가 참고한 자료</strong> 태그가 붙은 자료는 현재 AI의 발언 생성에 사용된 자료예요.</li>
-            <li>원문 보기 혹은 PDF 보기 버튼을 통해 자료를 직접 열람할 수 있어요.</li>
-          </ul>
-          <p style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--color-outline)' }}>
+          <p style={{ marginTop: '0.5rem' }}>뉴스·논문·보고서 등 <strong>다양한 출처의 자료</strong>를 확인할 수 있어요.</p>
+          <p style={{ marginTop: '0.25rem' }}><strong>AI가 참고한 자료</strong> 태그가 붙은 자료는 현재 AI의 발언 생성에 사용된 자료예요.</p>
+          <p style={{ marginTop: '0.25rem' }}><strong>원문 보기 혹은 PDF 보기 버튼</strong>을 통해 자료를 직접 열람할 수 있어요.</p>
+          <p style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--color-outline)' }}>
             자료를 참고해 내 주장을 더 탄탄하게 만들어 보세요.
           </p>
         </div>
@@ -192,13 +215,10 @@ function buildTutorialSteps(isDebating: boolean): Step[] {
     {
       target: '#tutorial-score-toggle',
       placement: 'right',
-      title: '◀️▶️ 사이드바 열고 닫기',
+      title: '◀️▶️ 사이드바 토글 버튼',
       content: (
-        <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
-          <p>사이드바 가장자리의 <strong>화살표 버튼</strong>으로 패널을 열고 닫을 수 있어요.</p>
-          <p style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--color-outline)' }}>
-            화면이 좁을 때는 사이드바를 닫아 채팅 공간을 넓게 쓸 수 있어요.
-          </p>
+        <div>
+          <p>화면이 좁을 때 <strong>화살표 버튼</strong>을 클릭하면 사이드바를 닫아 채팅 공간을 넓게 쓸 수 있어요.</p>
         </div>
       ),
       skipBeacon: true,
@@ -209,14 +229,14 @@ function buildTutorialSteps(isDebating: boolean): Step[] {
       placement: 'center',
       title: '🎉 토론 준비 완료!',
       content: (
-        <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
+        <div>
           <ul style={{ marginTop: '0.5rem', paddingLeft: '1rem', lineHeight: '1.9' }}>
-            <li><strong>주장 → 반박 → 재반박</strong> 흐름을 기억해주세요.</li>
+            <li><strong>주장 → 반박 → 재반박</strong> 흐름을 기억해 주세요.</li>
             <li>관련 자료와 보조 에이전트를 활용해보세요.</li>
             <li>평가 점수와 이유를 보면서 주장을 보완해보세요.</li>
             <li>사전·사후 퀴즈로 얼마나 달라졌는지 확인해보세요.</li>
           </ul>
-          <p style={{ marginTop: '0.75rem', fontSize: '1rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
+          <p style={{ marginTop: '0.75rem', fontWeight: 'bold', color: 'var(--color-primary)' }}>
             그럼 토론을 시작해볼까요? 🚀
           </p>
         </div>
@@ -351,7 +371,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
       )}
 
       {/* 본문 */}
-      <div style={{ fontSize: '1rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
+      <div style={{ fontSize: '0.875rem', color: 'var(--color-on-surface)', lineHeight: '1.6' }}>
         {step.content}
       </div>
 
@@ -456,10 +476,12 @@ interface DebateTutorialProps {
 export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, userId, isDebating = false }) => {
   const neverShowRef = useRef(false);
   const steps = buildTutorialSteps(isDebating);
+  const [stepIndex, setStepIndex] = useState(0);
 
   useEffect(() => {
     if (run) {
       neverShowRef.current = false;
+      setStepIndex(0);
     }
   }, [run]);
 
@@ -473,7 +495,7 @@ export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, u
   };
 
   const handleEvent = (data: EventData) => {
-    const { status, action } = data;
+    const { status, action, index, type } = data;
 
     const finished = status === STATUS.FINISHED;
     const skipped = status === STATUS.SKIPPED;
@@ -482,6 +504,12 @@ export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, u
     if (finished || skipped || closed) {
       if (neverShowRef.current) saveNeverShow();
       onFinish();
+      return;
+    }
+
+    if (type === 'step:after') {
+      if (action === ACTIONS.NEXT) setStepIndex(index + 1);
+      else if (action === ACTIONS.PREV) setStepIndex(index - 1);
     }
   };
 
@@ -493,6 +521,7 @@ export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, u
     <Joyride
       steps={steps}
       run={run}
+      stepIndex={stepIndex}
       continuous
       scrollToFirstStep
       onEvent={handleEvent}

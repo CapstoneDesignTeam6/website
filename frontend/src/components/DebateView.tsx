@@ -62,8 +62,10 @@ interface DebateViewProps {
   postQuizzes?: MultipleChoiceQuiz[];
   isQuizLoading?: boolean;
   onStartQuiz?: () => void;          // "퀴즈 풀기" 버튼 클릭 → pre-quiz 단계로 전환
-  onPreQuizComplete?: () => void;   // 사전 퀴즈 완료 → turn=0 요청 후 debating 전환
-  onPostQuizComplete?: () => void;  // 사후 퀴즈 완료 → ResultView 이동
+  onPreQuizComplete?: (answers: number[]) => void;   // 사전 퀴즈 완료 → turn=0 요청 후 debating 전환
+  onPostQuizComplete?: (answers: number[]) => void;  // 사후 퀴즈 완료 → ResultView 이동
+  onRestart?: () => void;           // "다시 시작" → 토론 상태 초기화 후 /setup 이동
+  onRegisterExitHandler?: (handler: (path: string) => void) => void; // 이탈 가로채기 핸들러 등록
   userData?: UserData | null;
 }
 
@@ -362,6 +364,8 @@ export const DebateView = ({
   onStartQuiz,
   onPreQuizComplete,
   onPostQuizComplete,
+  onRestart,
+  onRegisterExitHandler,
   userData,
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
@@ -402,19 +406,42 @@ export const DebateView = ({
 
 
   const navigate = useNavigate();
-  const navigateTo = (path: string) => {
-    navigate(path);
-  };
+
+  // ── 확인 모달 상태 ──
+  // type: 'exit' = 이탈 확인, 'restart' = 다시 시작 확인
+  const [confirmModal, setConfirmModal] = useState<{ type: 'exit' | 'restart'; pendingPath?: string } | null>(null);
 
   useEffect(() => {
-    // 히스토리 스택에 현재 상태를 하나 추가해서 뒤로가기를 가로챌 수 있게 함
-    window.history.pushState(null, '', window.location.href);
+    document.body.classList.toggle('modal-open', !!confirmModal);
+    return () => { document.body.classList.remove('modal-open'); };
+  }, [confirmModal]);
+
+  // 뒤로가기 감지: pushState 없이 popstate만 감지해 팝업을 띄움
+  // 이탈 확정 시 replace:true로 이동해 /debate가 히스토리에 남지 않도록 함
+  useEffect(() => {
     const handlePopState = () => {
-      navigate('/setup', { replace: true });
+      // 뒤로 간 것을 다시 앞으로 되돌려 현재 페이지 유지
+      window.history.go(1);
+      setConfirmModal({ type: 'exit', pendingPath: '/setup' });
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigate]);
+  }, []);
+
+  // Navbar 등 외부에서 이탈 요청이 들어오면 팝업을 띄움
+  useEffect(() => {
+    onRegisterExitHandler?.((path: string) => {
+      setConfirmModal({ type: 'exit', pendingPath: path });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 다시 시작 확인 후 실행
+  const handleConfirmRestart = () => {
+    setConfirmModal(null);
+    onRestart?.();
+    navigate('/setup', { replace: true });
+  };
 
   const SPEECH_GUIDE: Record<number, string> = {
     1: `📢 **주장 단계입니다.**  \n나의 입장과 근거를 이야기해주세요.\n\n💡 **도움말**  \n• 구체적인 사례나 수치를 제시해보세요.  \n• 경제·사회·환경 등 여러 측면을 함께 언급해보세요.`,
@@ -825,7 +852,75 @@ export const DebateView = ({
         userId={userData?.id && !userData.is_guest ? userData.id : undefined}
         isDebating={debatePhase === 'debating'}
       />
-      {/* <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} /> */}
+      {/* 이탈 / 재시작 확인 모달 */}
+      <AnimatePresence>
+        {confirmModal && (
+          <motion.div
+            className="fixed inset-0 z-200 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col gap-5 w-[320px]"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+            >
+              <div className="flex flex-col gap-2">
+                <p className="text-lg font-black text-on-surface">
+                  {confirmModal.type === 'restart' ? '토론을 다시 시작할까요?' : '토론을 종료할까요?'}
+                </p>
+                <p className="text-sm text-outline leading-relaxed">
+                  {confirmModal.type === 'restart'
+                    ? '현재 진행 중인 토론이 종료되고 처음부터 다시 시작합니다.'
+                    : '현재 진행 중인 토론이 종료됩니다.'}
+                </p>
+                {/* 이탈 팝업이고 아직 마지막 라운드가 끝나지 않은 경우 경고 표시 */}
+                {confirmModal.type === 'exit' && currentRound < 2 && (
+                  <p className="text-sm font-bold text-secondary">
+                    2라운드가 끝나지 않아 결과가 제공되지 않습니다.
+                  </p>
+                )}
+              </div>
+              <div className="flex gap-3 justify-end flex-wrap">
+                <button
+                  onClick={() => setConfirmModal(null)}
+                  className="px-5 py-2 rounded-xl bg-gray-100 text-on-surface font-bold text-sm hover:bg-gray-200 transition-colors"
+                >
+                  취소
+                </button>
+                {confirmModal.type === 'exit' && (
+                  <button
+                    onClick={() => {
+                      setConfirmModal(null);
+                      if (currentRound >= 2) {
+                        onFinish();
+                      } else {
+                        onRestart?.();
+                        navigate(confirmModal.pendingPath ?? '/setup', { replace: true });
+                      }
+                    }}
+                    className="px-5 py-2 rounded-xl bg-secondary text-white font-bold text-sm hover:bg-secondary/90 transition-colors"
+                  >
+                    토론 종료
+                  </button>
+                )}
+                {confirmModal.type === 'restart' && (
+                  <button
+                    onClick={handleConfirmRestart}
+                    className="px-5 py-2 rounded-xl bg-primary text-white font-bold text-sm hover:bg-primary/90 transition-colors"
+                  >
+                    다시 시작
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Left Sidebar: 실시간 평가 점수 */}
       <motion.aside
         initial={false}
@@ -956,10 +1051,10 @@ export const DebateView = ({
                   <button onClick={() => setIsTutorialRunning(true)} className="px-2 py-1 bg-gray-100 text-on-surface rounded-xl font-bold text-sm transition-all flex items-center gap-1">
                     <Info size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '튜토리얼'}
                   </button>
-                  <button onClick={() => navigateTo('/setup')} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-sm transition-all flex items-center gap-1">
+                  <button onClick={() => setConfirmModal({ type: 'restart' })} className="px-2 py-1 bg-primary text-white rounded-xl font-bold text-sm transition-all flex items-center gap-1">
                     <RefreshCw size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '다시 시작'}
                   </button>
-                  <button onClick={onFinish} className="px-2 py-1 bg-secondary text-white rounded-xl font-bold text-sm transition-all flex items-center gap-1">
+                  <button onClick={() => setConfirmModal({ type: 'exit' })} className="px-2 py-1 bg-secondary text-white rounded-xl font-bold text-sm transition-all flex items-center gap-1">
                     <Power size={14} /> {!(isScoreSidebarOpen && isRelatedMaterialsSidebarOpen) && '토론 종료'}
                   </button>
                   <button onClick={toggleFullScreen} className="px-2 py-1 bg-gray-100 text-on-surface rounded-xl font-bold text-sm transition-all flex items-center gap-1">
@@ -1004,7 +1099,7 @@ export const DebateView = ({
                         isLoading={isQuizLoading && debatePhase === 'pre-quiz'}
                         type="pre"
                         isDone={isPreQuizDone}
-                        onComplete={() => { setIsPreQuizDone(true); onPreQuizComplete?.(); }}
+                        onComplete={(answers) => { setIsPreQuizDone(true); onPreQuizComplete?.(answers); }}
                         isCompleting={false}
                       />
                     )}
@@ -1087,7 +1182,7 @@ export const DebateView = ({
                   isLoading={isQuizLoading && debatePhase === 'pre-quiz'}
                   type="pre"
                   isDone={isPreQuizDone}
-                  onComplete={() => { setIsPreQuizDone(true); onPreQuizComplete?.(); }}
+                  onComplete={(answers) => { setIsPreQuizDone(true); onPreQuizComplete?.(answers); }}
                   isCompleting={false}
                 />
               )}
@@ -1111,7 +1206,7 @@ export const DebateView = ({
                   isLoading={isQuizLoading}
                   type="post"
                   isDone={isPostQuizDone}
-                  onComplete={() => { setIsPostQuizDone(true); onPostQuizComplete?.(); }}
+                  onComplete={(answers) => { setIsPostQuizDone(true); onPostQuizComplete?.(answers); }}
                   isCompleting={false}
                 />
               )}
@@ -1396,23 +1491,27 @@ interface InlineQuizPanelProps {
   isLoading: boolean;
   type: 'pre' | 'post';
   isDone?: boolean;
-  onComplete?: () => void;
+  onComplete?: (answers: number[]) => void;
   isCompleting?: boolean; // onComplete 처리 중 (turn=0 API 호출 중)
 }
 
 const InlineQuizPanel = ({ quizzes, isLoading, type, isDone = false, onComplete, isCompleting }: InlineQuizPanelProps) => {
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [answers, setAnswers] = useState<number[]>([]);
 
-  // 퀴즈 목록이 바뀌면 인덱스 초기화
+  // 퀴즈 목록이 바뀌면 인덱스·답안 초기화
   useEffect(() => {
     setCurrentIndex(0);
+    setAnswers([]);
   }, [quizzes]);
 
-  const handleNext = () => {
+  const handleNext = (selected: number) => {
+    const nextAnswers = [...answers, selected];
     if (currentIndex < quizzes.length - 1) {
+      setAnswers(nextAnswers);
       setCurrentIndex(currentIndex + 1);
     } else {
-      onComplete?.();
+      onComplete?.(nextAnswers);
     }
   };
 
@@ -1450,7 +1549,7 @@ const InlineQuizPanel = ({ quizzes, isLoading, type, isDone = false, onComplete,
           <div className="p-4 md:p-5 rounded-2xl bg-white border-2 border-gray-200 flex flex-col gap-3">
             <p className="text-sm md:text-base text-gray-600">퀴즈를 불러오지 못했습니다.</p>
             <button
-              onClick={() => onComplete?.()}
+              onClick={() => onComplete?.([])}
               className="self-start px-5 py-2 bg-gray-400 text-white font-bold rounded-full text-sm flex items-center gap-1.5 hover:bg-gray-500 transition-colors"
             >
               {type === 'pre' ? '토론 시작' : '결과 보기'} <ArrowRight size={14} />
@@ -1525,7 +1624,7 @@ interface InlineMCQuizCardProps {
   isLast: boolean;
   type: 'pre' | 'post';
   isCompleting: boolean;
-  onNext: () => void;
+  onNext: (selected: number) => void;
 }
 
 const InlineMCQuizCard = ({ quiz, isLast, type, isCompleting, onNext }: InlineMCQuizCardProps) => {
@@ -1619,7 +1718,7 @@ const InlineMCQuizCard = ({ quiz, isLast, type, isCompleting, onNext }: InlineMC
           </button>
         ) : (
           <button
-            onClick={onNext}
+            onClick={() => onNext(selected!)}
             disabled={isCompleting}
             className="px-6 py-2 bg-primary text-white font-bold rounded-full flex items-center gap-1.5 hover:bg-gray-500 transition-all text-sm disabled:opacity-40"
           >

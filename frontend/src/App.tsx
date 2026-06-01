@@ -78,7 +78,13 @@ export default function App() {
   // 사용 위치: 모든 Route 전환 시
   // =========================================================
 
-  /** 경로 변경 시 스크롤 위치를 최상단으로 초기화 */
+  /** 경로 변경 시 스크롤 위치를 최상단으로 초기화 (브라우저 자동 복원 비활성화) */
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
@@ -109,13 +115,10 @@ export default function App() {
   const [isQuizLoading, setIsQuizLoading] = useState(false);
 
   /**
-   * SetupView 완료 → /debate 로 이동하고 사전 퀴즈 데이터 로드
-   * 사용 위치: SetupView onStart 콜백
+   * 토론 관련 상태를 모두 초기화 (다시 시작 버튼 전용 — /setup으로 이동 전 호출)
+   * isGenerating은 false로만 리셋 (navigate 후 handleStartDebate에서 true로 설정됨)
    */
-  const handleStartDebate = async () => {
-    if (!topic.trim()) return;
-
-    // 토론 관련 상태 초기화 — API 응답 전 로딩 화면을 위해 intro로 먼저 전환
+  const resetDebateState = () => {
     setDebatePhase('intro');
     setPreQuizzes([]);
     setPostQuizzes([]);
@@ -126,13 +129,39 @@ export default function App() {
     setspeechTurn(1);
     setWaitingForContinue(false);
     setDiscussionId(null);
+    setIsGenerating(false);
+    setAgentSteps([]);
+    setAgentLog([]);
+    setIsQuizLoading(false);
+  };
+
+  /**
+   * SetupView 완료 → /debate 로 이동하고 사전 퀴즈 데이터 로드
+   * 사용 위치: SetupView onStart 콜백
+   */
+  const handleStartDebate = async () => {
+    if (!topic.trim()) return;
+
+    // 토론 관련 상태를 로딩 중 상태로 초기화한 뒤 /debate로 이동
+    // isGenerating=true를 먼저 설정해야 /debate 진입 시 로딩 스피너가 바로 표시됨
+    setDebatePhase('intro');
+    setPreQuizzes([]);
+    setPostQuizzes([]);
+    setMessages([]);
+    setCurrentRound(1);
+    setTotalRounds(2);
+    setProgress(0);
+    setspeechTurn(1);
+    setWaitingForContinue(false);
+    setDiscussionId(null);
+    setAgentSteps([]);
+    setAgentLog([]);
+    setIsQuizLoading(false);
+    setIsGenerating(true);
 
     navigate("/debate");
 
     // 1단계: turn=0 주제 요약 메시지 먼저 요청
-    setIsGenerating(true);
-    setAgentSteps([]);
-    setAgentLog([]);
     try {
       console.log('[sendMessage] topic:', topic);
       const data = await debateApi.sendMessage(
@@ -230,7 +259,10 @@ export default function App() {
    *
    * 사용 위치: DebateView 내 인라인 사전퀴즈 완료 콜백
    */
-  const handlePreQuizComplete = () => {
+  const handlePreQuizComplete = async (answers: number[]) => {
+    if (discussionId != null && preQuizzes.length > 0) {
+      await debateApi.submitQuiz(discussionId, 'pre', preQuizzes, answers);
+    }
     setDebatePhase('debating');
   };
 
@@ -380,8 +412,12 @@ export default function App() {
    *
    * 사용 위치: DebateView 내 인라인 사후퀴즈 완료 콜백
    */
-  const showResult = async () => {
-    navigate("/result");
+  const showResult = async (answers: number[]) => {
+    if (discussionId != null && postQuizzes.length > 0) {
+      await debateApi.submitQuiz(discussionId, 'post', postQuizzes, answers);
+    }
+
+    navigate("/result", { replace: true });
     setDebateResult("토론 결과를 분석 중입니다...");
 
     try {
@@ -396,10 +432,23 @@ export default function App() {
   // =========================================================
   // [7] 렌더링 (Layout & Routes)
   // =========================================================
+
+  // 토론 중 이탈 확인: DebateView가 등록한 콜백을 여기 저장
+  const [debateExitHandler, setDebateExitHandler] = useState<((path: string) => void) | null>(null);
+
+  // Navbar 등에서 navigate 전에 호출 — 토론 중이면 DebateView 팝업으로 위임, 아니면 바로 이동
+  const handleNavbarNavigate = (path: string) => {
+    if (location.pathname === '/debate' && debateExitHandler) {
+      debateExitHandler(path);
+    } else {
+      navigate(path);
+    }
+  };
+
   return (
     <div className={`min-h-screen flex flex-col font-sans ${fullScreenMode ? "overflow-hidden" : ""}`}>
       {/* 전체 화면 모드가 아닐 때만 Navbar 렌더링 */}
-      {!fullScreenMode && <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}
+      {!fullScreenMode && <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} onNavigate={handleNavbarNavigate} />}
 
       <main className="flex-1">
         <AnimatePresence mode="wait">
@@ -463,6 +512,8 @@ export default function App() {
                       onStartQuiz={handleStartQuiz}
                       onPreQuizComplete={handlePreQuizComplete}
                       onPostQuizComplete={showResult}
+                      onRestart={resetDebateState}
+                      onRegisterExitHandler={(handler) => setDebateExitHandler(() => handler)}
                       userData={userData}
                     />
                   ) : (

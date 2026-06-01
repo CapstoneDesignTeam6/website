@@ -73,6 +73,16 @@ export const debateApi = {
   },
 
   // ─── 퀴즈 관련 (Quiz) ────────────────────────────────────────────────────────
+  submitQuiz: async (discussionId: number, phase: 'pre' | 'post', quizzes: MultipleChoiceQuiz[], answers: number[]): Promise<void> => {
+    try {
+      await fetch('/api/debate/quiz/submit', {
+        method: 'POST',
+        headers: getHeaders(),
+        body: JSON.stringify({ discussion_id: discussionId, phase, quizzes, answers }),
+      });
+    } catch (_) { /* 채점 실패는 무시 */ }
+  },
+
   getQuizSet: async (topic: string, phase: 'pre' | 'post', discussionId?: number | null): Promise<MultipleChoiceQuiz[]> => {
     try {
       const params = new URLSearchParams({ topic, phase });
