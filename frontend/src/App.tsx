@@ -51,6 +51,7 @@ export default function App() {
   // =========================================================
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   /** 앱 초기 로드 시 토큰으로 로그인 상태 복원 */
   useEffect(() => {
@@ -67,6 +68,7 @@ export default function App() {
           setIsLoggedIn(false);
         }
       }
+      setAuthLoading(false);
     };
     initAuth();
   }, []);
@@ -86,6 +88,7 @@ export default function App() {
   // 사용 위치: HomeView, SetupView, SearchView → DebateView, ResultView
   // =========================================================
   const [topic, setTopic] = useState("");
+  const [topicDescription, setTopicDescription] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty>("normal");
   // const [responseSpeed, setResponseSpeed] = useState<ResponseSpeed>('fast');
 
@@ -133,7 +136,7 @@ export default function App() {
     try {
       console.log('[sendMessage] topic:', topic);
       const data = await debateApi.sendMessage(
-        topic, `${topic}에 대해 설명해주세요. 주제의 정의, 배경, 주요 쟁점을 알려주세요.`, [], null, undefined, 0,
+        topic, `${topic}에 대해 설명해주세요. 주제의 정의, 배경, 주요 쟁점을 알려주세요.${topicDescription ? `\n\n참고 설명: ${topicDescription}` : ''}`, [], null, undefined, 0,
         (step) => {
           // 새 단계(running)로 진입하면 이전 단계의 로그를 비움
           if (step.status === 'running') setAgentLog([]);
@@ -478,7 +481,7 @@ export default function App() {
               <Route path="/faq" element={<FAQView />} />
 
               {/* 토론 주제 검색 */}
-              <Route path="/search" element={<SearchView setTopic={setTopic} />} />
+              <Route path="/search" element={<SearchView setTopic={setTopic} setTopicDescription={setTopicDescription} />} />
 
               {/* 로그인 */}
               <Route
@@ -496,7 +499,7 @@ export default function App() {
               <Route
                 path="/profile"
                 element={
-                  isLoggedIn ? (
+                  authLoading ? null : isLoggedIn ? (
                     <ProfileView
                       isLoggedIn={isLoggedIn}
                       setIsLoggedIn={setIsLoggedIn}

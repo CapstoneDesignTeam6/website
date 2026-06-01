@@ -39,13 +39,19 @@
   }
   
   /* Outline or Gray buttons: Light background/border -> Blue background with White text */
-  button.border:not(:disabled):hover,
-  button.border-2:not(:disabled):hover,
-  button.bg-gray-100:not(:disabled):hover,
-  button.bg-surface-container:not(:disabled):hover {
+  button.border:not(:disabled):not(.history-card):hover,
+  button.border-2:not(:disabled):not(.history-card):hover,
+  button.bg-gray-100:not(:disabled):not(.history-card):hover,
+  button.bg-surface-container:not(:disabled):not(.history-card):hover {
     background-color: var(--color-primary) !important;
     color: white !important;
     border-color: var(--color-primary) !important;
+  }
+
+  button.history-card:not(:disabled):hover {
+    background-color: white !important;
+    color: inherit !important;
+    border-color: rgb(249 250 251) !important;
   }
 }
 

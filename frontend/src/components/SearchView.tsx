@@ -12,6 +12,7 @@ import type { DebateTopic } from '../types';
 
 interface SearchViewProps {
   setTopic: (t: string) => void;
+  setTopicDescription: (d: string) => void;
 }
 
 // 카드 컴포넌트 — 호버 시 1.2배 확대, 나머지는 흐려짐
@@ -118,7 +119,7 @@ const DebateCard = ({
 
 // type SortOrder = 'latest' | 'popular';
 
-export const SearchView = ({ setTopic }: SearchViewProps) => {
+export const SearchView = ({ setTopic, setTopicDescription }: SearchViewProps) => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [debates, setDebates] = useState<DebateTopic[]>([]);
@@ -200,6 +201,7 @@ export const SearchView = ({ setTopic }: SearchViewProps) => {
               debate={debate}
               onSelect={() => {
                 setTopic(debate.title);
+                setTopicDescription(debate.description);
                 navigate('/setup');
               }}
               isHovered={hoveredId === debate.id}
