@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { Joyride, STATUS, ACTIONS } from 'react-joyride';
 import type { EventData, Step, TooltipRenderProps, Options, Styles, PartialDeep } from 'react-joyride';
 import { RefreshCw, Power, Maximize } from 'lucide-react';
@@ -279,8 +279,7 @@ const tutorialStyles: PartialDeep<Styles> = {
 
 // ── 커스텀 툴팁: "다시 보지 않기" 체크박스 포함, 닫기 버튼이 건너뛰기 역할 ──
 interface CustomTooltipProps extends TooltipRenderProps {
-  neverShow: boolean;
-  onNeverShowChange: (val: boolean) => void;
+  neverShowRef: React.MutableRefObject<boolean>;
 }
 
 const CustomTooltip: React.FC<CustomTooltipProps> = ({
@@ -292,9 +291,9 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
   closeProps,
   primaryProps,
   tooltipProps,
-  neverShow,
-  onNeverShowChange,
+  neverShowRef,
 }) => {
+  const [neverShow, setNeverShow] = useState(neverShowRef.current);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const targetWidth = (step.width as number | undefined) ?? 500;
 
@@ -321,6 +320,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
         fontFamily: 'inherit',
         width: targetWidth,
         maxWidth: targetWidth,
+        pointerEvents: 'auto',
       }}
     >
       {/* 닫기 버튼 (건너뛰기 역할) */}
@@ -369,6 +369,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
         {/* 다시 보지 않기 행 */}
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <label
+          onClick={(e) => e.stopPropagation()}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -382,7 +383,11 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
             <input
               type="checkbox"
               checked={neverShow}
-              onChange={(e) => onNeverShowChange(e.target.checked)}
+              onChange={(e) => {
+                neverShowRef.current = e.target.checked;
+                setNeverShow(e.target.checked);
+              }}
+              onClick={(e) => e.stopPropagation()}
               style={{
                 width: '0.875rem',
                 height: '0.875rem',
@@ -449,21 +454,14 @@ interface DebateTutorialProps {
 }
 
 export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, userId, isDebating = false }) => {
-  const [neverShow, setNeverShow] = useState(false);
   const neverShowRef = useRef(false);
   const steps = buildTutorialSteps(isDebating);
 
   useEffect(() => {
     if (run) {
       neverShowRef.current = false;
-      setNeverShow(false);
     }
   }, [run]);
-
-  const handleNeverShowChange = (val: boolean) => {
-    neverShowRef.current = val;
-    setNeverShow(val);
-  };
 
   const saveNeverShow = () => {
     const key = getStorageKey(userId);
@@ -481,14 +479,15 @@ export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, u
     const skipped = status === STATUS.SKIPPED;
     const closed = action === ACTIONS.CLOSE;
 
-    if (finished || skipped) {
-      if (neverShowRef.current) saveNeverShow();
-      onFinish();
-    } else if (closed) {
+    if (finished || skipped || closed) {
       if (neverShowRef.current) saveNeverShow();
       onFinish();
     }
   };
+
+  const TooltipComponent = useCallback((props: TooltipRenderProps) => (
+    <CustomTooltip {...props} neverShowRef={neverShowRef} />
+  ), []);
 
   return (
     <Joyride
@@ -507,13 +506,7 @@ export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, u
         open: '튜토리얼 열기',
         skip: '건너뛰기',
       }}
-      tooltipComponent={(props: TooltipRenderProps) => (
-        <CustomTooltip
-          {...props}
-          neverShow={neverShow}
-          onNeverShowChange={handleNeverShowChange}
-        />
-      )}
+      tooltipComponent={TooltipComponent}
     />
   );
 };
