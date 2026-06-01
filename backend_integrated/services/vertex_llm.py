@@ -42,10 +42,19 @@ def call_llm(
     """
     try:
         _ensure_init()
+        # gemini-2.5-pro는 thinking을 끌 수 없고(thinking_budget=0 → 400),
+        # 사고 토큰을 응답 예산과 함께 소비한다. 답변이 잘리지 않도록 넉넉한
+        # 하한(orchestrator와 동일한 8192)을 둔다. 캡일 뿐이라 짧은 답변은 일찍 종료된다.
+        effective_max = max(max_tokens, 8192)
+        # project/location을 명시적으로 전달한다. topic.py가 vertexai.init을
+        # us-central1로 호출해 전역 기본값을 덮어쓸 수 있으므로, 전역에 의존하지
+        # 않고 생성자에서 직접 지정해야 의도한 리전(global)이 보장된다.
         llm = ChatVertexAI(
             model_name=MODEL_ID,
+            project=PROJECT_ID,
+            location=LOCATION,
             temperature=temperature,
-            max_output_tokens=max_tokens,
+            max_output_tokens=effective_max,
         )
         messages = []
         if system:
