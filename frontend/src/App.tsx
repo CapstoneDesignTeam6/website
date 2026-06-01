@@ -78,11 +78,16 @@ export default function App() {
   // 사용 위치: 모든 Route 전환 시
   // =========================================================
 
-  /** 경로 변경 시 스크롤 위치를 최상단으로 초기화 */
+  /** 경로 변경 시 스크롤 위치를 최상단으로 초기화 (브라우저 자동 복원 비활성화) */
+  useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+  }, []);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location.pathname]);
-
 
   // =========================================================
   // [3] 토론 주제 & 난이도 설정 (Setup)
@@ -405,7 +410,7 @@ export default function App() {
    * 사용 위치: DebateView 내 인라인 사후퀴즈 완료 콜백
    */
   const showResult = async () => {
-    navigate("/result");
+    navigate("/result", { replace: true });
     setDebateResult("토론 결과를 분석 중입니다...");
 
     try {

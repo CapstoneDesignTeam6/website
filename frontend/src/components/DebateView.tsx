@@ -406,20 +406,22 @@ export const DebateView = ({
 
 
   const navigate = useNavigate();
-  const navigateTo = (path: string) => {
-    navigate(path);
-  };
 
   // ── 확인 모달 상태 ──
   // type: 'exit' = 이탈 확인, 'restart' = 다시 시작 확인
   const [confirmModal, setConfirmModal] = useState<{ type: 'exit' | 'restart'; pendingPath?: string } | null>(null);
 
-  // 다시 시작 확인 후 실행
-  const handleConfirmRestart = () => {
-    setConfirmModal(null);
-    onRestart?.();
-    navigateTo('/setup');
-  };
+  // 뒤로가기 감지: pushState 없이 popstate만 감지해 팝업을 띄움
+  // 이탈 확정 시 replace:true로 이동해 /debate가 히스토리에 남지 않도록 함
+  useEffect(() => {
+    const handlePopState = () => {
+      // 뒤로 간 것을 다시 앞으로 되돌려 현재 페이지 유지
+      window.history.go(1);
+      setConfirmModal({ type: 'exit', pendingPath: '/setup' });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Navbar 등 외부에서 이탈 요청이 들어오면 팝업을 띄움
   useEffect(() => {
@@ -429,17 +431,12 @@ export const DebateView = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    // 히스토리 스택에 현재 상태를 하나 추가해서 뒤로가기를 가로챌 수 있게 함
-    window.history.pushState(null, '', window.location.href);
-    const handlePopState = () => {
-      setConfirmModal({ type: 'exit', pendingPath: '/setup' });
-      // popstate로 이미 뒤로 간 히스토리를 다시 앞으로 되돌려 팝업 취소 시 현재 페이지 유지
-      window.history.pushState(null, '', window.location.href);
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [navigate]);
+  // 다시 시작 확인 후 실행
+  const handleConfirmRestart = () => {
+    setConfirmModal(null);
+    onRestart?.();
+    navigate('/setup', { replace: true });
+  };
 
   const SPEECH_GUIDE: Record<number, string> = {
     1: `📢 **주장 단계입니다.**  \n나의 입장과 근거를 이야기해주세요.\n\n💡 **도움말**  \n• 구체적인 사례나 수치를 제시해보세요.  \n• 경제·사회·환경 등 여러 측면을 함께 언급해보세요.`,
