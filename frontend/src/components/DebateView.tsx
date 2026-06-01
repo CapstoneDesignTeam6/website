@@ -411,6 +411,11 @@ export const DebateView = ({
   // type: 'exit' = 이탈 확인, 'restart' = 다시 시작 확인
   const [confirmModal, setConfirmModal] = useState<{ type: 'exit' | 'restart'; pendingPath?: string } | null>(null);
 
+  useEffect(() => {
+    document.body.classList.toggle('modal-open', !!confirmModal);
+    return () => { document.body.classList.remove('modal-open'); };
+  }, [confirmModal]);
+
   // 뒤로가기 감지: pushState 없이 popstate만 감지해 팝업을 띄움
   // 이탈 확정 시 replace:true로 이동해 /debate가 히스토리에 남지 않도록 함
   useEffect(() => {
