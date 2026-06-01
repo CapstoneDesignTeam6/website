@@ -167,51 +167,23 @@ async def health_check():
         "version": "1.0.0"
     }
 
-@app.post("/admin/news/crawl")
-async def trigger_news_crawl():
-    """뉴스 크롤링 수동 실행 (관리자용)"""
-    from services.news import crawl_and_replace_news
-    logger.info("🗞️ [수동] 뉴스 크롤링 시작...")
-    result = await crawl_and_replace_news()
-    return result
-
-@app.post("/admin/topics/generate")
-async def trigger_topic_generate(force: bool = False):
-    """
-    토론 주제 생성 수동 실행 (관리자용)
-    - force=true: 7일 미경과여도 강제 재생성
-    - force=false (기본): 7일 지난 경우에만 생성
-    """
-    from services.topic import generate_and_save_topics
-    import asyncio
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=force))
-    return result
-
-@app.post("/admin/news/crawl-and-generate")
-async def trigger_crawl_and_generate(force_topics: bool = False):
-    """
-    뉴스 크롤링 + 토론 주제 생성 한 번에 실행 (관리자용)
-    - force_topics=true: 주제 7일 미경과여도 강제 재생성
-    """
-    from services.news import crawl_and_replace_news
-    from services.topic import generate_and_save_topics
-    import asyncio
-
-    logger.info("🗞️ [수동] 뉴스 크롤링 + 주제 생성 시작...")
-    crawl_result = await crawl_and_replace_news()
-    if not crawl_result.get("success"):
-        return {"crawl": crawl_result, "topics": {"success": False, "message": "크롤링 실패로 주제 생성 건너뜀"}}
-
-    loop = asyncio.get_event_loop()
-    topic_result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=force_topics))
-    return {"crawl": crawl_result, "topics": topic_result}
+# 뉴스 크롤링 / 주제 생성은 별도 crawler/ 폴더의 배치 잡(GitHub Actions cron)에서
+# 수행한다. 무거운 작업을 512MB 웹 프로세스에서 돌리지 않기 위해 관리자 크롤링
+# 엔드포인트는 제거했다. 웹은 아래처럼 저장된 결과를 읽기만 한다.
 
 @app.get("/news")
 async def get_news(limit: int = 50):
-    """저장된 뉴스 목록 조회"""
-    from services.news import get_news_list
-    return get_news_list(limit=limit)
+    """저장된 뉴스 목록 조회 (읽기 전용)"""
+    from database import get_supabase_client
+    sb = get_supabase_client()
+    resp = (
+        sb.table("news")
+        .select("*")
+        .order("crawled_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return resp.data
 
 if __name__ == "__main__":
     import uvicorn

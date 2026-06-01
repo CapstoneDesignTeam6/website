@@ -1,0 +1,32 @@
+name: Crawl News (daily)
+
+# 매일 뉴스 크롤링 — 무거운 Playwright를 웹 서비스(512MB) 대신 GitHub 러너에서 실행
+on:
+  schedule:
+    # GitHub Actions cron은 UTC 기준. 15:00 UTC = 한국시간(KST) 00:00 (자정)
+    - cron: "0 15 * * *"
+  workflow_dispatch: {}   # 수동 실행 버튼
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: crawler   # 크롤러 코드가 있는 폴더
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install --no-cache-dir -r requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run news crawl
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: python cron_crawl_news.py

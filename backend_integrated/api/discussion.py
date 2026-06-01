@@ -1,4 +1,4 @@
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
 from supabase import Client
 from pydantic import BaseModel
@@ -13,41 +13,14 @@ from services.discussion_service import DiscussionService
 from services.auth_service import AuthService
 from services.agent_service import AgentService
 from database import get_db, get_supabase
-import asyncio
 import logging
 
 _logger = logging.getLogger(__name__)
-_refresh_running = False  # 동시 갱신 방지 플래그
 
-
-async def _refresh_if_needed():
-    """뉴스/주제가 만료됐으면 백그라운드에서 갱신한다.
-    Render 상시 실행 환경이므로 타임아웃 없이 Playwright 크롤링도 가능.
-    """
-    global _refresh_running
-    if _refresh_running:
-        return
-    _refresh_running = True
-    try:
-        from services.news import is_news_expired, crawl_and_replace_news
-        from services.topic import generate_and_save_topics
-
-        if is_news_expired():
-            _logger.info("🔄 [bg] 뉴스 만료 → 크롤링 시작...")
-            try:
-                crawl_result = await crawl_and_replace_news()
-                _logger.info(f"🔄 [bg] 크롤링 결과: {crawl_result}")
-            except Exception as crawl_err:
-                _logger.error(f"❌ [bg] 크롤링 실패 — {type(crawl_err).__name__}: {crawl_err}")
-
-        loop = asyncio.get_event_loop()
-        try:
-            result = await loop.run_in_executor(None, lambda: generate_and_save_topics(force=False))
-            _logger.info(f"💬 [bg] 주제 갱신 결과: {result}")
-        except Exception as topic_err:
-            _logger.error(f"❌ [bg] 주제 생성 실패 — {type(topic_err).__name__}: {topic_err}")
-    finally:
-        _refresh_running = False
+# 뉴스 크롤링/주제 생성은 별도 Render Cron Job에서 수행한다:
+#   - cron_crawl_news.py        : 뉴스 크롤링 (매일)
+#   - cron_generate_topics.py   : 토론 주제 생성 (주 1회)
+# 웹 프로세스에서는 무거운 Playwright를 띄우지 않는다.
 
 
 # 1대1 토론 라우터 (단수형)
@@ -106,14 +79,17 @@ async def send_message(
             from database import get_supabase_client
             _sb = get_supabase_client()
 
-            # 로그인 유저만 session 저장
+            # 세션 저장: 로그인 유저는 정수 user_id, 게스트는 "GUEST_<discussion_id>"
             if user.get('id') and not user.get('is_guest'):
-                _sb.table("discussion_sessions").insert({
-                    "id": discussion_id,
-                    "user_id": user['id'],
-                    "topic": body.topic,
-                    "difficulty": body.difficulty,
-                }).execute()
+                uid = user['id']
+            else:
+                uid = f"GUEST_{discussion_id}"
+            _sb.table("discussion_sessions").insert({
+                "id": discussion_id,
+                "user_id": uid,
+                "topic": body.topic,
+                "difficulty": body.difficulty,
+            }).execute()
 
             # 게스트 포함 모든 유저 → 해당 주제 participants +1
             _topic_row = (
@@ -275,6 +251,30 @@ async def get_quiz_set(
     return data
 
 
+class QuizSubmitRequest(BaseModel):
+    discussion_id: int
+    phase: str = "post"          # "pre" | "post"
+    quizzes: list = []           # 프론트가 받은 퀴즈(정답 correctIndex 포함) 그대로
+    answers: List[int] = []      # 사용자가 고른 보기 인덱스 (quizzes와 같은 순서)
+
+
+@router.post("/quiz/submit")
+async def submit_quiz(body: QuizSubmitRequest):
+    """사전/사후 퀴즈 답안 채점 후 discussion_sessions에 저장."""
+    from services.quiz_service import grade_and_save
+    import asyncio
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: grade_and_save(
+            discussion_id=body.discussion_id,
+            phase=body.phase,
+            quizzes=body.quizzes,
+            answers=body.answers,
+        ),
+    )
+
+
 @router.get("/stats/summary", response_model=dict)
 async def get_discussion_stats(
     db: Session = Depends(get_db),
@@ -345,6 +345,39 @@ async def get_user_discussions(
     except Exception as e:
         _logger.error(f"[discussion_sessions] 히스토리 조회 실패: {e}")
         return []
+
+
+@router.get("/{discussion_id}/turns")
+async def get_discussion_turns(
+    discussion_id: int,
+    user: dict = Depends(get_current_user)
+):
+    """특정 토론의 턴 기록(메시지) 조회 — discussion_turns 기반."""
+    if user.get('is_guest'):
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        rows = (
+            sb.table("discussion_turns")
+            .select("turn_number, user_message, ai_summary")
+            .eq("discussion_id", discussion_id)
+            .order("turn_number", desc=False)
+            .execute()
+            .data
+        ) or []
+        messages = []
+        for r in rows:
+            if r.get("user_message"):
+                messages.append({"role": "user", "content": r["user_message"], "turn": r["turn_number"]})
+            if r.get("ai_summary"):
+                messages.append({"role": "ai", "content": r["ai_summary"], "turn": r["turn_number"]})
+        return {"discussion_id": discussion_id, "messages": messages}
+    except HTTPException:
+        raise
+    except Exception as e:
+        _logger.error(f"[discussion_turns] 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail="턴 조회에 실패했습니다.")
 
 
 # ====== 평가 에이전트 관련 엔드포인트 ======
@@ -510,7 +543,7 @@ async def get_related_materials(topic: str = "", discussion_id: int = 0):
 
 
 @public_router.get("/trending")
-async def get_trending_debates(background_tasks: BackgroundTasks):
+async def get_trending_debates():
     """Supabase discussion_topics 테이블 기반 트렌딩 토론 주제 목록.
     기존 DB 데이터를 즉시 반환하고, 만료 여부에 따라 백그라운드에서 갱신한다.
     """
@@ -529,10 +562,11 @@ async def get_trending_debates(background_tasks: BackgroundTasks):
     except Exception:
         rows = []
 
-    # 2. 응답 후 백그라운드에서 만료 체크 & 갱신
-    background_tasks.add_task(_refresh_if_needed)
+    # 뉴스 크롤링/주제 생성은 별도 Render Cron Job(cron_crawl_news.py /
+    # cron_generate_topics.py)에서 수행한다. 무거운 Playwright를 웹 프로세스에서
+    # 띄우지 않기 위해 여기서는 더 이상 백그라운드 갱신을 트리거하지 않는다.
 
-    # 3. 즉시 반환
+    # 즉시 반환
     result = []
     for i, row in enumerate(rows):
         result.append({

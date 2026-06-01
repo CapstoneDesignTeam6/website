@@ -221,4 +221,22 @@ def get_evaluation(discussion_id: int, topic: str) -> Optional[dict]:
     prompt = _build_prompt(topic, turn_number, current_user_utterance, prev_ai, history_block)
     raw = _call_gpt(prompt)
     result = _parse(raw, turn_number)
-    return _to_frontend(result)
+    frontend = _to_frontend(result)
+
+    # 평가 결과를 해당 턴 행에 저장.
+    # 턴 행은 /message 단계에서 이미 insert 됐으므로 UPDATE.
+    # 매칭 키는 DB의 누적 turn_number (latest 유저 턴의 실제 행).
+    latest_db_turn = latest.get("turn_number")
+    if latest_db_turn is not None:
+        try:
+            from database import get_supabase_client
+            sb = get_supabase_client()
+            sb.table("discussion_turns").update({
+                "score": frontend,
+                "score_total": frontend.get("total"),
+            }).eq("discussion_id", discussion_id).eq("turn_number", latest_db_turn).execute()
+            logger.info(f"[ScoringService] 턴 {latest_db_turn} 점수 저장 완료 (discussion_id={discussion_id})")
+        except Exception as e:
+            logger.warning(f"[ScoringService] 점수 저장 실패: {e}")
+
+    return frontend

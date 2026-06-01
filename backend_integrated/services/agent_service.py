@@ -3,17 +3,13 @@ agent_service.py — 통합 버전 (Redis 워커 패턴 제거)
 
 LLM 호출 전략:
   - Vertex AI Gemini (gemini-2.5-pro, services/vertex_llm.call_llm)
-  - 평가 워커가 하던 기능들(intro, hint, quiz, summary)은 모두 Gemini로 처리
+  - 힌트(반박/재반박)·단일 퀴즈 생성을 Gemini로 처리
 """
 
-import os
 import json
 import logging
-import requests
-from datetime import datetime, timezone
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 
-from config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -50,88 +46,10 @@ def _normalize_history(history: Optional[List[Dict]]) -> List[Dict]:
     ]
 
 
-
-
 # ── AgentService ──────────────────────────────────────────────────────────
 
 
 class AgentService:
-
-    @staticmethod
-    def get_trending_topics() -> list:
-        """네이버 뉴스 API + GPT로 트렌딩 토론 주제 생성."""
-        search_queries = ["사회이슈", "정치논란", "기술AI", "경제정책", "국제분쟁"]
-        news_items = []
-
-        for query in search_queries:
-            try:
-                res = requests.get(
-                    "https://openapi.naver.com/v1/search/news.json",
-                    headers={
-                        "X-Naver-Client-Id": settings.NAVER_CLIENT_ID,
-                        "X-Naver-Client-Secret": settings.NAVER_CLIENT_SECRET,
-                    },
-                    params={"query": query, "display": 3, "sort": "date"},
-                    timeout=5,
-                )
-                if res.status_code == 200:
-                    items = res.json().get("items", [])
-                    for item in items[:2]:
-                        import re
-                        title = re.sub(r"<[^>]+>", "", item.get("title", ""))
-                        desc = re.sub(r"<[^>]+>", "", item.get("description", ""))
-                        news_items.append(f"- {title}: {desc}")
-            except Exception as e:
-                logger.warning(f"⚠️ 네이버 뉴스 검색 실패 ({query}): {e}")
-
-        if not news_items:
-            raise RuntimeError("네이버 뉴스 API 호출에 실패했습니다.")
-
-        news_text = "\n".join(news_items[:10])
-        system_prompt = (
-            "당신은 시사 토론 기획자입니다. 아래 최신 뉴스들을 바탕으로 토론 주제 5개를 JSON 배열로 만들어주세요.\n"
-            "각 항목 형식:\n"
-            "{\n"
-            '  "title": "뉴스 키워드를 포함한 논쟁적 질문",\n'
-            '  "description": "[이슈] 주제 배경을 2~3문장으로",\n'
-            '  "category": "정치 | 경제 | 사회 | 기술 | 환경 | 문화 | 스포츠 중 하나"\n'
-            "}\n"
-            "반드시 JSON 배열만 출력하고 다른 텍스트는 쓰지 마세요. 한국어로 작성하세요."
-        )
-        user_prompt = f"다음 뉴스를 참고해서 토론 주제를 만들어주세요:\n{news_text}"
-        raw = _call_gpt(system_prompt, user_prompt, max_tokens=1000)
-
-        import re as re2
-        json_match = re2.search(r"\[.*\]", raw, re2.DOTALL)
-        parsed = json.loads(json_match.group() if json_match else raw)
-
-        result = []
-        for i, item in enumerate(parsed[:5], start=1):
-            result.append({
-                "id": i,
-                "category": item.get("category", "사회"),
-                "isHot": i <= 2,
-                "title": item.get("title", ""),
-                "description": item.get("description", ""),
-                "participants": 0,
-            })
-
-        logger.info(f"✅ 트렌딩 토론 주제 {len(result)}개 생성 완료")
-        return result
-
-    @staticmethod
-    def evaluate_response(response_text: str) -> dict:
-        """응답 평가 (논리/일관성/깊이 0~10점)."""
-        try:
-            system_prompt = (
-                "당신은 토론 응답을 평가하는 분석가입니다. 응답의 논리성(logic), 일관성(consistency), "
-                "깊이(depth)를 각 0~10점으로 평가하여 JSON으로 반환하세요. "
-                '형식: {"logic": 0, "consistency": 0, "depth": 0}'
-            )
-            return _call_gpt_json(system_prompt, response_text, max_tokens=120)
-        except Exception as e:
-            logger.warning(f"⚠️ 평가 실패: {e}")
-            return {"logic": 0, "consistency": 0, "depth": 0}
 
     @staticmethod
     def health_check() -> dict:
@@ -145,25 +63,6 @@ class AgentService:
             "vertex": vertex_ok,
             "all_healthy": vertex_ok,
         }
-
-    @staticmethod
-    def get_intro(
-        topic: str,
-        user_label: str = "찬성",
-        ai_label: str = "반대",
-        news_data: Optional[List] = None,
-    ) -> dict:
-        """토론 시작 전 주제 배경 요약."""
-        try:
-            summary = _call_gpt(
-                "당신은 토론 진행자입니다. 주어진 주제를 2-3문장으로 객관적으로 소개하세요.",
-                f"토론 주제: {topic}",
-                max_tokens=200,
-            )
-            return {"summary": summary}
-        except Exception as e:
-            logger.error(f"❌ Intro 실패: {e}")
-            return {"summary": f'"{topic}"에 대한 토론을 시작합니다.'}
 
     @staticmethod
     def get_counter_hint(
@@ -269,34 +168,4 @@ class AgentService:
                 ],
                 "correctOptionId": 0,
                 "explanation": "퀴즈 생성에 실패했습니다.",
-            }
-
-    @staticmethod
-    def get_summary(
-        topic: str,
-        user_label: str = "찬성",
-        ai_label: str = "반대",
-        history: Optional[List[Dict]] = None,
-        news_data: Optional[List] = None,
-        turns: int = 1,
-    ) -> dict:
-        """토론 종료 후 전체 정리 + 피드백."""
-        try:
-            history_text = "\n".join([
-                f"{'사용자' if m.get('role') == 'user' else 'AI'}: {m.get('content', '')}"
-                for m in (history or [])
-            ])
-            system_prompt = (
-                f"당신은 토론 분석가입니다. 주제 '{topic}'에 대한 {turns}턴 토론을 분석하여 JSON으로 반환하세요. "
-                '형식: {"summary": "...", "issues": "...", "logic_feedback": "...", "extra_info": "..."} '
-                "각 필드는 2-4문장으로 한국어 작성."
-            )
-            return _call_gpt_json(system_prompt, f"토론 기록:\n{history_text}", max_tokens=900)
-        except Exception as e:
-            logger.error(f"❌ Summary 실패: {e}")
-            return {
-                "summary": "토론 요약을 생성할 수 없습니다.",
-                "issues": "",
-                "logic_feedback": "",
-                "extra_info": "",
             }
