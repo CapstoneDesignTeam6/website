@@ -450,12 +450,10 @@ interface DebateTutorialProps {
 export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, userId, isDebating = false }) => {
   const [neverShow, setNeverShow] = useState(false);
   const neverShowRef = useRef(false);
-  const [stepIndex, setStepIndex] = useState(0);
   const steps = buildTutorialSteps(isDebating);
 
   useEffect(() => {
     if (run) {
-      setStepIndex(0);
       neverShowRef.current = false;
       setNeverShow(false);
     }
@@ -476,19 +474,11 @@ export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, u
   };
 
   const handleEvent = (data: EventData) => {
-    const { status, action, index, type } = data;
+    const { status, action } = data;
 
     const finished = status === STATUS.FINISHED;
     const skipped = status === STATUS.SKIPPED;
     const closed = action === ACTIONS.CLOSE;
-
-    if (type === 'step:after') {
-      if (action === ACTIONS.PREV) {
-        setStepIndex(index - 1);
-      } else if (!closed) {
-        setStepIndex(index + 1);
-      }
-    }
 
     if (finished || skipped) {
       if (neverShowRef.current) saveNeverShow();
@@ -503,7 +493,6 @@ export const DebateTutorial: React.FC<DebateTutorialProps> = ({ run, onFinish, u
     <Joyride
       steps={steps}
       run={run}
-      stepIndex={stepIndex}
       continuous
       scrollToFirstStep
       onEvent={handleEvent}
