@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { User, MessageSquare, Calendar, Search, ChevronDown, Layers, ChevronLeft, Bot, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UserData, DiscussionHistoryItem } from '../types';
 import { userApi } from '../services/api';
 import { MOCK_HISTORY, MOCK_TURNS, MockTurnMessage } from '../mockData';
@@ -149,7 +149,16 @@ const DetailView = ({ item, turns, turnsLoading, formatDate, getScoreColor, onBa
 
 export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewProps) => {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>('profile');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // URL 쿼리 파라미터로 탭/상세보기 상태 동기화 → 브라우저 뒤로가기 지원
+  const activeTab = (searchParams.get('tab') as Tab) || 'profile';
+  const selectedItemId = searchParams.get('id') ? Number(searchParams.get('id')) : null;
+
+  const setActiveTab = (tab: Tab) => {
+    setSearchParams(tab === 'profile' ? {} : { tab });
+  };
+
   const [formData, setFormData] = useState({
     nickname: userData?.nickname || '',
     email: userData?.email || '',
@@ -160,9 +169,13 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [selectedItem, setSelectedItem] = useState<DiscussionHistoryItem | null>(null);
   const [turns, setTurns] = useState<MockTurnMessage[]>([]);
   const [turnsLoading, setTurnsLoading] = useState(false);
+
+  const selectedItem = useMemo(
+    () => history.find((item) => item.id === selectedItemId) ?? null,
+    [history, selectedItemId],
+  );
 
   // 히스토리 목록 로드
   useEffect(() => {
@@ -179,16 +192,16 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
 
   // 상세 채팅 기록 로드
   useEffect(() => {
-    if (!selectedItem) { setTurns([]); return; }
+    if (!selectedItemId) { setTurns([]); return; }
     setTurnsLoading(true);
     if (USE_MOCK) {
-      setTimeout(() => { setTurns(MOCK_TURNS[selectedItem.id] ?? []); setTurnsLoading(false); }, 300);
+      setTimeout(() => { setTurns(MOCK_TURNS[selectedItemId] ?? []); setTurnsLoading(false); }, 300);
     } else {
-      userApi.getDiscussionTurns(selectedItem.id)
+      userApi.getDiscussionTurns(selectedItemId)
         .then(setTurns)
         .finally(() => setTurnsLoading(false));
     }
-  }, [selectedItem]);
+  }, [selectedItemId]);
 
   const filteredHistory = useMemo(() => {
     if (!searchQuery.trim()) return history;
@@ -215,7 +228,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
   };
 
   const handleSelectItem = (item: DiscussionHistoryItem) => {
-    setSelectedItem(item);
+    setSearchParams({ tab: 'history', id: String(item.id) });
     setTurns([]);
   };
 
@@ -254,7 +267,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
         {/* 탭 */}
         <div className="flex gap-1 mb-8 bg-surface-container rounded-2xl p-1">
           <button
-            onClick={() => { setActiveTab('profile'); setSelectedItem(null); }}
+            onClick={() => setActiveTab('profile')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm md:text-base transition-all ${
               activeTab === 'profile'
                 ? 'bg-white text-on-surface shadow-sm'
@@ -265,7 +278,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
             회원 정보
           </button>
           <button
-            onClick={() => { setActiveTab('history'); setSelectedItem(null); }}
+            onClick={() => setActiveTab('history')}
             className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-bold text-sm md:text-base transition-all ${
               activeTab === 'history'
                 ? 'bg-white text-on-surface shadow-sm'
@@ -347,7 +360,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
                 turnsLoading={turnsLoading}
                 formatDate={formatDate}
                 getScoreColor={getScoreColor}
-                onBack={() => setSelectedItem(null)}
+                onBack={() => setSearchParams({ tab: 'history' })}
               />
             ) : history.length === 0 ? (
               <div className="bg-white rounded-3xl md:rounded-[2.5rem] p-12 editorial-shadow border border-gray-50 text-center">
