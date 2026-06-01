@@ -37,7 +37,7 @@ export const LoginView = ({ setIsLoggedIn, setUserData }: LoginViewProps) => {
   };
 
   return (
-    <div className="max-w-md mx-auto px-4 md:px-8 py-12 md:py-24">
+    <div className="max-w-lg mx-auto px-4 md:px-8 py-12 md:py-24">
       <header className="text-center mb-8 md:mb-12">
         <h1 className="text-3xl md:text-4xl font-extrabold font-headline tracking-tight mb-3 md:mb-4">로그인</h1>
         <p className="text-sm md:text-base text-outline">Agora에 오신 것을 환영합니다.</p>
