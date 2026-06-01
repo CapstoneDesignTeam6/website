@@ -106,14 +106,17 @@ async def send_message(
             from database import get_supabase_client
             _sb = get_supabase_client()
 
-            # 로그인 유저만 session 저장
+            # 세션 저장: 로그인 유저는 정수 user_id, 게스트는 "GUEST_<discussion_id>"
             if user.get('id') and not user.get('is_guest'):
-                _sb.table("discussion_sessions").insert({
-                    "id": discussion_id,
-                    "user_id": user['id'],
-                    "topic": body.topic,
-                    "difficulty": body.difficulty,
-                }).execute()
+                uid = user['id']
+            else:
+                uid = f"GUEST_{discussion_id}"
+            _sb.table("discussion_sessions").insert({
+                "id": discussion_id,
+                "user_id": uid,
+                "topic": body.topic,
+                "difficulty": body.difficulty,
+            }).execute()
 
             # 게스트 포함 모든 유저 → 해당 주제 participants +1
             _topic_row = (
@@ -273,6 +276,30 @@ async def get_quiz_set(
         None, lambda: _get_quiz_set(topic=topic, phase=phase, discussion_id=discussion_id)
     )
     return data
+
+
+class QuizSubmitRequest(BaseModel):
+    discussion_id: int
+    phase: str = "post"          # "pre" | "post"
+    quizzes: list = []           # 프론트가 받은 퀴즈(정답 correctIndex 포함) 그대로
+    answers: List[int] = []      # 사용자가 고른 보기 인덱스 (quizzes와 같은 순서)
+
+
+@router.post("/quiz/submit")
+async def submit_quiz(body: QuizSubmitRequest):
+    """사전/사후 퀴즈 답안 채점 후 discussion_sessions에 저장."""
+    from services.quiz_service import grade_and_save
+    import asyncio
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        lambda: grade_and_save(
+            discussion_id=body.discussion_id,
+            phase=body.phase,
+            quizzes=body.quizzes,
+            answers=body.answers,
+        ),
+    )
 
 
 @router.get("/stats/summary", response_model=dict)

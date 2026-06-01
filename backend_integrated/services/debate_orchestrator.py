@@ -164,14 +164,30 @@ def clear_event_queue(discussion_id) -> None:
 
 # ── 턴 관리 함수 ────────────────────────────────────────────────────
 
-def extract_current_message(user_input_field):
-    for marker in ("[현재 사용자 요청]\n", "[현재 사용자 입력]\n"):
-        if marker in user_input_field:
-            return user_input_field.split(marker, 1)[1].strip()
-    return user_input_field.strip()
+
+def _next_turn_number(sb, discussion_id) -> int:
+    """이 토론의 누적 턴 번호 = discussion_turns 기존 행 수 + 1.
+
+    한 턴 안에서 여러 번 호출돼도(검색 결과 저장 + 턴 저장) 같은 값을 돌려준다 —
+    턴 저장(save_turn_file)이 그 턴의 유일한 discussion_turns insert이며 맨 마지막에
+    실행되므로, 그 전까지 카운트는 '이전 턴 수'로 동일하기 때문.
+    """
+    try:
+        existing = (
+            sb.table("discussion_turns")
+            .select("id", count="exact")
+            .eq("discussion_id", discussion_id)
+            .execute()
+            .count
+        ) or 0
+        return existing + 1
+    except Exception:
+        return 1
 
 
-def save_turn_file(raw_user_message, ai_response, discussion_id=None, turn_number=0):
+def save_turn_file(raw_user_message, ai_response, discussion_id=None, turn_type=0, topic=""):
+    # turn_type: 발언 유형(0=주제설명, 1=반박, 2=주장, 3=재반박) — 그대로 저장
+    # turn_number: 누적 고유 번호 — 저장 시 DB의 기존 행 수 + 1로 계산
     summary_prompt = (
         f"아래 토론 발언을 핵심 주장 위주로 2~3문장으로 요약하십시오. "
         f"불필요한 수식어 없이 간결하게 작성하십시오.\n\n"
@@ -186,14 +202,18 @@ def save_turn_file(raw_user_message, ai_response, discussion_id=None, turn_numbe
         try:
             from database import get_supabase_client
             sb = get_supabase_client()
+            # 누적 턴 번호 (다회차에서도 시간순 정렬 보장)
+            turn_number = _next_turn_number(sb, discussion_id)
             sb.table("discussion_turns").insert({
                 "discussion_id": discussion_id,
-                "turn_number": turn_number,
+                "turn_number": turn_number,   # 누적 고유 번호
+                "turn_type": turn_type,       # 발언 유형 (0/1/2/3)
+                "topic": topic,
                 "user_message": raw_user_message,
                 "ai_summary": ai_summary,
                 "ai_response": ai_response,
             }).execute()
-            print(f"💾 [Turn Manager] 턴 {turn_number} Supabase 저장 완료 (discussion_id={discussion_id})")
+            print(f"💾 [Turn Manager] 턴 {turn_number}(type={turn_type}) Supabase 저장 완료 (discussion_id={discussion_id})")
         except Exception as e:
             print(f"⚠️ [Turn Manager] Supabase 저장 실패: {e}")
     else:
@@ -310,7 +330,15 @@ def start_new_turn(now_turn, raw_user_message, topic_str, stage_str="normal", di
         "refutation_turn": 0,
         "now_turn": now_turn,   # 실제 대화 턴 번호 (DB 저장용)
     }
-    return run_step(context)
+    result = run_step(context)
+
+    # 단일 종료 지점에서 한 번만 저장한다. 4/5/-1/실패 등 어느 경로로 끝나든
+    # 모든 턴이 이 지점으로 bubble up 되므로, 누락 없이 정확히 한 번 저장된다.
+    save_turn_file(
+        raw_user_message, result or "",
+        discussion_id=discussion_id, turn_type=now_turn, topic=topic_str,
+    )
+    return result
 
 
 # ── 인메모리 I/O (파일 대신 dict 사용) ─────────────────────────────────
@@ -412,7 +440,6 @@ def run_explorer_agent(input_json_str):
     instruction = input_data.get("instruction", "")
     json_info = input_data.get("json_info", {})
     discussion_id = input_data.get("discussion_id")
-    turn_number = input_data.get("now_turn", 0)
     topic = input_data.get("topic", "")
     user_input = input_data.get("user_input", "")
 
@@ -461,7 +488,6 @@ def run_explorer_agent(input_json_str):
                 try:
                     _sb_agent0.table("discussion_search_results").insert({
                         "discussion_id": str(discussion_id),
-                        "turn_number": int(turn_number),
                         "query": str(q),
                         "title": str(doc["title"]),
                         "url": str(doc["url"]),
@@ -584,7 +610,6 @@ def make_topic_explanation_agent(input_json_str):
     user_input = input_data.get("user_input", "")
     reference = input_data.get("reference", [])
     discussion_id = input_data.get("discussion_id")
-    turn_number = input_data.get("now_turn", 0)
 
 
     _log(f"📖 [Agent 2] 주제 배경 및 정보 수집 중: {topic}")
@@ -636,7 +661,6 @@ def make_topic_explanation_agent(input_json_str):
                     try:
                         _sb_agent2.table("discussion_search_results").insert({
                             "discussion_id": str(discussion_id),
-                            "turn_number": int(turn_number),
                             "query": str(q),
                             "title": str(doc["title"]),
                             "url": str(doc["url"]),
@@ -709,6 +733,8 @@ def make_topic_explanation_agent(input_json_str):
 
 def make_opinion_agent(input_json_str):
     input_data = input_json_str
+    topic = input_data.get("topic", "")
+    user_input = input_data.get("user_input", "")
     instruction = input_data.get("instruction", "")
     json_info = input_data.get("json_info", {})
     reference = input_data.get("reference", [])
@@ -825,7 +851,6 @@ def simplify_output_agent(input_json_str):
     reference = input_data.get("reference", [])
     stage = input_data.get("stage", "easy")
     discussion_id = input_data.get("discussion_id")
-    turn_number = input_data.get("now_turn", 0)
 
     _log(f"✏️ [Agent 4] 쉬운 설명으로 변환 중: {topic}")
 
@@ -887,8 +912,7 @@ def simplify_output_agent(input_json_str):
     print("\n✅ Orchestrator has decided to end the discussion. Final response:")
     print(result)
 
-    raw_msg = extract_current_message(user_input)
-    save_turn_file(raw_msg, result, discussion_id=discussion_id, turn_number=turn_number)
+    # 턴 저장은 start_new_turn의 단일 종료 지점에서 일괄 처리한다 (여기서 저장하지 않음)
     _emit({"type": "step", "step": "simplify", "status": "done",
            "data": {"agent_id": 4, "workspace_summary": "쉬운 설명 변환 완료"}})
     return result
@@ -903,7 +927,6 @@ def normally_output_agent(input_json_str):
     reference = input_data.get("reference", [])
     stage = input_data.get("stage", "easy")
     discussion_id = input_data.get("discussion_id")
-    turn_number = input_data.get("now_turn", 0)
 
     _log(f"✏️ [Agent 5] 보통 설명으로 변환 중: {topic}")
 
@@ -971,8 +994,7 @@ def normally_output_agent(input_json_str):
     print("\n✅ Orchestrator has decided to end the discussion. Final response:")
     print(result)
 
-    raw_msg = extract_current_message(user_input)
-    save_turn_file(raw_msg, result, discussion_id=discussion_id, turn_number=turn_number)
+    # 턴 저장은 start_new_turn의 단일 종료 지점에서 일괄 처리한다 (여기서 저장하지 않음)
     _emit({"type": "step", "step": "simplify", "status": "done",
            "data": {"agent_id": 5, "workspace_summary": "보통 설명 변환 완료"}})
     return result
@@ -1182,12 +1204,11 @@ def run_orchestrator_test(result):
 # stage: "easy"   → 전문 지식 없는 친구에게 설명하듯 쉽게 변환 (Agent 4 자동 호출)
 # stage: "normal" → 일반 뉴스 수준으로 출력 (Agent 5 자동 호출)
 
+# 아래 TOPIC/STAGE는 이 파일을 직접 실행할 때(__main__)만 쓰는 테스트용 값이다.
+# 모듈 전역 topic/user_input은 의도적으로 두지 않는다 —
+# 에이전트 함수가 지역 할당을 빠뜨리면 전역으로 조용히 새지 않고 NameError로 즉시 드러나도록.
 TOPIC = "원자력 발전소 증설"
 STAGE = "easy"
-
-# ── 글로벌 초기화 ────────────────────────────────────────────────────
-topic = TOPIC
-user_input = ""
 
 if __name__ == "__main__":
     # 다중 턴 예시: start_new_turn()을 반복 호출하면 turn_N.json이 누적되며

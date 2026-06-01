@@ -389,6 +389,44 @@ def _to_frontend(quiz: dict, idx: int, topic: str, phase: str) -> dict:
     }
 
 
+# ── 채점 & 저장 ────────────────────────────────────────────────────────────────
+
+def grade_and_save(discussion_id: int, phase: str, quizzes: list[dict], answers: list[int]) -> dict:
+    """프론트가 푼 퀴즈 답안을 채점하고 discussion_sessions에 저장.
+
+    Args:
+        quizzes: 프론트가 받은 퀴즈 리스트 (correctIndex 포함)
+        answers: 사용자가 고른 보기 인덱스 리스트 (quizzes와 같은 순서)
+    Returns: {"results": [...], "total_score": n, "count": n}
+    """
+    results = []
+    for quiz, user_idx in zip(quizzes, answers):
+        correct_idx = quiz.get("correctIndex", quiz.get("correct_index", -1))
+        results.append({
+            "quiz_type": quiz.get("quiz_type") or quiz.get("type"),
+            "question": quiz.get("question"),
+            "user_index": user_idx,
+            "correct_index": correct_idx,
+            "correct": user_idx == correct_idx,
+        })
+    total = sum(1 for r in results if r["correct"])
+
+    # discussion_sessions 행은 /message 첫 턴에서 생성됨 (로그인/게스트 모두). id=discussion_id로 UPDATE.
+    phase = "pre" if phase == "pre" else "post"
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        sb.table("discussion_sessions").update({
+            f"{phase}_quiz_result": results,
+            f"{phase}_quiz_score": total,
+        }).eq("id", discussion_id).execute()
+        logger.info(f"[QuizService] {phase} 퀴즈 결과 저장 완료 (discussion_id={discussion_id}, score={total}/{len(results)})")
+    except Exception as e:
+        logger.warning(f"[QuizService] 퀴즈 결과 저장 실패: {e}")
+
+    return {"results": results, "total_score": total, "count": len(results)}
+
+
 # ── 공개 API ───────────────────────────────────────────────────────────────────
 
 def get_quiz_set(topic: str, phase: str, discussion_id: int) -> list[dict]:
