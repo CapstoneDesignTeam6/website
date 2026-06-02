@@ -47,12 +47,12 @@ const HistoryCard = ({ item, formatDate, getScoreColor, inGroup, onClick }: Hist
           <Calendar size={12} />
           {formatDate(item.created_at)}
         </span>
-        <span className={`font-bold ${item.completed_at ? 'text-emerald-600' : 'text-yellow-600'}`}>
-          {item.completed_at ? '완료' : '진행 중'}
+        <span className={`font-bold ${item.score > 0 ? 'text-emerald-600' : 'text-yellow-600'}`}>
+          {item.score > 0 ? '완료' : '진행 중'}
         </span>
       </div>
     </div>
-    {item.completed_at && (
+    {item.score > 0 && (
       <p className={`text-lg md:text-xl font-extrabold shrink-0 ${getScoreColor(item.score)}`}>
         {Math.round(item.score)}점
       </p>
@@ -87,11 +87,11 @@ const DetailView = ({ item, turns, turnsLoading, formatDate, getScoreColor, onBa
           <Calendar size={12} />
           {formatDate(item.created_at)}
         </span>
-        <span className={`font-bold ${item.completed_at ? 'text-emerald-600' : 'text-yellow-600'}`}>
-          {item.completed_at ? '완료' : '진행 중'}
+        <span className={`font-bold ${item.score > 0 ? 'text-emerald-600' : 'text-yellow-600'}`}>
+          {item.score > 0 ? '완료' : '진행 중'}
         </span>
       </div>
-      {item.completed_at && (
+      {item.score > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-50">
           <p className="text-xs text-outline mb-0.5">점수</p>
           <p className={`text-2xl font-extrabold ${getScoreColor(item.score)}`}>

@@ -198,7 +198,6 @@ export default function App() {
         round: 1,
         content: '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',
         timestamp: formatTime(),
-        agentName: 'AI 에이전트',
       }]);
       setDiscussionId(null);
     } finally {
@@ -349,7 +348,6 @@ export default function App() {
         {
           discussion_id: data.aiResponse.discussion_id,
           role: "agent",
-          agentName: data.aiResponse.agentName,
           side: data.aiResponse.side || undefined,
           /*
           토론 진행 단계 (turn)

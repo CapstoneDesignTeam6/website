@@ -1168,7 +1168,7 @@ export const DebateView = ({
                               )
                             )}
                             <span className="text-sm md:text-sm font-bold text-on-surface">
-                              {msg.role === 'user' ? '나 (사용자)' : msg.agentName || 'AI 에이전트'}
+                              {msg.role === 'user' ? '나 (사용자)' : 'AI 에이전트'}
                             </span>
                             <span className="text-sm md:text-sm text-outline">{msg.timestamp || '14:02'}</span>
                           </div>
