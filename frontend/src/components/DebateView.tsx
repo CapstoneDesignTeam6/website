@@ -450,8 +450,8 @@ export const DebateView = ({
 
   const SPEECH_GUIDE: Record<number, string> = {
     1: `📢 **주장 단계입니다.**  \n나의 입장과 근거를 이야기해주세요.\n\n💡 **도움말**  \n• 구체적인 사례나 수치를 제시해보세요.  \n• 경제·사회·환경 등 여러 측면을 함께 언급해보세요.`,
-    2: `✅ **반박 단계입니다.**  \n상대방 주장 속 논리적 오류를 짚어 반박해주세요.\n\n💡 **도움말**  \n• 상대방 주장이 적용되지 않는 특수한 상황이나 예외적인 사례를 설명해보세요.  \n• 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요.`,
-    3: `🔄 **재반박 단계입니다.**  \n상대방 반박의 논리적 모순이나 근거 오류를 제시하여 나의 주장을 더 보완해보세요.\n\n💡 **도움말**  \n• 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요.  \n• 주장을 뒷받침하는 새로운 사례나 이유를 추가해보세요.`,
+    2: `🔄 **재반박 단계입니다.**  \n상대방 반박의 논리적 모순이나 근거 오류를 제시하여 나의 주장을 더 보완해보세요.\n\n💡 **도움말**  \n• 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요.  \n• 주장을 뒷받침하는 새로운 사례나 이유를 추가해보세요.`,
+    3: `✅ **반박 단계입니다.**  \n상대방 주장 속 논리적 오류를 짚어 반박해주세요.\n\n💡 **도움말**  \n• 상대방 주장이 적용되지 않는 특수한 상황이나 예외적인 사례를 설명해보세요.  \n• 상대 말을 그대로 반복하기보다 내 언어로 정리해보세요.`,
   };
 
   // speechTurn 변화 시 챗봇 자동 팝업 (speechGuide + 힌트 질문)
@@ -466,9 +466,9 @@ export const DebateView = ({
       { sender: 'bot', text: guideText, timestamp: formatTime() },
     ];
 
-    // 반박(speechTurn==2) 또는 재반박(speechTurn==3) 타이밍에 힌트 질문 추가
+    // 재반박(speechTurn==2) 또는 반박(speechTurn==3) 타이밍에 힌트 질문 추가
     if (speechTurn === 2 || speechTurn === 3) {
-      const hintLabel = speechTurn === 2 ? '반박' : '재반박';
+      const hintLabel = speechTurn === 2 ? '재반박' : '반박';
       newMsgs.push({
         sender: 'bot',
         text: `💬 **${hintLabel} 힌트**가 필요하신가요?\n아래 버튼을 눌러 AI의 도움을 받아보세요!`,
@@ -1439,14 +1439,14 @@ export const DebateView = ({
                 {(speechTurn === 2 || speechTurn === 3) && (
                   <div className="p-3 border-t border-gray-100 bg-white shrink-0">
                     <button
-                      onClick={() => handleHintRequest(speechTurn === 2 ? '반박 힌트' : '재반박 힌트')}
+                      onClick={() => handleHintRequest(speechTurn === 2 ? '재반박 힌트' : '반박 힌트')}
                       disabled={isHintGenerating}
                       className={`w-full text-sm py-2 px-3 font-bold rounded-xl transition-colors disabled:opacity-50 bg-primary/10 text-primary hover:bg-primary/20`}
                     >
                       {isHintGenerating ? (
                         <span className="flex items-center justify-center gap-1"><Loader2 size={13} className="animate-spin" /> 힌트 생성 중...</span>
                       ) : (
-                        `${speechTurn === 2 ? '반박' : '재반박'} 힌트 받기`
+                        `${speechTurn === 2 ? '재반박' : '반박'} 힌트 받기`
                       )}
                     </button>
                   </div>
