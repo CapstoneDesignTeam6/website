@@ -1,4 +1,4 @@
-import { Download, RefreshCw, FileText, Loader2 } from "lucide-react";
+import { Download, RefreshCw, FileText, Loader2 } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import React, { useRef } from "react";
 import { DiscussionSummaryResponse } from '../types';
@@ -151,7 +151,7 @@ export const ResultView = ({ topic, result, analyzeProgress }: ResultViewProps) 
               )}
               {meta.score_avg != null && (
                 <div className="bg-secondary/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <p className="text-xs font-bold text-outline uppercase">실시간 평가 평균</p>
+                  <p className="text-xs font-bold text-outline uppercase">실시간 평가 평균 점수</p>
                   <p className="text-lg font-black text-secondary">{meta.score_avg} / 25</p>
                 </div>
               )}
