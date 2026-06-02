@@ -364,9 +364,9 @@ export default function App() {
         },
       ]);
 
-      // 진행률 계산: 각 라운드는 에이전트 설명(+1) + 주장/반박/재반박(3) = 4스텝
-      const totalSteps = totalRounds * 4;
-      const completedSteps = (currentRound - 1) * 4 + 1 + speechTurn;
+      // 진행률 계산: 각 라운드는 주장/반박/재반박(3) = 3스텝 (주제 설명·사전퀴즈 제외)
+      const totalSteps = totalRounds * 3;
+      const completedSteps = (currentRound - 1) * 3 + speechTurn;
       setProgress(Math.min(100, Math.round((completedSteps / totalSteps) * 100)));
 
       if (speechTurn < 3) {

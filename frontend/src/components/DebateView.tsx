@@ -350,6 +350,7 @@ export const DebateView = ({
   onFinish,
   currentRound = 1,
   totalRounds = 2,
+  progress = 0,
   discussionId,
   agentSteps,
   agentLog,
@@ -1051,23 +1052,16 @@ export const DebateView = ({
             <div className="flex flex-row items-center justify-between gap-3">
               <div id="tutorial-header" className="flex flex-col gap-1 flex-1">
                 <h2 className="text-lg md:text-xl font-black font-headline line-clamp-1">{topic}</h2>
-                {(() => {
-                  const totalSteps = totalRounds * 3;
-                  const completedSteps = (currentRound - 1) * 3 + (speechTurn - 1);
-                  const computedProgress = Math.min(100, Math.round((completedSteps / totalSteps) * 100));
-                  return (
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${computedProgress}%` }}
-                          className="h-full bg-primary"
-                        />
-                      </div>
-                      <span className="text-sm font-bold text-primary whitespace-nowrap">{computedProgress}%</span>
-                    </div>
-                  );
-                })()}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress ?? 0}%` }}
+                      className="h-full bg-primary"
+                    />
+                  </div>
+                  <span className="text-sm font-bold text-primary whitespace-nowrap">{progress ?? 0}%</span>
+                </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <div id="tutorial-round-badge" className="flex flex-col gap-0.5 px-5 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
@@ -1116,27 +1110,41 @@ export const DebateView = ({
 
               {messages.map((msg, idx) => {
                 const prevMsg = idx > 0 ? messages[idx - 1] : null;
-                const showRoundIndicator = debatePhase === 'debating' && msg.round && (!prevMsg || prevMsg.round !== msg.round);
-
                 const isFirstUserMsg = msg.role === 'user' && !messages.slice(0, idx).some(m => m.role === 'user');
+
+                // 퀴즈가 있으면 퀴즈 완료 후에만, 없으면 debating 진입 후 바로 표시
+                const quizExists = preQuizzes.length > 0 || isPreQuizDone || (isQuizLoading && debatePhase === 'pre-quiz');
+                const roundVisible = quizExists ? isPreQuizDone : (debatePhase === 'debating' || debatePhase === 'post-quiz');
+                const showRoundIndicator = roundVisible && msg.round && (!prevMsg || prevMsg.round !== msg.round);
 
                 return (
                   <React.Fragment key={idx}>
                     {/* ── 사전 퀴즈: 첫 번째 사용자 메시지 바로 위에 고정 삽입 ── */}
-                    {isFirstUserMsg && (debatePhase === 'pre-quiz' || debatePhase === 'debating') && (preQuizzes.length > 0 || isPreQuizDone || (isQuizLoading && debatePhase === 'pre-quiz')) && (
-                      <InlineQuizPanel
-                        quizzes={preQuizzes}
-                        isLoading={isQuizLoading && debatePhase === 'pre-quiz'}
-                        type="pre"
-                        isDone={isPreQuizDone}
-                        onComplete={(answers) => { setIsPreQuizDone(true); onPreQuizComplete?.(answers); }}
-                        isCompleting={false}
-                      />
+                    {isFirstUserMsg && (debatePhase === 'pre-quiz' || debatePhase === 'debating') && quizExists && (
+                      <>
+                        <InlineQuizPanel
+                          quizzes={preQuizzes}
+                          isLoading={isQuizLoading && debatePhase === 'pre-quiz'}
+                          type="pre"
+                          isDone={isPreQuizDone}
+                          onComplete={(answers) => { setIsPreQuizDone(true); onPreQuizComplete?.(answers); }}
+                          isCompleting={false}
+                        />
+                        {/* 라운드 1 배지: 사전 퀴즈 완료 후 표시 */}
+                        {showRoundIndicator && (
+                          <div className="flex justify-center">
+                            <span className="px-3 py-1 bg-gray-100 border border-gray-800 text-on-surface text-sm font-black rounded-full tracking-widest">
+                              라운드 {msg.round}
+                            </span>
+                          </div>
+                        )}
+                      </>
                     )}
-                    {showRoundIndicator && (
+                    {/* 라운드 2+ 배지: 퀴즈 없는 경우 또는 첫 메시지가 아닌 경우 */}
+                    {!isFirstUserMsg && showRoundIndicator && (
                       <div className="flex justify-center">
-                        <span className="px-3 py-1 bg-gray-100 border border-gray-800  text-on-surface text-sm font-black rounded-full tracking-widest">
-                          라운드 {msg.round} 
+                        <span className="px-3 py-1 bg-gray-100 border border-gray-800 text-on-surface text-sm font-black rounded-full tracking-widest">
+                          라운드 {msg.round}
                         </span>
                       </div>
                     )}
