@@ -169,27 +169,27 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
             </div>
           ) : (
             <div className="px-4 py-4 space-y-3 max-h-130 overflow-y-auto">
-              {turns.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-                >
-                  {msg.role === 'ai' && (
-                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <Bot size={13} className="text-primary" />
-                    </div>
-                  )}
+              {turns
+                .filter((msg) => !(msg.role === 'user' && msg.turn === 0))
+                .map((msg, i) => (
                   <div
-                    className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                      msg.role === 'user'
-                        ? 'bg-primary text-white rounded-tr-sm'
-                        : 'bg-surface-container text-on-surface rounded-tl-sm'
-                    }`}
+                    key={i}
+                    className={`flex items-start gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
                   >
-                    {msg.content}
+                    <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${msg.role === 'user' ? 'bg-primary text-white' : 'bg-secondary text-white'}`}>
+                      {msg.role === 'user' ? <User size={13} /> : <Bot size={13} />}
+                    </div>
+                    <div
+                      className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                        msg.role === 'user'
+                          ? 'bg-blue-50 border-2 border-primary text-gray-800'
+                          : 'bg-red-50 border-2 border-secondary text-gray-800'
+                      }`}
+                    >
+                      {msg.content}
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
             </div>
           )}
         </div>

@@ -3,7 +3,6 @@ import { DebateTutorial, getTutorialStorageKey } from './DebateTutorial.tsx';
 import {
   Send,
   FileText,
-  Brain,
   BarChart3,
   Loader2,
   X,
@@ -78,7 +77,7 @@ interface DebateViewProps {
 const STEP_META: Record<string, { icon: React.ElementType; label: string; desc: string }> = {
   orchestrator: { icon: Bot,       label: '오케스트레이터', desc: '전략 수립 중' },
   search:       { icon: Search,    label: '자료 탐색',      desc: '참고 자료 검색 중' },
-  generate:     { icon: Brain,     label: '주장 생성',      desc: '논거 구성 중' },
+  generate:     { icon: Bot,     label: '주장 생성',      desc: '논거 구성 중' },
   simplify:     { icon: Lightbulb, label: '난이도 조정',    desc: '표현 변환 중' },
 };
 
@@ -1124,7 +1123,7 @@ export const DebateView = ({
             <>
               {messages.length === 0 && !isGenerating && debatePhase === 'debating' && (
                 <div className="flex flex-col items-center justify-center gap-4 h-full text-center opacity-40">
-                  <Brain size={48} className="text-outline" />
+                  <Bot size={48} className="text-outline" />
                   <p className="text-sm md:text-base text-outline font-medium">토론이 시작되기를 기다리고 있습니다...</p>
                 </div>
               )}
@@ -1172,7 +1171,7 @@ export const DebateView = ({
                     <div className={`flex items-start gap-3 md:gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                       <>
                         <div className={`w-8 h-8 md:w-10 md:h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${msg.role === 'user' ? 'bg-primary text-white' : 'bg-secondary text-white'}`}>
-                          {msg.role === 'user' ? <User size={18} /> : <Brain size={18} />}
+                          {msg.role === 'user' ? <User size={18} /> : <Bot size={18} />}
                         </div>
                         <div className={`flex flex-col gap-1 md:gap-1.5 max-w-[82%] ${msg.role === 'user' ? 'items-end' : ''}`}>
                           <div className="flex items-center gap-2 px-1">
@@ -1378,7 +1377,7 @@ export const DebateView = ({
                 <div className="bg-primary p-4 text-white flex justify-between items-center shrink-0">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                      <Brain size={18} />
+                      <Bot size={18} />
                     </div>
                     <span className="font-bold text-sm">보조 에이전트</span>
                   </div>
