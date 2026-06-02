@@ -5,6 +5,7 @@ import { UserData, DiscussionHistoryItem, DiscussionSummaryResponse } from '../t
 import { userApi } from '../services/api';
 import { MOCK_HISTORY, MOCK_TURNS, MOCK_REPORT } from '../mockData';
 import html2pdf from 'html2pdf.js';
+import ReactMarkdown from 'react-markdown';
 
 const USE_MOCK = false; // 백엔드 엔드포인트 연결 후 false로 변경
 
@@ -47,8 +48,8 @@ const HistoryCard = ({ item, formatDate, inGroup, onClick }: HistoryCardProps) =
           <Calendar size={12} />
           {formatDate(item.created_at)}
         </span>
-        <span className={`font-bold ${item.has_report ? 'text-emerald-600' : 'text-yellow-600'}`}>
-          {item.has_report ? '완료' : '진행 중'}
+        <span className={`font-bold ${item.has_report ? 'text-primary' : 'text-secondary'}`}>
+          {item.has_report ? '완료' : '미완료'}
         </span>
       </div>
     </div>
@@ -122,13 +123,13 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
                   <Calendar size={12} />
                   {formatDate(item.created_at)}
                 </span>
-                <span className={`font-bold ${item.has_report ? 'text-emerald-600' : 'text-yellow-600'}`}>
-                  {item.has_report ? '완료' : '진행 중'}
+                <span className={`font-bold ${item.has_report ? 'text-primary' : 'text-secondary'}`}>
+                  {item.has_report ? '완료' : '미완료'}
                 </span>
               </div>
               {item.has_report && (
                 <div className="mt-4 pt-4 border-t border-gray-50">
-                  <p className="text-xs text-outline mb-0.5">실시간 평가 평균 점수</p>
+                  <p className="text-sm text-on-surface mb-0.5">토론 평가 점수</p>
                   <p className={`text-2xl font-extrabold ${report?.score_avg != null ? getScoreColor(report.score_avg) : 'text-primary'}`}>
                     {report?.score_avg != null ? `${report.score_avg} / 25` : reportLoading ? '...' : '-'}
                   </p>
@@ -180,13 +181,23 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
                       {msg.role === 'user' ? <User size={13} /> : <Bot size={13} />}
                     </div>
                     <div
-                      className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                      className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed prose prose-sm ${
                         msg.role === 'user'
                           ? 'bg-blue-50 border-2 border-primary text-gray-800'
                           : 'bg-red-50 border-2 border-secondary text-gray-800'
                       }`}
                     >
-                      {msg.content}
+                      <ReactMarkdown
+                        components={{
+                          h1: () => null,
+                          h2: () => null,
+                          h3: () => null,
+                          strong: ({ children }) => <strong className="font-bold">{children}</strong>,
+                          p: ({ children }) => <p className="mb-1.5 last:mb-0">{children}</p>,
+                        }}
+                      >
+                        {msg.content.replace(/\\n/g, '\n').replace(/^#{1,6}\s+.+$/gm, '').trim()}
+                      </ReactMarkdown>
                     </div>
                   </div>
                 ))}
@@ -218,7 +229,7 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
                 <div className="grid grid-cols-3 gap-2">
                   {report.pre_quiz_score != null && (
                     <div className="bg-primary/5 rounded-xl p-3 flex flex-col gap-0.5">
-                      <p className="text-xs font-bold text-outline">사전 퀴즈</p>
+                      <p className="text-xs font-bold text-on-surface">사전 퀴즈</p>
                       <p className="text-base font-extrabold text-primary">
                         {report.pre_quiz_score} / {report.pre_quiz_count ?? '?'}
                       </p>
@@ -226,7 +237,7 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
                   )}
                   {report.post_quiz_score != null && (
                     <div className="bg-primary/5 rounded-xl p-3 flex flex-col gap-0.5">
-                      <p className="text-xs font-bold text-outline">사후 퀴즈</p>
+                      <p className="text-xs font-bold text-on-surface">사후 퀴즈</p>
                       <p className="text-base font-extrabold text-primary">
                         {report.post_quiz_score} / {report.post_quiz_count ?? '?'}
                       </p>
@@ -234,7 +245,7 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
                   )}
                   {report.score_avg != null && (
                     <div className="bg-secondary/5 rounded-xl p-3 flex flex-col gap-0.5">
-                      <p className="text-xs font-bold text-outline">평가 점수</p>
+                      <p className="text-xs font-bold text-on-surface">토론 평가 점수</p>
                       <p className="text-base font-extrabold text-secondary">{report.score_avg} / 25</p>
                     </div>
                   )}
