@@ -170,15 +170,12 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
   const fallbackKeys = isEasy ? EASY_STEP_KEYS : NORMAL_STEP_KEYS;
   const steps = backendSteps ?? fallbackKeys.map(key => ({ ...STEP_META[key], status: 'pending' as const, data: undefined }));
 
-  const initialActive = backendSteps
-    ? Math.max(0, backendSteps.findIndex(s => s.status === 'running'))
-    : 0;
-  const [activeStep, setActiveStep] = useState(initialActive);
+  const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
-    if (backendSteps) {
-      const runningIdx = backendSteps.findIndex(s => s.status === 'running');
-      setActiveStep(runningIdx >= 0 ? runningIdx : backendSteps.length - 1);
+    if (agentSteps && agentSteps.length > 0) {
+      const runningIdx = agentSteps.findIndex(s => s.status === 'running');
+      setActiveStep(runningIdx >= 0 ? runningIdx : agentSteps.length - 1);
       return;
     }
     const interval = setInterval(() => {
@@ -242,20 +239,18 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
         </div>
         {/* 현재 단계의 실시간 서버 로그 누적 표시 (단계 전환 시 초기화됨) */}
         {agentLog && agentLog.length > 0 && (
-          <div className="flex flex-col gap-1 px-1 pt-1">
-            <AnimatePresence initial={false}>
-              {agentLog.map((line, i) => (
-                <motion.span
-                  key={`${i}-${line}`}
-                  className="text-sm text-gray-400 leading-relaxed font-mono"
-                  initial={{ opacity: 0, x: -4 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  {line}
-                </motion.span>
-              ))}
+          <div className="px-1 pt-1">
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={agentLog[agentLog.length - 1]}
+                className="text-sm text-gray-400 leading-relaxed font-mono"
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                {agentLog[agentLog.length - 1]}
+              </motion.span>
             </AnimatePresence>
           </div>
         )}
