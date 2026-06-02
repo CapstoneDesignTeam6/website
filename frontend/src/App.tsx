@@ -227,16 +227,19 @@ export default function App() {
 
   /**
    * 발언 단계(speechTurn)를 API turn 값으로 변환
-   * - step 1 → turn 1 (사용자 주장)
-   * - step 2 → turn 2 (사용자 반박)
-   * - step 3 → turn 3 (사용자 재반박)
+   * - step 1 → turn 1 (사용자 주장 → 에이전트 반박)
+   * - step 2 → turn 3 (사용자 재반박 → 에이전트 재반박)
+   * - step 3 → turn 2 (사용자 반박 → 에이전트 새 주장)
+   *
+   * 라운드 1: 사용자 주장(1) → 에이전트 반박 → 사용자 재반박(3)
+   * 라운드 2: 에이전트 주장(2) → 사용자 반박(3) → 에이전트 재반박
    *
    * 사용 위치: handleSendMessage
    */
   const getSpeechTurn = (step: number): Turn => {
     if (step === 1) return 1;
-    if (step === 2) return 2;
-    return 3;
+    if (step === 2) return 3;
+    return 2;
   };
 
   /**
@@ -353,9 +356,8 @@ export default function App() {
           토론 진행 단계 (turn)
           0: 시작 → 주제 설명 생성
           1: 사용자 주장 → 에이전트 반박
-          2: 사용자 재반박 → 에이전트 주장 생성
-          3: 사용자 반박 → 에이전트 재반박
-          turn이 3이 되면 1라운드 종료 -> 다시 1부터 반복
+          3: 사용자 재반박 → 에이전트 재반박
+          2: 사용자 반박 → 에이전트 새 주장 생성
           */
           turn: getSpeechTurn(nextspeechTurn > 3 ? 3 : nextspeechTurn) as Turn,
           content: data.aiResponse.content,
