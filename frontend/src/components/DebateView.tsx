@@ -425,7 +425,7 @@ export const DebateView = ({
     const handlePopState = () => {
       // 뒤로 간 것을 다시 앞으로 되돌려 현재 페이지 유지
       window.history.go(1);
-      setConfirmModal({ type: 'exit', pendingPath: '/setup' });
+      setConfirmModal({ type: 'exit', pendingPath: '/' });
     };
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
@@ -923,7 +923,7 @@ export const DebateView = ({
                         onFinish();
                       } else {
                         onRestart?.();
-                        const dest = confirmModal.pendingPath ?? '/setup';
+                        const dest = confirmModal.pendingPath ?? '/';
                         if (onExitNavigate) {
                           onExitNavigate(dest);
                         } else {
