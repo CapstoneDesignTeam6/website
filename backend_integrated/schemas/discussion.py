@@ -77,12 +77,12 @@ class DiscussionSummaryResponse(BaseModel):
 
 class DiscussionHistoryResponse(BaseModel):
     id: int
-    title: str
     topic: str
+    difficulty: Optional[str] = "normal"
+    status: Optional[str] = "completed"
     score: float
     exp_earned: int
     created_at: datetime
-    completed_at: Optional[datetime]
-    
+
     class Config:
         from_attributes = True
