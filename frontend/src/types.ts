@@ -190,7 +190,6 @@ export interface DiscussionHistoryItem {
   id: number;
   topic: string;
   difficulty: string;
-  score: number;
   has_report: boolean;
   created_at: string;
 }

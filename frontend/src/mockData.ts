@@ -478,11 +478,11 @@ EU AI Act의 리스크 기반 규제 원칙과 산업별 차등 적용 논리를
 // ─── 토론 기록 목데이터 ────────────────────────────────────────────────────────
 
 export const MOCK_HISTORY: DiscussionHistoryItem[] = [
-  { id: 1, topic: '인공지능 기술에 대한 정부 규제가 필요한가?', difficulty: 'normal', score: 85, created_at: '2026-05-28T10:00:00Z' },
-  { id: 2, topic: '인공지능 기술에 대한 정부 규제가 필요한가?', difficulty: 'easy', score: 72, created_at: '2026-05-20T14:00:00Z' },
-  { id: 3, topic: '사형제도는 폐지되어야 하는가?', difficulty: 'normal', score: 91, created_at: '2026-05-15T09:00:00Z' },
-  { id: 4, topic: '원격 근무는 생산성을 향상시키는가?', difficulty: 'easy', score: 0, created_at: '2026-06-01T08:00:00Z' },
-  { id: 5, topic: '사형제도는 폐지되어야 하는가?', difficulty: 'normal', score: 60, created_at: '2026-04-10T11:00:00Z' },
+  { id: 1, topic: '인공지능 기술에 대한 정부 규제가 필요한가?', difficulty: 'normal', has_report: true, created_at: '2026-05-28T10:00:00Z' },
+  { id: 2, topic: '인공지능 기술에 대한 정부 규제가 필요한가?', difficulty: 'easy', has_report: true, created_at: '2026-05-20T14:00:00Z' },
+  { id: 3, topic: '사형제도는 폐지되어야 하는가?', difficulty: 'normal', has_report: true, created_at: '2026-05-15T09:00:00Z' },
+  { id: 4, topic: '원격 근무는 생산성을 향상시키는가?', difficulty: 'easy', has_report: false, created_at: '2026-06-01T08:00:00Z' },
+  { id: 5, topic: '사형제도는 폐지되어야 하는가?', difficulty: 'normal', has_report: true, created_at: '2026-04-10T11:00:00Z' },
 ];
 
 export interface MockTurnMessage {
