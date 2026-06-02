@@ -56,17 +56,23 @@ export default function App() {
   /** 앱 초기 로드 시 토큰으로 로그인 상태 복원 */
   useEffect(() => {
     const initAuth = async () => {
+      console.log("initAuth: Starting authentication check.");
       const token = userApi.getToken();
       if (token) {
+        console.log("initAuth: Token found in localStorage.");
         try {
           const user = await userApi.getCurrentUser();
           setIsLoggedIn(true);
           setUserData(user);
+          console.log("initAuth: User data fetched successfully. Logged in.");
         } catch (error) {
-          console.error("세션이 만료되었습니다.");
+          console.error("initAuth: Failed to fetch user data (token might be invalid/expired).", error);
           userApi.logout();
           setIsLoggedIn(false);
+          alert("세션이 만료되어 로그아웃되었습니다. 다시 로그인해주세요."); // 사용자에게 알림 추가
         }
+      } else {
+        console.log("initAuth: No token found in localStorage. Not logged in.");
       }
       setAuthLoading(false);
     };
