@@ -66,6 +66,7 @@ interface DebateViewProps {
   onPostQuizComplete?: (answers: number[]) => void;  // 사후 퀴즈 완료 → ResultView 이동
   onRestart?: () => void;           // "다시 시작" → 토론 상태 초기화 후 /setup 이동
   onRegisterExitHandler?: (handler: (path: string) => void) => void; // 이탈 가로채기 핸들러 등록
+  onExitNavigate?: (path: string) => void; // 이탈 확정 후 네비게이션 위임 (특수 경로 처리용)
   onScoreAvg?: (avg: number) => void; // 평가 점수 평균을 App으로 전달
   evaluationScores?: Record<number, UserEvaluationScore>;
   evaluationScore?: UserEvaluationScore | null;
@@ -365,6 +366,7 @@ export const DebateView = ({
   onPostQuizComplete,
   onRestart,
   onRegisterExitHandler,
+  onExitNavigate,
   onScoreAvg,
   evaluationScores = {},
   evaluationScore = null,
@@ -915,7 +917,12 @@ export const DebateView = ({
                         onFinish();
                       } else {
                         onRestart?.();
-                        navigate(confirmModal.pendingPath ?? '/setup', { replace: true });
+                        const dest = confirmModal.pendingPath ?? '/setup';
+                        if (onExitNavigate) {
+                          onExitNavigate(dest);
+                        } else {
+                          navigate(dest, { replace: true });
+                        }
                       }
                     }}
                     className="px-5 py-2 rounded-xl bg-secondary text-white font-bold text-sm hover:bg-secondary/90 transition-colors"

@@ -478,8 +478,23 @@ export default function App() {
   // 토론 중 이탈 확인: DebateView가 등록한 콜백을 여기 저장
   const [debateExitHandler, setDebateExitHandler] = useState<((path: string) => void) | null>(null);
 
+  // '/logout' 경로는 실제 라우트가 아니라 로그아웃 액션을 의미하는 시그널
+  const executeLogout = () => {
+    userApi.logout();
+    setIsLoggedIn(false);
+    navigate('/', { replace: true });
+  };
+
   // Navbar 등에서 navigate 전에 호출 — 토론 중이면 DebateView 팝업으로 위임, 아니면 바로 이동
   const handleNavbarNavigate = (path: string) => {
+    if (path === '/logout') {
+      if (location.pathname === '/debate' && debateExitHandler) {
+        debateExitHandler('/logout');
+      } else {
+        executeLogout();
+      }
+      return;
+    }
     if (location.pathname === '/debate' && debateExitHandler) {
       debateExitHandler(path);
     } else {
@@ -556,6 +571,13 @@ export default function App() {
                       onPostQuizComplete={showResult}
                       onRestart={resetDebateState}
                       onRegisterExitHandler={(handler) => setDebateExitHandler(() => handler)}
+                      onExitNavigate={(path) => {
+                        if (path === '/logout') {
+                          executeLogout();
+                        } else {
+                          navigate(path, { replace: true });
+                        }
+                      }}
                       onScoreAvg={setScoreAvg}
                       evaluationScores={evaluationScores}
                       evaluationScore={evaluationScore}
