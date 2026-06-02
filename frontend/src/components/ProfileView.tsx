@@ -47,8 +47,8 @@ const HistoryCard = ({ item, formatDate, inGroup, onClick }: HistoryCardProps) =
           <Calendar size={12} />
           {formatDate(item.created_at)}
         </span>
-        <span className={`font-bold ${item.score > 0 ? 'text-emerald-600' : 'text-yellow-600'}`}>
-          {item.score > 0 ? '완료' : '진행 중'}
+        <span className={`font-bold ${item.has_report ? 'text-emerald-600' : 'text-yellow-600'}`}>
+          {item.has_report ? '완료' : '진행 중'}
         </span>
       </div>
     </div>
@@ -122,15 +122,15 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
                   <Calendar size={12} />
                   {formatDate(item.created_at)}
                 </span>
-                <span className={`font-bold ${item.score > 0 ? 'text-emerald-600' : 'text-yellow-600'}`}>
-                  {item.score > 0 ? '완료' : '진행 중'}
+                <span className={`font-bold ${item.has_report ? 'text-emerald-600' : 'text-yellow-600'}`}>
+                  {item.has_report ? '완료' : '진행 중'}
                 </span>
               </div>
-              {item.score > 0 && (
+              {item.has_report && (
                 <div className="mt-4 pt-4 border-t border-gray-50">
                   <p className="text-xs text-outline mb-0.5">실시간 평가 평균 점수</p>
                   <p className={`text-2xl font-extrabold ${report?.score_avg != null ? getScoreColor(report.score_avg) : 'text-primary'}`}>
-                    {report?.score_avg != null ? `${report.score_avg} / 25` : reportLoading ? '...' : `${Math.round(item.score)}점`}
+                    {report?.score_avg != null ? `${report.score_avg} / 25` : reportLoading ? '...' : '-'}
                   </p>
                 </div>
               )}
@@ -323,7 +323,7 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
               )}
             </div>
           </div>
-        ) : item.score > 0 ? (
+        ) : item.has_report ? (
           <div className="bg-white rounded-2xl editorial-shadow border border-gray-50 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
               <FileText size={15} className="text-outline" />
