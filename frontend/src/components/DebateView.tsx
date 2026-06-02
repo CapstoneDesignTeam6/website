@@ -204,8 +204,8 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
                     ? 'bg-primary/10 text-primary'
                     : 'bg-gray-100 text-gray-400'
                 }`}
-                animate={i === activeStep ? { scale: [1, 1.04, 1] } : { scale: 1 }}
-                transition={{ duration: 0.6, repeat: i === activeStep ? Infinity : 0, repeatType: 'loop' }}
+                animate={i < activeStep ? { scale: [1, 1.04, 1] } : { scale: 1 }}
+                transition={{ duration: 0.6, repeat: i < activeStep ? Infinity : 0, repeatType: 'loop' }}
               >
                 {React.createElement(steps[i].icon, { size: 15 })}
                 <span>{steps[i].label}</span>
@@ -222,7 +222,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
             </React.Fragment>
           ))}
         </div>
-        <div className="flex items-center gap-2 px-1">
+        {/* <div className="flex items-center gap-2 px-1">
           <motion.div
             className="flex gap-1"
             initial={false}
@@ -237,7 +237,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
             ))}
           </motion.div>
           <span className="text-sm text-outline">{steps[activeStep]?.desc ?? ''}</span>
-        </div>
+        </div> */}
         {/* 현재 단계의 실시간 서버 로그 누적 표시 (단계 전환 시 초기화됨) */}
         {agentLog && agentLog.length > 0 && (
           <div className="px-1 pt-1">
