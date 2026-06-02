@@ -6,7 +6,7 @@ import { userApi } from '../services/api';
 import { MOCK_HISTORY, MOCK_TURNS, MOCK_REPORT } from '../mockData';
 import html2pdf from 'html2pdf.js';
 
-const USE_MOCK = true; // 백엔드 엔드포인트 연결 후 false로 변경
+const USE_MOCK = false; // 백엔드 엔드포인트 연결 후 false로 변경
 
 // ─── 타입 ──────────────────────────────────────────────────────────────────────
 
