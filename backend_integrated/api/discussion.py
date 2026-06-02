@@ -412,6 +412,40 @@ async def get_discussion_turns(
         raise HTTPException(status_code=500, detail="턴 조회에 실패했습니다.")
 
 
+@router.get("/{discussion_id}/report")
+async def get_discussion_report(
+    discussion_id: int,
+    user: dict = Depends(get_current_user)
+):
+    """특정 토론의 결과 보고서 조회 — discussion_sessions.summary_report 기반."""
+    if user.get('is_guest'):
+        raise HTTPException(status_code=403, detail="권한이 없습니다.")
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        row = (
+            sb.table("discussion_sessions")
+            .select("summary_report, difficulty, pre_quiz_score, pre_quiz_result, post_quiz_score, post_quiz_result")
+            .eq("id", discussion_id)
+            .eq("user_id", str(user.get('id')))
+            .limit(1)
+            .execute()
+            .data
+        )
+        if not row or not row[0].get("summary_report"):
+            raise HTTPException(status_code=404, detail="보고서가 없습니다.")
+        report = row[0]["summary_report"]
+        report["difficulty"] = row[0].get("difficulty", "normal")
+        report["pre_quiz_score"] = row[0].get("pre_quiz_score")
+        report["post_quiz_score"] = row[0].get("post_quiz_score")
+        return report
+    except HTTPException:
+        raise
+    except Exception as e:
+        _logger.error(f"[discussion_report] 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail="보고서 조회에 실패했습니다.")
+
+
 # ====== 평가 에이전트 관련 엔드포인트 ======
 
 def _get_history_from_supabase(discussion_id: int) -> list[dict]:
