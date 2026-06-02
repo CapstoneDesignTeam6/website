@@ -29,7 +29,7 @@ export const ResultView = ({ topic, result, analyzeProgress }: ResultViewProps) 
       if (/^\[.*반대.*\]/.test(line)) {
         return <p key={i} className="font-bold text-secondary">{line}</p>;
       }
-      return <p key={i} className="text-black">{line}</p>;
+      return <p key={i} className="text-surface">{line}</p>;
     });
   };
 
@@ -124,111 +124,121 @@ export const ResultView = ({ topic, result, analyzeProgress }: ResultViewProps) 
             </div>
           </div>
 
-          {/* ── 요약 메타 카드 (난이도·퀴즈점수·평가평균) ── */}
-          {meta && (meta.difficulty || meta.pre_quiz_score != null || meta.post_quiz_score != null || meta.score_avg != null) && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
-              {meta.difficulty && (
-                <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-1">
-                  <p className="text-xs font-bold text-outline uppercase">난이도</p>
-                  <p className="text-lg font-black text-on-surface">{DIFFICULTY_LABEL[meta.difficulty] ?? meta.difficulty}</p>
-                </div>
-              )}
-              {meta.pre_quiz_score != null && (
-                <div className="bg-primary/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <p className="text-xs font-bold text-outline uppercase">사전 퀴즈</p>
-                  <p className="text-lg font-black text-primary">
-                    {meta.pre_quiz_score} / {meta.pre_quiz_count ?? '?'}
-                  </p>
-                </div>
-              )}
-              {meta.post_quiz_score != null && (
-                <div className="bg-primary/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <p className="text-xs font-bold text-outline uppercase">사후 퀴즈</p>
-                  <p className="text-lg font-black text-primary">
-                    {meta.post_quiz_score} / {meta.post_quiz_count ?? '?'}
-                  </p>
-                </div>
-              )}
-              {meta.score_avg != null && (
-                <div className="bg-secondary/5 rounded-2xl p-4 flex flex-col gap-1">
-                  <p className="text-xs font-bold text-outline uppercase">실시간 평가 평균 점수</p>
-                  <p className="text-lg font-black text-secondary">{meta.score_avg} / 25</p>
-                </div>
-              )}
+          {/* ── 분석 중 로딩 상태 ── */}
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center gap-4 py-16">
+              <Loader2 size={36} className="animate-spin text-primary" />
+              <p className="text-base font-bold text-on-surface">{analyzeProgress || result}</p>
             </div>
-          )}
+          ) : typeof result === 'object' ? (
+            <div className="space-y-6 text-sm leading-relaxed">
+              {/* ── 요약 메타 카드 (난이도·퀴즈점수·평가점수) ── */}
+              {(meta?.difficulty || meta?.pre_quiz_score != null || meta?.post_quiz_score != null || meta?.score_avg != null) && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {meta?.difficulty && (
+                    <div className="bg-gray-50 rounded-xl p-3 flex flex-col gap-0.5">
+                      <p className="text-xs font-bold text-outline">난이도</p>
+                      <p className="text-base font-extrabold text-on-surface">{DIFFICULTY_LABEL[meta.difficulty] ?? meta.difficulty}</p>
+                    </div>
+                  )}
+                  {meta?.pre_quiz_score != null && (
+                    <div className="bg-primary/5 rounded-xl p-3 flex flex-col gap-0.5">
+                      <p className="text-xs font-bold text-outline">사전 퀴즈</p>
+                      <p className="text-base font-extrabold text-primary">
+                        {meta.pre_quiz_score} / {meta.pre_quiz_count ?? '?'}
+                      </p>
+                    </div>
+                  )}
+                  {meta?.post_quiz_score != null && (
+                    <div className="bg-primary/5 rounded-xl p-3 flex flex-col gap-0.5">
+                      <p className="text-xs font-bold text-outline">사후 퀴즈</p>
+                      <p className="text-base font-extrabold text-primary">
+                        {meta.post_quiz_score} / {meta.post_quiz_count ?? '?'}
+                      </p>
+                    </div>
+                  )}
+                  {meta?.score_avg != null && (
+                    <div className="bg-secondary/5 rounded-xl p-3 flex flex-col gap-0.5">
+                      <p className="text-xs font-bold text-outline">평가 점수</p>
+                      <p className="text-base font-extrabold text-secondary">{meta.score_avg} / 25</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
-          <div className="prose prose-sm max-w-none leading-relaxed">
-            {/* ── 분석 중 로딩 상태 ── */}
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center gap-4 py-16">
-                <Loader2 size={36} className="animate-spin text-primary" />
-                <p className="text-base font-bold text-on-surface">{analyzeProgress || result}</p>
+              <div>
+                <p className="font-bold text-primary mb-2">토론 요약</p>
+                <div className="text-surface whitespace-pre-wrap space-y-1">{renderSummary(result.summary)}</div>
               </div>
-            ) : typeof result === 'object' ? (
-              <>
-                <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">토론 요약</h3>
-                <div className="mb-8 text-black whitespace-pre-wrap">{renderSummary(result.summary)}</div>
 
-                <hr className="border-gray-300 mb-8" />
+              <hr className="border-gray-100" />
 
-                <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">주요 쟁점</h3>
-                <p className="mb-8 text-black whitespace-pre-wrap">{result.issues}</p>
+              <div>
+                <p className="font-bold text-primary mb-2">주요 쟁점</p>
+                <p className="text-surface whitespace-pre-wrap">{result.issues}</p>
+              </div>
 
-                <hr className="border-gray-300 mb-8" />
+              <hr className="border-gray-100" />
 
-                <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">논리 피드백</h3>
-                <p className="mb-8 text-black whitespace-pre-wrap">{result.logic_feedback}</p>
+              <div>
+                <p className="font-bold text-primary mb-2">논리 피드백</p>
+                <p className="text-surface whitespace-pre-wrap">{result.logic_feedback}</p>
+              </div>
 
-                {(result.pre_quiz_correct !== undefined || result.post_quiz_correct !== undefined) && (
-                  <>
-                    <hr className="border-gray-300 mb-8" />
-
-                    <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">퀴즈 결과</h3>
-                    <div className="mb-8 space-y-4">
+              {(result.pre_quiz_correct !== undefined || result.post_quiz_correct !== undefined) && (
+                <>
+                  <hr className="border-gray-100" />
+                  <div>
+                    <p className="font-bold text-primary mb-3">퀴즈 결과</p>
+                    <div className="space-y-3">
                       {result.pre_quiz_correct !== undefined && (
-                        <div className="p-4 rounded-xl  ">
-                          <p className="font-bold mb-2">
-                            토론 전 퀴즈&nbsp;
-                            <span className={result.pre_quiz_correct ? "text-primary" : "text-secondary"}>
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <p className="font-bold mb-1 text-primary">
+                            사전 퀴즈&nbsp;
+                            <span className={result.pre_quiz_correct ? "text-emerald-600" : "text-secondary"}>
                               {result.pre_quiz_correct ? "✅ 정답" : "❌ 오답"}
                             </span>
                           </p>
                           {result.pre_quiz_explanation && (
-                            <p className="text-black whitespace-pre-wrap text-sm">{result.pre_quiz_explanation}</p>
+                            <p className="text-surface whitespace-pre-wrap text-xs leading-relaxed">{result.pre_quiz_explanation}</p>
                           )}
                         </div>
                       )}
                       {result.post_quiz_correct !== undefined && (
-                        <div className="p-4 rounded-xl  ">
-                          <p className="font-bold mb-2">
-                            토론 후 퀴즈&nbsp;
-                            <span className={result.post_quiz_correct ? "text-primary" : "text-secondary"}>
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <p className="font-bold mb-1 text-primary">
+                            사후 퀴즈&nbsp;
+                            <span className={result.post_quiz_correct ? "text-emerald-600" : "text-secondary"}>
                               {result.post_quiz_correct ? "✅ 정답" : "❌ 오답"}
                             </span>
                           </p>
                           {result.post_quiz_explanation && (
-                            <p className="text-black whitespace-pre-wrap text-sm">{result.post_quiz_explanation}</p>
+                            <p className="text-surface whitespace-pre-wrap text-xs leading-relaxed">{result.post_quiz_explanation}</p>
                           )}
                         </div>
                       )}
                       {result.quiz_comparison && (
-                        <div className="p-4 rounded-xl ">
-                          <p className="font-bold mb-2">전후 비교 분석</p>
-                          <p className="text-black whitespace-pre-wrap text-sm">{result.quiz_comparison}</p>
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <p className="font-bold mb-1 text-primary">전후 비교 분석</p>
+                          <p className="text-surface whitespace-pre-wrap text-xs leading-relaxed">{result.quiz_comparison}</p>
                         </div>
                       )}
                     </div>
-                  </>
-                )}
+                  </div>
+                </>
+              )}
 
-                <hr className="border-gray-300 mb-8" />
-
-                <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">추가 사례·정보</h3>
-                <p className="mb-8 text-black whitespace-pre-wrap">{result.extra_info}</p>
-              </>
-            ) : null}
-          </div>
+              {result.extra_info && (
+                <>
+                  <hr className="border-gray-100" />
+                  <div>
+                    <p className="font-bold text-primary mb-2">추가 사례·정보</p>
+                    <p className="text-surface whitespace-pre-wrap">{result.extra_info}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : null}
         </section>
       </div>
 
