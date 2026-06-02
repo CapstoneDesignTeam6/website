@@ -377,6 +377,7 @@ export const DebateView = ({
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isFinishLoading, setIsFinishLoading] = useState(false);
   const [isPreQuizDone, setIsPreQuizDone] = useState(false);
   const [isPostQuizDone, setIsPostQuizDone] = useState(false);
   const [isScoreSidebarOpen, setIsScoreSidebarOpen] = useState(true);
@@ -538,6 +539,13 @@ export const DebateView = ({
       setViewingMsgIdx(null);
     }
   }, [isLoadingScore]);
+
+  // post-quiz 단계로 전환되면 finish 로딩 해제
+  useEffect(() => {
+    if (debatePhase === 'post-quiz') {
+      setIsFinishLoading(false);
+    }
+  }, [debatePhase]);
 
   // 의견 생성 시작 시 참고자료 로딩 상태 활성화 (아직 자료가 없을 때만)
   useEffect(() => {
@@ -1287,23 +1295,32 @@ export const DebateView = ({
             {/* 계속 진행 선택 */}
             {waitingForContinue ? (
               <div className="px-1 py-3 flex flex-col items-center gap-3">
-                <span className="text-sm font-bold text-on-surface">
-                  토론이 끝났습니다. 다음 라운드를 계속 진행할까요?
-                </span>
-                <div className="flex gap-3">
-                  <button
-                    onClick={onContinueDebate}
-                    className="px-5 py-2 bg-primary text-white text-sm font-black rounded-xl hover:bg-primary/90 transition-colors"
-                  >
-                    계속 진행
-                  </button>
-                  <button
-                    onClick={onFinish}
-                    className="px-5 py-2 bg-gray-200 text-on-surface text-sm font-black rounded-xl hover:bg-gray-300 transition-colors"
-                  >
-                    토론 종료
-                  </button>
-                </div>
+                {isFinishLoading ? (
+                  <div className="flex flex-col items-center gap-3 py-2">
+                    <Loader2 size={28} className="animate-spin text-primary" />
+                    <p className="text-sm font-bold text-on-surface">퀴즈를 불러오는 중입니다...</p>
+                  </div>
+                ) : (
+                  <>
+                    <span className="text-sm font-bold text-on-surface">
+                      토론이 끝났습니다. 다음 라운드를 계속 진행할까요?
+                    </span>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={onContinueDebate}
+                        className="px-5 py-2 bg-primary text-white text-sm font-black rounded-xl hover:bg-primary/90 transition-colors"
+                      >
+                        계속 진행
+                      </button>
+                      <button
+                        onClick={() => { setIsFinishLoading(true); onFinish(); }}
+                        className="px-5 py-2 bg-gray-200 text-on-surface text-sm font-black rounded-xl hover:bg-gray-300 transition-colors"
+                      >
+                        토론 종료
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <>
