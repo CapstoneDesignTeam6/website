@@ -204,8 +204,8 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
                     ? 'bg-primary/10 text-primary'
                     : 'bg-gray-100 text-gray-400'
                 }`}
-                animate={i < activeStep ? { scale: [1, 1.04, 1] } : { scale: 1 }}
-                transition={{ duration: 0.6, repeat: i < activeStep ? Infinity : 0, repeatType: 'loop' }}
+                animate={i === activeStep ? { scale: [1, 1.04, 1] } : { scale: 1 }}
+                transition={{ duration: 0.6, repeat: i === activeStep ? Infinity : 0, repeatType: 'loop' }}
               >
                 {React.createElement(steps[i].icon, { size: 15 })}
                 <span>{steps[i].label}</span>
