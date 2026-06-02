@@ -183,13 +183,6 @@ export interface DiscussionSummaryResponse {
   post_quiz_correct?: boolean;
   post_quiz_explanation?: string;
   quiz_comparison?: string;
-  // 추가 메타 정보 (프론트에서 채워서 전달)
-  difficulty?: string;
-  pre_quiz_score?: number;
-  pre_quiz_count?: number;
-  post_quiz_score?: number;
-  post_quiz_count?: number;
-  score_avg?: number;
 }
 
 // ─── 토론 기록 관련 ───────────────────────────────────────────────────────────
