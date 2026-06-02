@@ -316,7 +316,7 @@ export const userApi = {
     return res.json();
   },
   getDiscussionHistory: async (skip = 0, limit = 20): Promise<DiscussionHistoryItem[]> => {
-    const res = await fetch(`/api/debate/?skip=${skip}&limit=${limit}`, {
+    const res = await fetch(`/api/debate?skip=${skip}&limit=${limit}`, {
       headers: getHeaders(),
     });
     if (!res.ok) return [];
