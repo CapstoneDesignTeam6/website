@@ -242,7 +242,10 @@ export const debateApi = {
             const event = JSON.parse(raw);
             if (event.type === 'progress' && event.step) onProgress?.(event.step);
             else if (event.type === 'result') result = event.data;
-          } catch { /* 무시 */ }
+          } catch (e) {
+            console.error("SSE 이벤트 파싱 실패:", raw, e);
+            throw new Error("분석 스트림에서 SSE 이벤트 파싱에 실패했습니다.");
+          }
         }
       }
       if (!result) throw new Error('SSE stream ended without result');
