@@ -81,7 +81,7 @@ async def send_message(
 
             # 세션 저장: 로그인 유저는 정수 user_id, 게스트는 "GUEST_<discussion_id>"
             if user.get('id') and not user.get('is_guest'):
-                uid = user['id']
+                uid = str(user['id'])
             else:
                 uid = f"GUEST_{discussion_id}"
             _sb.table("discussion_sessions").insert({
@@ -299,30 +299,7 @@ async def get_discussion_stats(
     return stats
 
 
-@router.get("/{discussion_id}", response_model=DiscussionDetailResponse)
-async def get_discussion(
-    discussion_id: int,
-    db: Session = Depends(get_db),
-    user: dict = Depends(get_current_user)
-):
-    """토론 상세 조회"""
-    discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
-    
-    if not discussion:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="토론을 찾을 수 없습니다."
-        )
-    
-    if discussion.user_id != user['id']:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="권한이 없습니다."
-        )
-    
-    return discussion
-
-@router.get("/", response_model=List[DiscussionHistoryResponse])
+@router.get("/history", response_model=List[DiscussionHistoryResponse])
 async def get_user_discussions(
     skip: int = 0,
     limit: int = 20,
@@ -338,7 +315,7 @@ async def get_user_discussions(
         rows = (
             sb.table("discussion_sessions")
             .select("id, topic, difficulty, created_at")
-            .eq("user_id", user_id)
+            .eq("user_id", str(user_id))
             .order("created_at", desc=True)
             .range(skip, skip + limit - 1)
             .execute()
@@ -359,6 +336,29 @@ async def get_user_discussions(
     except Exception as e:
         _logger.error(f"[discussion_sessions] 히스토리 조회 실패: {e}")
         return []
+
+@router.get("/{discussion_id}", response_model=DiscussionDetailResponse)
+async def get_discussion(
+    discussion_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    """토론 상세 조회"""
+    discussion = DiscussionService.get_discussion_by_id(discussion_id, db)
+
+    if not discussion:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="토론을 찾을 수 없습니다."
+        )
+
+    if discussion.user_id != user['id']:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="권한이 없습니다."
+        )
+
+    return discussion
 
 
 @router.get("/{discussion_id}/turns")
