@@ -350,7 +350,6 @@ export const DebateView = ({
   onFinish,
   currentRound = 1,
   totalRounds = 2,
-  progress = 25,
   discussionId,
   agentSteps,
   agentLog,
@@ -1062,16 +1061,23 @@ export const DebateView = ({
             <div className="flex flex-row items-center justify-between gap-3">
               <div id="tutorial-header" className="flex flex-col gap-1 flex-1">
                 <h2 className="text-lg md:text-xl font-black font-headline line-clamp-1">{topic}</h2>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      className="h-full bg-primary"
-                    />
-                  </div>
-                  <span className="text-sm font-bold text-primary whitespace-nowrap">{progress}%</span>
-                </div>
+                {(() => {
+                  const totalSteps = totalRounds * 3;
+                  const completedSteps = (currentRound - 1) * 3 + (speechTurn - 1);
+                  const computedProgress = Math.min(100, Math.round((completedSteps / totalSteps) * 100));
+                  return (
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${computedProgress}%` }}
+                          className="h-full bg-primary"
+                        />
+                      </div>
+                      <span className="text-sm font-bold text-primary whitespace-nowrap">{computedProgress}%</span>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <div id="tutorial-round-badge" className="flex flex-col gap-0.5 px-5 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
@@ -1120,7 +1126,7 @@ export const DebateView = ({
 
               {messages.map((msg, idx) => {
                 const prevMsg = idx > 0 ? messages[idx - 1] : null;
-                const showRoundIndicator = msg.round && (!prevMsg || prevMsg.round !== msg.round);
+                const showRoundIndicator = debatePhase === 'debating' && msg.round && (!prevMsg || prevMsg.round !== msg.round);
 
                 const isFirstUserMsg = msg.role === 'user' && !messages.slice(0, idx).some(m => m.role === 'user');
 
