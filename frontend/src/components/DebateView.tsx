@@ -67,6 +67,10 @@ interface DebateViewProps {
   onRestart?: () => void;           // "다시 시작" → 토론 상태 초기화 후 /setup 이동
   onRegisterExitHandler?: (handler: (path: string) => void) => void; // 이탈 가로채기 핸들러 등록
   onScoreAvg?: (avg: number) => void; // 평가 점수 평균을 App으로 전달
+  evaluationScores?: Record<number, UserEvaluationScore>;
+  evaluationScore?: UserEvaluationScore | null;
+  isLoadingScore?: boolean;
+  onViewScore?: (msgIdx: number) => void;
   userData?: UserData | null;
 }
 
@@ -367,6 +371,10 @@ export const DebateView = ({
   onRestart,
   onRegisterExitHandler,
   onScoreAvg,
+  evaluationScores = {},
+  evaluationScore = null,
+  isLoadingScore = false,
+  onViewScore,
   userData,
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
@@ -374,9 +382,6 @@ export const DebateView = ({
   const [isPreQuizDone, setIsPreQuizDone] = useState(false);
   const [isPostQuizDone, setIsPostQuizDone] = useState(false);
   const [isScoreSidebarOpen, setIsScoreSidebarOpen] = useState(true);
-  const [evaluationScores, setEvaluationScores] = useState<Record<number, UserEvaluationScore>>({});
-  const [evaluationScore, setEvaluationScore] = useState<UserEvaluationScore | null>(null);
-  const [isLoadingScore, setIsLoadingScore] = useState(false);
   const [showPrevScoreWhileLoading, setShowPrevScoreWhileLoading] = useState(false);
   const [viewingMsgIdx, setViewingMsgIdx] = useState<number | null>(null);
   const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
@@ -506,49 +511,6 @@ export const DebateView = ({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  useEffect(() => {
-    const hasUserMessage = messages.some(m => m.role === 'user');
-    if (!hasUserMessage || speechTurn === 0) return;
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role !== 'user') return;
-    const msgIdx = messages.length - 1;
-    const fetchScore = async () => {
-      setIsLoadingScore(true);
-      setShowPrevScoreWhileLoading(false);
-      try {
-        const score = await debateApi.getUserEvaluation(discussionId, topic);
-        setEvaluationScores(prev => ({ ...prev, [msgIdx]: score }));
-        setEvaluationScore(score);
-        setViewingMsgIdx(msgIdx);
-      } catch (_) {
-      } finally {
-        setIsLoadingScore(false);
-      }
-    };
-    fetchScore();
-  }, [messages.length, discussionId]);
-
-  // 이전 메시지 평가 점수 보기 — 캐시에 있으면 바로 표시, 없으면 API 호출
-  const handleViewScore = async (msgIdx: number) => {
-    setIsScoreSidebarOpen(true);
-    setViewingMsgIdx(msgIdx);
-    if (evaluationScores[msgIdx]) {
-      setEvaluationScore(evaluationScores[msgIdx]);
-      setShowPrevScoreWhileLoading(false);
-      return;
-    }
-    setIsLoadingScore(true);
-    setShowPrevScoreWhileLoading(false);
-    try {
-      const score = await debateApi.getUserEvaluation(discussionId, topic);
-      setEvaluationScores(prev => ({ ...prev, [msgIdx]: score }));
-      setEvaluationScore(score);
-    } catch (_) {
-    } finally {
-      setIsLoadingScore(false);
-    }
-  };
-
   // evaluationScores 변경 시 total 평균을 App으로 전달
   useEffect(() => {
     const scores = Object.values(evaluationScores);
@@ -559,6 +521,13 @@ export const DebateView = ({
     onScoreAvg(avg);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [evaluationScores]);
+
+  const handleViewScore = (msgIdx: number) => {
+    setIsScoreSidebarOpen(true);
+    setViewingMsgIdx(msgIdx);
+    setShowPrevScoreWhileLoading(false);
+    onViewScore?.(msgIdx);
+  };
 
   // 의견 생성 시작 시 참고자료 로딩 상태 활성화
   useEffect(() => {

@@ -204,10 +204,11 @@ export const debateApi = {
       return [];
     }
   },
-  getUserEvaluation: async (discussionId: number, topic?: string): Promise<UserEvaluationScore> => {
+  getUserEvaluation: async (discussionId: number, topic?: string, turnNumber?: number): Promise<UserEvaluationScore> => {
     try {
       const params = new URLSearchParams();
       if (topic) params.set('topic', topic);
+      if (turnNumber !== undefined) params.set('turn_number', String(turnNumber));
       const res = await fetch(`/api/debate/${discussionId}/evaluation?${params.toString()}`, {
         headers: getHeaders(),
       });

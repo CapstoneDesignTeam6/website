@@ -9,7 +9,7 @@ import {
 } from "react-router-dom";
 
 // --- Types & Services ---
-import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep, Turn, MultipleChoiceQuiz/*, ResponseSpeed*/ } from "./types";
+import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep, Turn, MultipleChoiceQuiz, UserEvaluationScore/*, ResponseSpeed*/ } from "./types";
 import { debateApi, userApi } from "./services/api";
 import { formatTime } from "./utils";
 // import {
@@ -133,6 +133,9 @@ export default function App() {
     setAgentSteps([]);
     setAgentLog([]);
     setIsQuizLoading(false);
+    setEvaluationScores({});
+    setEvaluationScore(null);
+    setIsLoadingScore(false);
   };
 
   /**
@@ -157,6 +160,9 @@ export default function App() {
     setAgentSteps([]);
     setAgentLog([]);
     setIsQuizLoading(false);
+    setEvaluationScores({});
+    setEvaluationScore(null);
+    setIsLoadingScore(false);
     setIsGenerating(true);
 
     navigate("/debate");
@@ -322,6 +328,19 @@ export default function App() {
         ));
       }
 
+      // AI 응답이 오기 전, 유저 메시지 인덱스 기준으로 evaluation 호출
+      if (discussionId) {
+        const msgIdx = messages.length; // userMsg가 추가된 후의 인덱스
+        setIsLoadingScore(true);
+        debateApi.getUserEvaluation(discussionId, topic)
+          .then((score) => {
+            setEvaluationScores((prev) => ({ ...prev, [msgIdx]: score }));
+            setEvaluationScore(score);
+          })
+          .catch(() => {})
+          .finally(() => setIsLoadingScore(false));
+      }
+
       const nextspeechTurn = speechTurn + 1;
 
       // AI 응답 메시지 추가
@@ -410,6 +429,9 @@ export default function App() {
   const [preQuizResult, setPreQuizResult] = useState<{ total_score: number; count: number } | null>(null);
   // DebateView evaluationScores 평균 — onScoreAvg 콜백으로 수신
   const [scoreAvg, setScoreAvg] = useState<number | undefined>(undefined);
+  const [evaluationScores, setEvaluationScores] = useState<Record<number, UserEvaluationScore>>({});
+  const [evaluationScore, setEvaluationScore] = useState<UserEvaluationScore | null>(null);
+  const [isLoadingScore, setIsLoadingScore] = useState(false);
 
   /**
    * 사후 퀴즈 완료 후 토론 결과 분석 요청 및 결과 화면 이동
@@ -537,6 +559,28 @@ export default function App() {
                       onRestart={resetDebateState}
                       onRegisterExitHandler={(handler) => setDebateExitHandler(() => handler)}
                       onScoreAvg={setScoreAvg}
+                      evaluationScores={evaluationScores}
+                      evaluationScore={evaluationScore}
+                      isLoadingScore={isLoadingScore}
+                      onViewScore={(msgIdx) => {
+                        if (evaluationScores[msgIdx]) {
+                          setEvaluationScore(evaluationScores[msgIdx]);
+                          return;
+                        }
+                        if (!discussionId) return;
+                        // msgIdx 기준으로 유저 메시지가 몇 번째 유저 발언인지 계산 → DB turn_number
+                        const userMsgsBefore = messages.slice(0, msgIdx + 1).filter(m => m.role === 'user');
+                        const turnNumber = userMsgsBefore.length;
+                        if (!turnNumber) return;
+                        setIsLoadingScore(true);
+                        debateApi.getUserEvaluation(discussionId, topic, turnNumber)
+                          .then((score) => {
+                            setEvaluationScores((prev) => ({ ...prev, [msgIdx]: score }));
+                            setEvaluationScore(score);
+                          })
+                          .catch(() => {})
+                          .finally(() => setIsLoadingScore(false));
+                      }}
                       userData={userData}
                     />
                   ) : (
