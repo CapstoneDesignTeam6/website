@@ -226,6 +226,55 @@ def _generate_feedback(
     return f"{feedback}\n\n{supplement}" if supplement else feedback
 
 
+# ── 점수 집계 (ResultView 표시용) ───────────────────────────────────────────────
+
+def _gather_scores(discussion_id: int) -> dict:
+    """턴 평가 점수 평균(/25)과 사전/사후 퀴즈 점수, 난이도를 모아 반환.
+    ResultView가 기대하는 필드명(score_avg, pre/post_quiz_score, *_count, difficulty)에 맞춤.
+    값이 없는 항목은 키 자체를 넣지 않음(ResultView가 null 체크로 숨김)."""
+    out: dict = {}
+    if not discussion_id:
+        return out
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+
+        # 턴별 점수 총점(/25) 평균
+        trows = (
+            sb.table("discussion_turns")
+            .select("score_total")
+            .eq("discussion_id", discussion_id)
+            .execute()
+            .data
+        ) or []
+        totals = [r["score_total"] for r in trows if r.get("score_total") is not None]
+        if totals:
+            out["score_avg"] = round(sum(totals) / len(totals), 1)
+
+        # 세션의 난이도 + 사전/사후 퀴즈 점수
+        srows = (
+            sb.table("discussion_sessions")
+            .select("difficulty, pre_quiz_score, pre_quiz_result, post_quiz_score, post_quiz_result")
+            .eq("id", discussion_id)
+            .limit(1)
+            .execute()
+            .data
+        ) or []
+        if srows:
+            s = srows[0]
+            if s.get("difficulty"):
+                out["difficulty"] = s["difficulty"]
+            if s.get("pre_quiz_score") is not None:
+                out["pre_quiz_score"] = s["pre_quiz_score"]
+                out["pre_quiz_count"] = len(s.get("pre_quiz_result") or [])
+            if s.get("post_quiz_score") is not None:
+                out["post_quiz_score"] = s["post_quiz_score"]
+                out["post_quiz_count"] = len(s.get("post_quiz_result") or [])
+    except Exception as e:
+        print(f"⚠️ [Summary] 점수 집계 실패: {e}")
+    return out
+
+
 # ── 공개 API ───────────────────────────────────────────────────────────────────
 
 def get_summary(discussion_id: int, topic: str) -> dict:
@@ -253,7 +302,7 @@ def get_summary(discussion_id: int, topic: str) -> dict:
 
     # 1. 무효 발언 필터
     invalid_contents, clean_history_block = _filter_invalid_turns(history, topic)
-    print(f"🔎 [Summary] 무효 발언 필터 완료 (제외 {len(invalid_contents)}건)")
+    print(f"🔎 [Summary] 무효 발언 필터 완료 (제외 {len(invalid_contents)-1}건)")
 
     # 2. 발언 추출
     extracted = _extract_claims(clean_history_block)
@@ -282,6 +331,9 @@ def get_summary(discussion_id: int, topic: str) -> dict:
         "logic_feedback": logic_feedback,
         "extra_info": extra_info,
     }
+
+    # 점수 집계(턴 평가 + 퀴즈)를 결과에 합침 → ResultView가 표시 + summary_report에 함께 저장
+    result.update(_gather_scores(discussion_id))
 
     # 요약·피드백을 discussion_sessions에 저장 (세션당 1개, id=discussion_id로 UPDATE)
     if discussion_id:

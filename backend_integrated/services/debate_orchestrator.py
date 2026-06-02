@@ -12,7 +12,8 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.messages import HumanMessage, SystemMessage
 
 MODEL_ID = 'gemini-2.5-pro'
-PROJECT_ID = "project-8dcb485c-620f-47a6-bc5"
+#PROJECT_ID = "project-8dcb485c-620f-47a6-bc5"
+PROJECT_ID = "gen-lang-client-0550898914"
 #LOCATION = "us-central1"
 LOCATION = "global"
 vertexai.init(project=PROJECT_ID, location=LOCATION)
