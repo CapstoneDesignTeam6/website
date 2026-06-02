@@ -314,7 +314,7 @@ async def get_user_discussions(
         sb = get_supabase_client()
         rows = (
             sb.table("discussion_sessions")
-            .select("id, topic, difficulty, created_at")
+            .select("id, topic, difficulty, created_at, summary_report")
             .eq("user_id", str(user_id))
             .order("created_at", desc=True)
             .range(skip, skip + limit - 1)
@@ -329,6 +329,7 @@ async def get_user_discussions(
                 "status": "completed",
                 "score": 0.0,
                 "exp_earned": 0,
+                "has_report": bool(r.get("summary_report")),
                 "created_at": r["created_at"],
             }
             for r in rows
