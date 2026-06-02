@@ -413,7 +413,9 @@ export default function App() {
    * 사용 위치: DebateView, handleSendMessage(마지막 라운드 완료 시)
    */
   const handleFinishDebate = async () => {
-    setIsQuizLoading(true);
+    setIsQuizLoading(true); // 퀴즈 로딩 시작
+    setDebatePhase('post-quiz'); // 즉시 post-quiz 단계로 전환하여 퀴즈 로딩 UI 표시
+    setWaitingForContinue(false); // 계속 진행 여부 대기 상태 해제
     try {
       const data = await debateApi.getQuizSet(topic, 'post', discussionId);
       setPostQuizzes(Array.isArray(data) && data.length > 0 ? data : []);
@@ -422,7 +424,6 @@ export default function App() {
     } finally {
       setIsQuizLoading(false);
     }
-    setDebatePhase('post-quiz');
   };
 
   // =========================================================

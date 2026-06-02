@@ -377,7 +377,6 @@ export const DebateView = ({
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [isFinishLoading, setIsFinishLoading] = useState(false);
   const [isPreQuizDone, setIsPreQuizDone] = useState(false);
   const [isPostQuizDone, setIsPostQuizDone] = useState(false);
   const [isScoreSidebarOpen, setIsScoreSidebarOpen] = useState(true);
@@ -532,18 +531,9 @@ export const DebateView = ({
     onViewScore?.(msgIdx);
   };
 
-  // 평가 로딩 완료 시 이전 평가 보기 상태 초기화
-  useEffect(() => {
-    if (!isLoadingScore) {
-      setShowPrevScoreWhileLoading(false);
-      setViewingMsgIdx(null);
-    }
-  }, [isLoadingScore]);
-
   // post-quiz 단계로 전환되면 finish 로딩 해제
   useEffect(() => {
     if (debatePhase === 'post-quiz') {
-      setIsFinishLoading(false);
     }
   }, [debatePhase]);
 
@@ -1289,38 +1279,27 @@ export const DebateView = ({
         {/* 입력창: debating 단계에서만 표시 */}
         {debatePhase === 'debating' && (
         <div className="absolute bottom-0 left-0 right-0 pt-2 md:pt-3 pb-6 md:pb-6 bg-transparent">
-          <div
-            className="mx-auto w-full md:max-w-[80%] lg:max-w-[70%] px-4 md:pr-20"
-          >
+          <div className="mx-auto w-full md:max-w-[80%] lg:max-w-[70%] px-4 md:pr-20">
             {/* 계속 진행 선택 */}
             {waitingForContinue ? (
               <div className="px-1 py-3 flex flex-col items-center gap-3">
-                {isFinishLoading ? (
-                  <div className="flex flex-col items-center gap-3 py-2">
-                    <Loader2 size={28} className="animate-spin text-primary" />
-                    <p className="text-sm font-bold text-on-surface">퀴즈를 불러오는 중입니다...</p>
-                  </div>
-                ) : (
-                  <>
-                    <span className="text-sm font-bold text-on-surface">
-                      토론이 끝났습니다. 다음 라운드를 계속 진행할까요?
-                    </span>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={onContinueDebate}
-                        className="px-5 py-2 bg-primary text-white text-sm font-black rounded-xl hover:bg-primary/90 transition-colors"
-                      >
-                        계속 진행
-                      </button>
-                      <button
-                        onClick={() => { setIsFinishLoading(true); onFinish(); }}
-                        className="px-5 py-2 bg-gray-200 text-on-surface text-sm font-black rounded-xl hover:bg-gray-300 transition-colors"
-                      >
-                        종료하고 퀴즈 풀기
-                      </button>
-                    </div>
-                  </>
-                )}
+                <span className="text-sm font-bold text-on-surface">
+                  토론이 끝났습니다. 다음 라운드를 계속 진행할까요?
+                </span>
+                <div className="flex gap-3">
+                  <button
+                    onClick={onContinueDebate}
+                    className="px-5 py-2 bg-primary text-white text-sm font-black rounded-xl hover:bg-primary/90 transition-colors"
+                  >
+                    계속 진행
+                  </button>
+                  <button
+                    onClick={onFinish} // setIsFinishLoading(true) 제거
+                    className="px-5 py-2 bg-gray-200 text-on-surface text-sm font-black rounded-xl hover:bg-gray-300 transition-colors"
+                  >
+                    종료하고 퀴즈 풀기
+                  </button>
+                </div>
               </div>
             ) : (
               <>
