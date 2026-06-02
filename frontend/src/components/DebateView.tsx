@@ -1160,8 +1160,8 @@ export const DebateView = ({
                           onComplete={(answers) => { setIsPreQuizDone(true); onPreQuizComplete?.(answers); }}
                           isCompleting={false}
                         />
-                        {/* 라운드 1 배지: 사전 퀴즈 완료 후 표시 */}
-                        {showRoundIndicator && (
+                        {/* 라운드 1 배지: 사전 퀴즈 완료 후 표시 — 퀴즈 패널 바로 아래 */}
+                        {isPreQuizDone && msg.round && (
                           <div className="flex justify-center">
                             <span className="px-3 py-1 bg-gray-100 border border-gray-800 text-on-surface text-sm font-black rounded-full tracking-widest">
                               라운드 {msg.round}
