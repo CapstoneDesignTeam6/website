@@ -29,7 +29,7 @@ export const ResultView = ({ topic, result, analyzeProgress }: ResultViewProps) 
       if (/^\[.*반대.*\]/.test(line)) {
         return <p key={i} className="font-bold text-secondary">{line}</p>;
       }
-      return <p key={i} className="text-surface">{line}</p>;
+      return <p key={i} className="text-on-surface">{line}</p>;
     });
   };
 
@@ -168,21 +168,21 @@ export const ResultView = ({ topic, result, analyzeProgress }: ResultViewProps) 
 
               <div>
                 <p className="font-bold text-primary mb-2">토론 요약</p>
-                <div className="text-surface whitespace-pre-wrap space-y-1">{renderSummary(result.summary)}</div>
+                <div className="text-on-surface whitespace-pre-wrap space-y-1">{renderSummary(result.summary)}</div>
               </div>
 
               <hr className="border-gray-100" />
 
               <div>
                 <p className="font-bold text-primary mb-2">주요 쟁점</p>
-                <p className="text-surface whitespace-pre-wrap">{result.issues}</p>
+                <p className="text-on-surface whitespace-pre-wrap">{result.issues}</p>
               </div>
 
               <hr className="border-gray-100" />
 
               <div>
                 <p className="font-bold text-primary mb-2">논리 피드백</p>
-                <p className="text-surface whitespace-pre-wrap">{result.logic_feedback}</p>
+                <p className="text-on-surface whitespace-pre-wrap">{result.logic_feedback}</p>
               </div>
 
               {(result.pre_quiz_correct !== undefined || result.post_quiz_correct !== undefined) && (
@@ -200,7 +200,7 @@ export const ResultView = ({ topic, result, analyzeProgress }: ResultViewProps) 
                             </span>
                           </p>
                           {result.pre_quiz_explanation && (
-                            <p className="text-surface whitespace-pre-wrap text-xs leading-relaxed">{result.pre_quiz_explanation}</p>
+                            <p className="text-on-surface whitespace-pre-wrap text-xs leading-relaxed">{result.pre_quiz_explanation}</p>
                           )}
                         </div>
                       )}
@@ -213,14 +213,14 @@ export const ResultView = ({ topic, result, analyzeProgress }: ResultViewProps) 
                             </span>
                           </p>
                           {result.post_quiz_explanation && (
-                            <p className="text-surface whitespace-pre-wrap text-xs leading-relaxed">{result.post_quiz_explanation}</p>
+                            <p className="text-on-surface whitespace-pre-wrap text-xs leading-relaxed">{result.post_quiz_explanation}</p>
                           )}
                         </div>
                       )}
                       {result.quiz_comparison && (
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="font-bold mb-1 text-primary">전후 비교 분석</p>
-                          <p className="text-surface whitespace-pre-wrap text-xs leading-relaxed">{result.quiz_comparison}</p>
+                          <p className="text-on-surface whitespace-pre-wrap text-xs leading-relaxed">{result.quiz_comparison}</p>
                         </div>
                       )}
                     </div>
@@ -233,7 +233,7 @@ export const ResultView = ({ topic, result, analyzeProgress }: ResultViewProps) 
                   <hr className="border-gray-100" />
                   <div>
                     <p className="font-bold text-primary mb-2">추가 사례·정보</p>
-                    <p className="text-surface whitespace-pre-wrap">{result.extra_info}</p>
+                    <p className="text-on-surface whitespace-pre-wrap">{result.extra_info}</p>
                   </div>
                 </>
               )}

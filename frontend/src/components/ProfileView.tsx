@@ -243,7 +243,7 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
 
               <div>
                 <p className="font-bold text-primary mb-2">토론 요약</p>
-                <div className="text-surface whitespace-pre-wrap space-y-1">
+                <div className="text-on-surface whitespace-pre-wrap space-y-1">
                   {report.summary.split('\n').map((line, i) => {
                     if (/^\[.*찬성.*\]/.test(line))
                       return <p key={i} className="font-bold text-primary">{line}</p>;
@@ -258,14 +258,14 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
 
               <div>
                 <p className="font-bold text-primary mb-2">주요 쟁점</p>
-                <p className="text-surface whitespace-pre-wrap">{report.issues}</p>
+                <p className="text-on-surface whitespace-pre-wrap">{report.issues}</p>
               </div>
 
               <hr className="border-gray-100" />
 
               <div>
                 <p className="font-bold text-primary mb-2">논리 피드백</p>
-                <p className="text-surface whitespace-pre-wrap">{report.logic_feedback}</p>
+                <p className="text-on-surface whitespace-pre-wrap">{report.logic_feedback}</p>
               </div>
 
               {/* 퀴즈 결과 */}
@@ -284,7 +284,7 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
                             </span>
                           </p>
                           {report.pre_quiz_explanation && (
-                            <p className="text-surface whitespace-pre-wrap text-xs leading-relaxed">{report.pre_quiz_explanation}</p>
+                            <p className="text-on-surface whitespace-pre-wrap text-xs leading-relaxed">{report.pre_quiz_explanation}</p>
                           )}
                         </div>
                       )}
@@ -297,14 +297,14 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
                             </span>
                           </p>
                           {report.post_quiz_explanation && (
-                            <p className="text-surface whitespace-pre-wrap text-xs leading-relaxed">{report.post_quiz_explanation}</p>
+                            <p className="text-on-surface whitespace-pre-wrap text-xs leading-relaxed">{report.post_quiz_explanation}</p>
                           )}
                         </div>
                       )}
                       {report.quiz_comparison && (
                         <div className="bg-gray-50 rounded-xl p-4">
                           <p className="font-bold mb-1 text-primary">전후 비교 분석</p>
-                          <p className="text-surface whitespace-pre-wrap text-xs leading-relaxed">{report.quiz_comparison}</p>
+                          <p className="text-on-surface whitespace-pre-wrap text-xs leading-relaxed">{report.quiz_comparison}</p>
                         </div>
                       )}
                     </div>
@@ -317,7 +317,7 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
                   <hr className="border-gray-100" />
                   <div>
                     <p className="font-bold text-primary mb-2">추가 사례·정보</p>
-                    <p className="text-surface whitespace-pre-wrap">{report.extra_info}</p>
+                    <p className="text-on-surface whitespace-pre-wrap">{report.extra_info}</p>
                   </div>
                 </>
               )}
