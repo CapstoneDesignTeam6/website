@@ -170,7 +170,7 @@ function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDa
           ) : (
             <div className="px-4 py-4 space-y-3 max-h-130 overflow-y-auto">
               {turns
-                .filter((msg) => !(msg.role === 'user' && msg.turn === 0))
+                .filter((msg) => !(msg.role === 'user' && msg.turn === 1))
                 .map((msg, i) => (
                   <div
                     key={i}
