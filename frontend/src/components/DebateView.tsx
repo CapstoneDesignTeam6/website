@@ -523,9 +523,21 @@ export const DebateView = ({
   const handleViewScore = (msgIdx: number) => {
     setIsScoreSidebarOpen(true);
     setViewingMsgIdx(msgIdx);
-    setShowPrevScoreWhileLoading(false);
+    if (isLoadingScore && msgIdx !== lastUserMsgIdx) {
+      setShowPrevScoreWhileLoading(true);
+    } else {
+      setShowPrevScoreWhileLoading(false);
+    }
     onViewScore?.(msgIdx);
   };
+
+  // 평가 로딩 완료 시 이전 평가 보기 상태 초기화
+  useEffect(() => {
+    if (!isLoadingScore) {
+      setShowPrevScoreWhileLoading(false);
+      setViewingMsgIdx(null);
+    }
+  }, [isLoadingScore]);
 
   // 의견 생성 시작 시 참고자료 로딩 상태 활성화 (아직 자료가 없을 때만)
   useEffect(() => {
@@ -956,82 +968,92 @@ export const DebateView = ({
             <BarChart3 size={20} className={evaluationScore ? 'text-primary' : 'text-outline'} />
             <h2 className="text-base font-black font-headline">실시간 평가 지표</h2>
           </div>
-          {/* 로딩 중 + 이전 평가 보기 선택 → 배너만 표시 */}
-          {isLoadingScore && showPrevScoreWhileLoading && (
-            <div className="flex items-center gap-2 bg-blue-50 border border-primary/20 rounded-xl px-3 py-2">
-              <Loader2 size={13} className="animate-spin text-primary shrink-0" />
-              <div className="flex flex-col min-w-0">
-                <p className="text-sm font-bold text-primary">새 발언 평가 중...</p>
-                <p className="text-sm text-gray-600 truncate">{messages[lastUserMsgIdx]?.content}</p>
-              </div>
-            </div>
-          )}
+          {/* 현재 표시할 평가: 이전 메시지 보기 중이면 해당 인덱스 평가, 아니면 prop으로 받은 evaluationScore */}
+          {(() => {
+            const isPrevView = isLoadingScore && showPrevScoreWhileLoading && viewingMsgIdx !== null;
+            const displayScore = isPrevView ? (evaluationScores[viewingMsgIdx!] ?? null) : evaluationScore;
 
-          {/* 로딩 중 + 전체 로딩 화면 */}
-          {isLoadingScore && !showPrevScoreWhileLoading ? (
-            <div className="flex flex-col items-center justify-center gap-3 flex-1">
-              <Loader2 size={28} className="animate-spin text-primary" />
-              <p className="text-sm text-outline">점수를 계산하는 중...</p>
-            </div>
-          ) : !isLoadingScore && !evaluationScore ? (
-            <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
-              <p className="text-sm text-outline">첫 발언 후 점수가 표시됩니다.</p>
-            </div>
-          ) : evaluationScore ? (
-            <>
-            {(viewingMsgIdx ?? lastUserMsgIdx) >= 0 && (
-                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-                  <p className="text-sm font-bold text-primary mb-1">평가 대상 발언</p>
-                  <p className="text-sm text-outline leading-relaxed line-clamp-2">
-                    {messages[viewingMsgIdx ?? lastUserMsgIdx]?.content}
-                  </p>
-                </div>
-              )}
-              <div className="w-full">
-                <PentagonChart score={evaluationScore} />
-              </div>
-              <p className="text-sm text-outline text-center -mt-5 mb-1">지표 이름을 클릭하면 설명을 볼 수 있어요</p>
-              
-              <AnimatePresence>
-                {activeTooltip !== null && (
-                  <motion.div
-                    key={activeTooltip}
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    className="relative bg-indigo-50 border border-indigo-200 rounded-xl p-4"
-                  >
-                    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
-                      <p className="text-sm font-black text-primary">{scoreLabels[activeTooltip].label}</p>
-                      <p className="text-base font-black text-primary">
-                        {evaluationScore[scoreLabels[activeTooltip].key].score} / 5
-                      </p>
-                      <button onClick={() => setActiveTooltip(null)} className="text-outline hover:text-on-surface">
-                        <X size={14} />
-                      </button>
+            return (
+              <>
+                {/* 로딩 중 + 이전 평가 보기 → 상단 배너 */}
+                {isPrevView && (
+                  <div className="flex items-center gap-2 bg-blue-50 border border-primary/20 rounded-xl px-3 py-2">
+                    <Loader2 size={13} className="animate-spin text-primary shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <p className="text-sm font-bold text-primary">새 발언 평가 중...</p>
+                      <p className="text-sm text-gray-600 truncate">{messages[lastUserMsgIdx]?.content}</p>
                     </div>
-                    <p className="text-sm text-on-surface leading-relaxed mt-1">{scoreLabels[activeTooltip].desc}</p>
-                    <div className="flex flex-col gap-1 border-t border-indigo-200 mt-2 pt-2">
-                      <p className="text-sm font-bold text-primary">평가 이유</p>
-                      <p className="text-sm text-outline leading-relaxed">{evaluationScore[scoreLabels[activeTooltip].key].reason}</p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <div className="flex flex-col gap-2">
-                {scoreLabels.map(({ key, label }, idx) => (
-                  <div
-                    key={key}
-                    className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 cursor-pointer hover:bg-indigo-50 transition-colors"
-                    onClick={() => setActiveTooltip(activeTooltip === idx ? null : idx)}
-                  >
-                    <span className="text-sm font-bold text-on-surface">{label}</span>
-                    <span className="text-sm font-black text-primary">{evaluationScore[key].score} / 5</span>
                   </div>
-                ))}
-              </div>
-            </>
-          ) : null}
+                )}
+
+                {/* 로딩 중 + 전체 로딩 화면 */}
+                {isLoadingScore && !showPrevScoreWhileLoading ? (
+                  <div className="flex flex-col items-center justify-center gap-3 flex-1">
+                    <Loader2 size={28} className="animate-spin text-primary" />
+                    <p className="text-sm text-outline">점수를 계산하는 중...</p>
+                  </div>
+                ) : !isLoadingScore && !evaluationScore ? (
+                  <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
+                    <p className="text-sm text-outline">첫 발언 후 점수가 표시됩니다.</p>
+                  </div>
+                ) : displayScore ? (
+                  <>
+                    {(viewingMsgIdx ?? lastUserMsgIdx) >= 0 && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                        <p className="text-sm font-bold text-primary mb-1">평가 대상 발언</p>
+                        <p className="text-sm text-outline leading-relaxed line-clamp-2">
+                          {messages[viewingMsgIdx ?? lastUserMsgIdx]?.content}
+                        </p>
+                      </div>
+                    )}
+                    <div className="w-full">
+                      <PentagonChart score={displayScore} />
+                    </div>
+                    <p className="text-sm text-outline text-center -mt-5 mb-1">지표 이름을 클릭하면 설명을 볼 수 있어요</p>
+
+                    <AnimatePresence>
+                      {activeTooltip !== null && (
+                        <motion.div
+                          key={activeTooltip}
+                          initial={{ opacity: 0, y: -8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          className="relative bg-indigo-50 border border-indigo-200 rounded-xl p-4"
+                        >
+                          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
+                            <p className="text-sm font-black text-primary">{scoreLabels[activeTooltip].label}</p>
+                            <p className="text-base font-black text-primary">
+                              {displayScore[scoreLabels[activeTooltip].key].score} / 5
+                            </p>
+                            <button onClick={() => setActiveTooltip(null)} className="text-outline hover:text-on-surface">
+                              <X size={14} />
+                            </button>
+                          </div>
+                          <p className="text-sm text-on-surface leading-relaxed mt-1">{scoreLabels[activeTooltip].desc}</p>
+                          <div className="flex flex-col gap-1 border-t border-indigo-200 mt-2 pt-2">
+                            <p className="text-sm font-bold text-primary">평가 이유</p>
+                            <p className="text-sm text-outline leading-relaxed">{displayScore[scoreLabels[activeTooltip].key].reason}</p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <div className="flex flex-col gap-2">
+                      {scoreLabels.map(({ key, label }, idx) => (
+                        <div
+                          key={key}
+                          className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 cursor-pointer hover:bg-indigo-50 transition-colors"
+                          onClick={() => setActiveTooltip(activeTooltip === idx ? null : idx)}
+                        >
+                          <span className="text-sm font-bold text-on-surface">{label}</span>
+                          <span className="text-sm font-black text-primary">{displayScore[key].score} / 5</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </>
+            );
+          })()}
         </div>
       </motion.aside>
 
