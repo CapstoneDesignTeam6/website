@@ -308,7 +308,7 @@ async def get_discussion(
     
     return discussion
 
-@router.get("/", response_model=List[DiscussionHistoryResponse])
+@router.get("/history", response_model=List[DiscussionHistoryResponse])
 async def get_user_discussions(
     skip: int = 0,
     limit: int = 20,
