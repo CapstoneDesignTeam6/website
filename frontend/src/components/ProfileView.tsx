@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { User, MessageSquare, Calendar, Search, ChevronDown, Layers, ChevronLeft, Bot, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { User, MessageSquare, Calendar, Search, ChevronDown, Layers, ChevronLeft, Bot, Loader2, FileText, Download } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { UserData, DiscussionHistoryItem } from '../types';
+import { UserData, DiscussionHistoryItem, DiscussionSummaryResponse } from '../types';
 import { userApi } from '../services/api';
-import { MOCK_HISTORY, MOCK_TURNS, MockTurnMessage } from '../mockData';
+import { MOCK_HISTORY, MOCK_TURNS, MOCK_REPORT } from '../mockData';
+import html2pdf from 'html2pdf.js';
 
 const USE_MOCK = true; // 백엔드 엔드포인트 연결 후 false로 변경
 
@@ -24,12 +25,11 @@ type ViewMode = 'list' | 'grouped';
 interface HistoryCardProps {
   item: DiscussionHistoryItem;
   formatDate: (d: string) => string;
-  getScoreColor: (s: number) => string;
   inGroup?: boolean;
   onClick: () => void;
 }
 
-const HistoryCard = ({ item, formatDate, getScoreColor, inGroup, onClick }: HistoryCardProps) => (
+const HistoryCard = ({ item, formatDate, inGroup, onClick }: HistoryCardProps) => (
   <button
     onClick={onClick}
     className={`history-card w-full text-left flex items-start justify-between gap-4 transition-shadow ${
@@ -52,98 +52,292 @@ const HistoryCard = ({ item, formatDate, getScoreColor, inGroup, onClick }: Hist
         </span>
       </div>
     </div>
-    {item.score > 0 && (
-      <p className={`text-lg md:text-xl font-extrabold shrink-0 ${getScoreColor(item.score)}`}>
-        {Math.round(item.score)}점
-      </p>
-    )}
   </button>
 );
 
 interface DetailViewProps {
   item: DiscussionHistoryItem;
-  turns: MockTurnMessage[];
+  turns: { role: 'user' | 'ai'; content: string; turn: number }[];
   turnsLoading: boolean;
+  report: DiscussionSummaryResponse | null;
+  reportLoading: boolean;
   formatDate: (d: string) => string;
   getScoreColor: (s: number) => string;
   onBack: () => void;
 }
 
-const DetailView = ({ item, turns, turnsLoading, formatDate, getScoreColor, onBack }: DetailViewProps) => (
-  <div>
-    <button
-      onClick={onBack}
-      className="flex items-center gap-2 text-sm font-bold text-outline hover:text-on-surface mb-6 transition-colors"
-    >
-      <ChevronLeft size={16} />
-      목록으로
-    </button>
+function DetailView({ item, turns, turnsLoading, report, reportLoading, formatDate, getScoreColor, onBack }: DetailViewProps) {
+  const reportRef = useRef<HTMLDivElement>(null);
+  const [isPdfLoading, setIsPdfLoading] = useState(false);
 
-    {/* 요약 카드 */}
-    <div className="bg-white rounded-2xl p-5 md:p-6 editorial-shadow border border-gray-50 mb-4">
-      <p className="font-bold text-on-surface text-base md:text-lg mb-2">{item.topic}</p>
-      <div className="flex items-center gap-3 text-sm text-outline">
-        <span className="flex items-center gap-1">
-          <Calendar size={12} />
-          {formatDate(item.created_at)}
-        </span>
-        <span className={`font-bold ${item.score > 0 ? 'text-emerald-600' : 'text-yellow-600'}`}>
-          {item.score > 0 ? '완료' : '진행 중'}
-        </span>
-      </div>
-      {item.score > 0 && (
-        <div className="mt-4 pt-4 border-t border-gray-50">
-          <p className="text-xs text-outline mb-0.5">점수</p>
-          <p className={`text-2xl font-extrabold ${getScoreColor(item.score)}`}>
-            {Math.round(item.score)}점
-          </p>
-        </div>
-      )}
-    </div>
+  const handleDownloadPdf = async () => {
+    if (!reportRef.current) return;
+    setIsPdfLoading(true);
+    const style = document.createElement('style');
+    style.innerHTML = `
+      * { color: #000 !important; background-color: #fff !important; border-color: #e5e7eb !important; }
+      .text-primary { color: #004ac6 !important; }
+      .text-secondary { color: #bb0112 !important; }
+      .text-outline { color: #737686 !important; }
+      .bg-gray-50 { background-color: #f9fafb !important; }
+      .border-gray-100 { border-color: #f3f4f6 !important; }
+    `;
+    document.head.appendChild(style);
+    try {
+      await html2pdf().set({
+        margin: [10, 10, 10, 10] as [number, number, number, number],
+        filename: `${item.topic}_토론_결과_리포트.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, dpi: 192, letterRendering: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+      }).from(reportRef.current).save();
+    } catch {
+      alert('PDF 다운로드 중 오류가 발생했습니다.');
+    } finally {
+      document.head.removeChild(style);
+      setIsPdfLoading(false);
+    }
+  };
 
-    {/* 채팅 기록 */}
-    <div className="bg-white rounded-2xl editorial-shadow border border-gray-50 overflow-hidden">
-      <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
-        <MessageSquare size={15} className="text-outline" />
-        <span className="font-bold text-sm text-on-surface">채팅 기록</span>
-      </div>
+  return (
+    <div>
+      <button
+        onClick={onBack}
+        className="flex items-center gap-2 text-sm font-bold text-outline hover:text-on-surface mb-6 transition-colors"
+      >
+        <ChevronLeft size={16} />
+        목록으로
+      </button>
 
-      {turnsLoading ? (
-        <div className="flex justify-center items-center py-12">
-          <Loader2 size={20} className="animate-spin text-outline" />
-        </div>
-      ) : turns.length === 0 ? (
-        <div className="px-5 py-10 text-center text-sm text-outline">
-          채팅 기록이 없습니다.
-        </div>
-      ) : (
-        <div className="px-4 py-4 space-y-3 max-h-130 overflow-y-auto">
-          {turns.map((msg, i) => (
-            <div
-              key={i}
-              className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
-            >
-              {msg.role === 'ai' && (
-                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Bot size={13} className="text-primary" />
+      {/* PDF 변환 대상 영역 */}
+      <div ref={reportRef}>
+        {/* 요약 카드 */}
+        <div className="bg-white rounded-2xl p-5 md:p-6 editorial-shadow border border-gray-50 mb-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-on-surface text-base md:text-lg mb-2">{item.topic}</p>
+              <div className="flex items-center gap-3 text-sm text-outline">
+                <span className="flex items-center gap-1">
+                  <Calendar size={12} />
+                  {formatDate(item.created_at)}
+                </span>
+                <span className={`font-bold ${item.score > 0 ? 'text-emerald-600' : 'text-yellow-600'}`}>
+                  {item.score > 0 ? '완료' : '진행 중'}
+                </span>
+              </div>
+              {item.score > 0 && (
+                <div className="mt-4 pt-4 border-t border-gray-50">
+                  <p className="text-xs text-outline mb-0.5">실시간 평가 평균 점수</p>
+                  <p className={`text-2xl font-extrabold ${report?.score_avg != null ? getScoreColor(report.score_avg) : 'text-primary'}`}>
+                    {report?.score_avg != null ? `${report.score_avg} / 25` : reportLoading ? '...' : `${Math.round(item.score)}점`}
+                  </p>
                 </div>
               )}
-              <div
-                className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                  msg.role === 'user'
-                    ? 'bg-primary text-white rounded-tr-sm'
-                    : 'bg-surface-container text-on-surface rounded-tl-sm'
-                }`}
-              >
-                {msg.content}
-              </div>
             </div>
-          ))}
+            {report && (
+              <button
+                onClick={handleDownloadPdf}
+                disabled={isPdfLoading}
+                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white text-xs font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+              >
+                {isPdfLoading ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Download size={12} />
+                )}
+                {isPdfLoading ? 'PDF 생성 중...' : 'PDF 저장'}
+              </button>
+            )}
+          </div>
         </div>
-      )}
+
+        {/* 채팅 기록 */}
+        <div className="bg-white rounded-2xl editorial-shadow border border-gray-50 overflow-hidden mb-4">
+          <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+            <MessageSquare size={15} className="text-outline" />
+            <span className="font-bold text-sm text-on-surface">채팅 기록</span>
+          </div>
+
+          {turnsLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 size={20} className="animate-spin text-outline" />
+            </div>
+          ) : turns.length === 0 ? (
+            <div className="px-5 py-10 text-center text-sm text-outline">
+              채팅 기록이 없습니다.
+            </div>
+          ) : (
+            <div className="px-4 py-4 space-y-3 max-h-130 overflow-y-auto">
+              {turns.map((msg, i) => (
+                <div
+                  key={i}
+                  className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                >
+                  {msg.role === 'ai' && (
+                    <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Bot size={13} className="text-primary" />
+                    </div>
+                  )}
+                  <div
+                    className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                      msg.role === 'user'
+                        ? 'bg-primary text-white rounded-tr-sm'
+                        : 'bg-surface-container text-on-surface rounded-tl-sm'
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* 결과 보고서 */}
+        {reportLoading ? (
+          <div className="bg-white rounded-2xl editorial-shadow border border-gray-50 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+              <FileText size={15} className="text-outline" />
+              <span className="font-bold text-sm text-on-surface">결과 보고서</span>
+            </div>
+            <div className="flex justify-center items-center py-12">
+              <Loader2 size={20} className="animate-spin text-outline" />
+            </div>
+          </div>
+        ) : report ? (
+          <div className="bg-white rounded-2xl editorial-shadow border border-gray-50 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+              <FileText size={15} className="text-outline" />
+              <span className="font-bold text-sm text-on-surface">결과 보고서</span>
+            </div>
+            <div className="px-5 py-5 space-y-6 text-sm leading-relaxed">
+
+              {/* 메타 점수 카드 */}
+              {(report.pre_quiz_score != null || report.post_quiz_score != null || report.score_avg != null) && (
+                <div className="grid grid-cols-3 gap-2">
+                  {report.pre_quiz_score != null && (
+                    <div className="bg-primary/5 rounded-xl p-3 flex flex-col gap-0.5">
+                      <p className="text-xs font-bold text-outline">사전 퀴즈</p>
+                      <p className="text-base font-extrabold text-primary">
+                        {report.pre_quiz_score} / {report.pre_quiz_count ?? '?'}
+                      </p>
+                    </div>
+                  )}
+                  {report.post_quiz_score != null && (
+                    <div className="bg-primary/5 rounded-xl p-3 flex flex-col gap-0.5">
+                      <p className="text-xs font-bold text-outline">사후 퀴즈</p>
+                      <p className="text-base font-extrabold text-primary">
+                        {report.post_quiz_score} / {report.post_quiz_count ?? '?'}
+                      </p>
+                    </div>
+                  )}
+                  {report.score_avg != null && (
+                    <div className="bg-secondary/5 rounded-xl p-3 flex flex-col gap-0.5">
+                      <p className="text-xs font-bold text-outline">평가 평균</p>
+                      <p className="text-base font-extrabold text-secondary">{report.score_avg} / 25</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <p className="font-bold text-on-surface mb-2">토론 요약</p>
+                <div className="text-outline whitespace-pre-wrap space-y-1">
+                  {report.summary.split('\n').map((line, i) => {
+                    if (/^\[.*찬성.*\]/.test(line))
+                      return <p key={i} className="font-bold text-primary">{line}</p>;
+                    if (/^\[.*반대.*\]/.test(line))
+                      return <p key={i} className="font-bold text-secondary">{line}</p>;
+                    return <p key={i}>{line}</p>;
+                  })}
+                </div>
+              </div>
+
+              <hr className="border-gray-100" />
+
+              <div>
+                <p className="font-bold text-on-surface mb-2">주요 쟁점</p>
+                <p className="text-outline whitespace-pre-wrap">{report.issues}</p>
+              </div>
+
+              <hr className="border-gray-100" />
+
+              <div>
+                <p className="font-bold text-on-surface mb-2">논리 피드백</p>
+                <p className="text-outline whitespace-pre-wrap">{report.logic_feedback}</p>
+              </div>
+
+              {/* 퀴즈 결과 */}
+              {(report.pre_quiz_correct !== undefined || report.post_quiz_correct !== undefined) && (
+                <>
+                  <hr className="border-gray-100" />
+                  <div>
+                    <p className="font-bold text-on-surface mb-3">퀴즈 결과</p>
+                    <div className="space-y-3">
+                      {report.pre_quiz_correct !== undefined && (
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <p className="font-bold mb-1 text-on-surface">
+                            사전 퀴즈&nbsp;
+                            <span className={report.pre_quiz_correct ? 'text-emerald-600' : 'text-secondary'}>
+                              {report.pre_quiz_correct ? '✅ 정답' : '❌ 오답'}
+                            </span>
+                          </p>
+                          {report.pre_quiz_explanation && (
+                            <p className="text-outline whitespace-pre-wrap text-xs leading-relaxed">{report.pre_quiz_explanation}</p>
+                          )}
+                        </div>
+                      )}
+                      {report.post_quiz_correct !== undefined && (
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <p className="font-bold mb-1 text-on-surface">
+                            사후 퀴즈&nbsp;
+                            <span className={report.post_quiz_correct ? 'text-emerald-600' : 'text-secondary'}>
+                              {report.post_quiz_correct ? '✅ 정답' : '❌ 오답'}
+                            </span>
+                          </p>
+                          {report.post_quiz_explanation && (
+                            <p className="text-outline whitespace-pre-wrap text-xs leading-relaxed">{report.post_quiz_explanation}</p>
+                          )}
+                        </div>
+                      )}
+                      {report.quiz_comparison && (
+                        <div className="bg-gray-50 rounded-xl p-4">
+                          <p className="font-bold mb-1 text-on-surface">전후 비교 분석</p>
+                          <p className="text-outline whitespace-pre-wrap text-xs leading-relaxed">{report.quiz_comparison}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {report.extra_info && (
+                <>
+                  <hr className="border-gray-100" />
+                  <div>
+                    <p className="font-bold text-on-surface mb-2">추가 사례·정보</p>
+                    <p className="text-outline whitespace-pre-wrap">{report.extra_info}</p>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        ) : item.score > 0 ? (
+          <div className="bg-white rounded-2xl editorial-shadow border border-gray-50 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-50 flex items-center gap-2">
+              <FileText size={15} className="text-outline" />
+              <span className="font-bold text-sm text-on-surface">결과 보고서</span>
+            </div>
+            <div className="px-5 py-10 text-center text-sm text-outline">
+              결과 보고서를 불러올 수 없습니다.
+            </div>
+          </div>
+        ) : null}
+      </div>
     </div>
-  </div>
-);
+  );
+}
 
 // ─── 메인 컴포넌트 ─────────────────────────────────────────────────────────────
 
@@ -169,8 +363,10 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
-  const [turns, setTurns] = useState<MockTurnMessage[]>([]);
+  const [turns, setTurns] = useState<{ role: 'user' | 'ai'; content: string; turn: number }[]>([]);
   const [turnsLoading, setTurnsLoading] = useState(false);
+  const [report, setReport] = useState<DiscussionSummaryResponse | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
 
   const selectedItem = useMemo(
     () => history.find((item) => item.id === selectedItemId) ?? null,
@@ -203,6 +399,19 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
     }
   }, [selectedItemId]);
 
+  // 결과 보고서 로드
+  useEffect(() => {
+    if (!selectedItemId) { setReport(null); return; }
+    setReportLoading(true);
+    if (USE_MOCK) {
+      setTimeout(() => { setReport(MOCK_REPORT[selectedItemId] ?? null); setReportLoading(false); }, 300);
+    } else {
+      userApi.getDiscussionReport(selectedItemId)
+        .then(setReport)
+        .finally(() => setReportLoading(false));
+    }
+  }, [selectedItemId]);
+
   const filteredHistory = useMemo(() => {
     if (!searchQuery.trim()) return history;
     const q = searchQuery.trim().toLowerCase();
@@ -230,6 +439,7 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
   const handleSelectItem = (item: DiscussionHistoryItem) => {
     setSearchParams({ tab: 'history', id: String(item.id) });
     setTurns([]);
+    setReport(null);
   };
 
   const handleSubmit = (e: React.SyntheticEvent) => {
@@ -244,11 +454,11 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-emerald-600';
-    if (score >= 60) return 'text-blue-600';
-    if (score >= 40) return 'text-yellow-600';
-    return 'text-red-500';
+    if (score >= 20) return 'text-primary';
+    if (score >= 15) return 'text-outline';
+    return 'text-secondary';
   };
+
 
   if (!isLoggedIn) return null;
 
@@ -358,6 +568,8 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
                 item={selectedItem}
                 turns={turns}
                 turnsLoading={turnsLoading}
+                report={report}
+                reportLoading={reportLoading}
                 formatDate={formatDate}
                 getScoreColor={getScoreColor}
                 onBack={() => setSearchParams({ tab: 'history' })}
@@ -411,7 +623,6 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
                         key={item.id}
                         item={item}
                         formatDate={formatDate}
-                        getScoreColor={getScoreColor}
                         onClick={() => handleSelectItem(item)}
                       />
                     ))}
@@ -444,7 +655,6 @@ export const ProfileView = ({ isLoggedIn, userData, setUserData }: ProfileViewPr
                                   key={item.id}
                                   item={item}
                                   formatDate={formatDate}
-                                  getScoreColor={getScoreColor}
                                   inGroup
                                   onClick={() => handleSelectItem(item)}
                                 />
