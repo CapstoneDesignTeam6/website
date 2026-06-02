@@ -32,21 +32,10 @@ export const SignupView = ({ setIsLoggedIn, setUserData }: SignupViewProps) => {
     }
   };
 
-  const handleGoogleSignup = () => {
-    setIsLoggedIn(true);
-    setUserData({
-      id: 0,
-      username: 'google_user',
-      nickname: 'Google User',
-      email: 'google_user@gmail.com'
-    });
-    navigate('/');
-  };
-
   return (
-    <div className="max-w-md mx-auto px-4 md:px-8 py-12 md:py-24">
-      <header className="text-center mb-8 md:mb-12">
-        <h1 className="text-3xl md:text-4xl font-extrabold font-headline tracking-tight mb-3 md:mb-4">회원가입</h1>
+    <div className="max-w-lg mx-auto px-4 md:px-8 py-12 md:py-20">
+      <header className="text-center mb-10 md:mb-12">
+        <h1 className="text-2xl md:text-4xl font-extrabold font-headline tracking-tight mb-4">회원가입</h1>
         <p className="text-sm md:text-base text-outline">Agora의 일원이 되어보세요.</p>
       </header>
 
@@ -91,20 +80,6 @@ export const SignupView = ({ setIsLoggedIn, setUserData }: SignupViewProps) => {
             className="w-full py-3 md:py-4 bg-primary text-white font-bold rounded-xl transition-all text-sm md:text-base"
           >
             가입하기
-          </button>
-
-          <div className="relative py-3 md:py-4">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-100"></div></div>
-            <div className="relative flex justify-center text-sm md:text-sm uppercase"><span className="bg-white px-2 text-outline">또는</span></div>
-          </div>
-
-          <button 
-            type="button"
-            onClick={handleGoogleSignup}
-            className="w-full py-3 md:py-4 border border-gray-200 text-on-surface font-bold rounded-xl flex items-center justify-center gap-2 md:gap-3 hover:bg-gray-50 transition-all text-sm md:text-base"
-          >
-            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-4 h-4 md:w-5 md:h-5" />
-            Google 계정으로 가입
           </button>
 
           <p className="text-center text-sm md:text-base text-outline pt-3 md:pt-4">
