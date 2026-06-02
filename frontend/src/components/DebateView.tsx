@@ -524,9 +524,9 @@ export const DebateView = ({
     onViewScore?.(msgIdx);
   };
 
-  // 의견 생성 시작 시 참고자료 로딩 상태 활성화
+  // 의견 생성 시작 시 참고자료 로딩 상태 활성화 (아직 자료가 없을 때만)
   useEffect(() => {
-    if (isGenerating) {
+    if (isGenerating && !hasFetchedMaterials) {
       setIsLoadingRelatedMaterials(true);
     }
   }, [isGenerating]);
