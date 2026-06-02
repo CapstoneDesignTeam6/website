@@ -878,7 +878,26 @@ export const DebateView = ({
   };
 
   return (
-    <div className={`flex ${isFullScreen ? 'h-screen' : 'h-[calc(100vh-72px)]'} overflow-hidden relative`}>
+    <div className={`flex ${isFullScreen ? 'h-screen' : 'h-[calc(100vh-72px)]'} overflow-hidden relative`} onWheel={(e) => {
+        const target = e.target as HTMLElement;
+        const scrollable = target.closest('[data-panel-scroll]') as HTMLElement | null;
+        // 스크롤 가능한 패널 안에 있지 않으면 전체 페이지 스크롤
+        if (!scrollable) {
+          window.scrollBy({ top: e.deltaY });
+          return;
+        }
+        // 패널 내에서 스크롤바가 없거나(내용이 뷰포트에 맞을 때) 스크롤 경계에 도달한 경우 전체 페이지 스크롤
+        const canScroll = scrollable.scrollHeight > scrollable.clientHeight;
+        if (!canScroll) {
+          window.scrollBy({ top: e.deltaY });
+          return;
+        }
+        const atTop = scrollable.scrollTop === 0 && e.deltaY < 0;
+        const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 1 && e.deltaY > 0;
+        if (atTop || atBottom) {
+          window.scrollBy({ top: e.deltaY });
+        }
+      }}>
       <DebateTutorial
         run={isTutorialRunning}
         onFinish={() => setIsTutorialRunning(false)}
@@ -960,7 +979,7 @@ export const DebateView = ({
         animate={{ width: isScoreSidebarOpen ? 320 : 0, opacity: isScoreSidebarOpen ? 1 : 0 }}
         className="bg-white flex flex-col border-r border-gray-200 overflow-hidden relative md:flex order-first"
       >
-        <div id="tutorial-score-panel" className="p-6 flex flex-col gap-3 h-full w-80 overflow-y-auto custom-scrollbar">
+        <div id="tutorial-score-panel" data-panel-scroll className="p-6 flex flex-col gap-3 h-full w-80 overflow-y-auto custom-scrollbar" style={{ overscrollBehavior: 'contain' }}>
           <div className="flex items-center gap-2">
             <BarChart3 size={20} className={evaluationScore ? 'text-primary' : 'text-outline'} />
             <h2 className="text-base font-black font-headline">실시간 평가 지표</h2>
@@ -1107,7 +1126,7 @@ export const DebateView = ({
           </div>
         </div>
 
-        <div id="tutorial-chat-area" className={`flex-1 overflow-y-auto py-2 md:py-6 ${debatePhase === 'debating' ? 'pb-32 md:pb-36' : 'pb-8'} flex flex-col gap-6 md:gap-8 custom-scrollbar relative transition-all duration-300 ${isScoreSidebarOpen && isRelatedMaterialsSidebarOpen ? 'px-6 md:px-7' : isScoreSidebarOpen || isRelatedMaterialsSidebarOpen ? 'px-7 md:px-12' : 'px-8 md:px-21'}`} ref={scrollRef} style={{ overscrollBehavior: 'contain' }}>
+        <div id="tutorial-chat-area" data-panel-scroll className={`flex-1 overflow-y-auto py-2 md:py-6 ${debatePhase === 'debating' ? 'pb-32 md:pb-36' : 'pb-8'} flex flex-col gap-6 md:gap-8 custom-scrollbar relative transition-all duration-300 ${isScoreSidebarOpen && isRelatedMaterialsSidebarOpen ? 'px-6 md:px-7' : isScoreSidebarOpen || isRelatedMaterialsSidebarOpen ? 'px-7 md:px-12' : 'px-8 md:px-21'}`} ref={scrollRef} style={{ overscrollBehavior: 'contain' }}>
 
           {/* ── intro 단계: turn=0 로딩 스피너 ── */}
           {debatePhase === 'intro' && isGenerating && (
@@ -1441,7 +1460,7 @@ export const DebateView = ({
         animate={{ width: isRelatedMaterialsSidebarOpen ? 360 : 0, opacity: isRelatedMaterialsSidebarOpen ? 1 : 0 }}
         className="bg-white flex flex-col border-l border-gray-200 overflow-hidden relative md:flex order-last" // order-last로 우측 정렬
       >
-        <div id="tutorial-materials-panel" className="p-6 flex flex-col gap-3 h-full w-90 overflow-y-auto custom-scrollbar">
+        <div id="tutorial-materials-panel" data-panel-scroll className="p-6 flex flex-col gap-3 h-full w-90 overflow-y-auto custom-scrollbar" style={{ overscrollBehavior: 'contain' }}>
           {(!hasFetchedMaterials || relatedMaterials.length > 0 || isLoadingRelatedMaterials || hasMaterialsFetchError) && (
             <div className="flex items-center gap-2">
               <FileText size={20} className="text-secondary" />
