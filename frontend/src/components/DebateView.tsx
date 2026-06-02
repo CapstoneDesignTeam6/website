@@ -1316,7 +1316,7 @@ export const DebateView = ({
                         onClick={() => { setIsFinishLoading(true); onFinish(); }}
                         className="px-5 py-2 bg-gray-200 text-on-surface text-sm font-black rounded-xl hover:bg-gray-300 transition-colors"
                       >
-                        토론 종료
+                        종료하고 퀴즈 풀기
                       </button>
                     </div>
                   </>
