@@ -59,14 +59,16 @@ export const debateApi = {
   },
 
   // ─── 퀴즈 관련 (Quiz) ────────────────────────────────────────────────────────
-  submitQuiz: async (discussionId: number, phase: 'pre' | 'post', quizzes: MultipleChoiceQuiz[], answers: number[]): Promise<void> => {
+  submitQuiz: async (discussionId: number, phase: 'pre' | 'post', quizzes: MultipleChoiceQuiz[], answers: number[]): Promise<{ results: { correct: boolean }[]; total_score: number; count: number } | null> => {
     try {
-      await fetch('/api/debate/quiz/submit', {
+      const res = await fetch('/api/debate/quiz/submit', {
         method: 'POST',
         headers: getHeaders(),
         body: JSON.stringify({ discussion_id: discussionId, phase, quizzes, answers }),
       });
+      if (res.ok) return res.json();
     } catch (_) { /* 채점 실패는 무시 */ }
+    return null;
   },
 
   getQuizSet: async (topic: string, phase: 'pre' | 'post', discussionId?: number | null): Promise<MultipleChoiceQuiz[]> => {
@@ -188,10 +190,11 @@ export const debateApi = {
       return [];
     }
   },
-  getUserEvaluation: async (discussionId: number, topic?: string): Promise<UserEvaluationScore> => {
+  getUserEvaluation: async (discussionId: number, topic?: string, turnNumber?: number): Promise<UserEvaluationScore> => {
     try {
       const params = new URLSearchParams();
       if (topic) params.set('topic', topic);
+      if (turnNumber !== undefined) params.set('turn_number', String(turnNumber));
       const res = await fetch(`/api/debate/${discussionId}/evaluation?${params.toString()}`, {
         headers: getHeaders(),
       });
@@ -203,19 +206,51 @@ export const debateApi = {
   },
 
   // ─── 결과 보고서 관련 (DiscussionSummaryResponse) ─────────────────────────────
-  analyze: async (topic: string, messages: DebateMessage[], discussionId?: number | null): Promise<DiscussionSummaryResponse> => {
-    try {
-      const res = await fetch('/api/debate/analyze', {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ topic, messages, discussion_id: discussionId ?? null }),
-      });
-      if (!res.ok) throw new Error(`API error: ${res.statusText}`);
-      return res.json();
-    } catch (error) {
-      console.error("Failed to analyze debate:", error);
-      throw error;
+  analyze: async (
+    topic: string,
+    messages: DebateMessage[],
+    discussionId?: number | null,
+    onProgress?: (step: string) => void,
+  ): Promise<DiscussionSummaryResponse> => {
+    const res = await fetch('/api/debate/analyze', {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ topic, messages, discussion_id: discussionId ?? null }),
+    });
+    if (!res.ok) throw new Error(`API error: ${res.statusText}`);
+
+    const contentType = res.headers.get('content-type') ?? '';
+
+    // SSE 스트림 처리 (백엔드가 SSE로 전환된 경우)
+    if (contentType.includes('text/event-stream')) {
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let result: DiscussionSummaryResponse | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const raw = line.slice(6).trim();
+          if (raw === '[DONE]') break;
+          try {
+            const event = JSON.parse(raw);
+            if (event.type === 'progress' && event.step) onProgress?.(event.step);
+            else if (event.type === 'result') result = event.data;
+          } catch { /* 무시 */ }
+        }
+      }
+      if (!result) throw new Error('SSE stream ended without result');
+      return result;
     }
+
+    // 일반 JSON 응답
+    return res.json();
   },
 };
 
@@ -285,12 +320,27 @@ export const userApi = {
     const data = await res.json();
     return Array.isArray(data) ? data : [];
   },
-  getDiscussionTurns: async (discussionId: number): Promise<{ role: 'user' | 'ai'; content: string; turn: number }[]> => {
-    const res = await fetch(`/api/debate/${discussionId}/turns`, {
-      headers: getHeaders(),
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return Array.isArray(data?.messages) ? data.messages : [];
+  getDiscussionTurns: async (discussionId: number): Promise<{ role: 'user' | 'ai'; content: string; turn: number; score?: UserEvaluationScore; score_total?: number }[]> => {
+    try {
+      const res = await fetch(`/api/debate/${discussionId}/turns`, {
+        headers: getHeaders(),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data?.messages) ? data.messages : [];
+    } catch (_) {
+      return [];
+    }
+  },
+  getDiscussionReport: async (discussionId: number): Promise<DiscussionSummaryResponse | null> => {
+    try {
+      const res = await fetch(`/api/debate/${discussionId}/report`, {
+        headers: getHeaders(),
+      });
+      if (!res.ok) return null;
+      return res.json();
+    } catch (_) {
+      return null;
+    }
   },
 };

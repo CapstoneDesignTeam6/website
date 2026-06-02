@@ -100,7 +100,6 @@ export interface DebateMessage {
   id?: number; // 게스트 모드일 경우 백엔드에서 ID가 없을 수 있음
   discussion_id: number; // 게스트 모드여도 토론 세션 식별을 위해 필요
   role: MessageRole; // 에이전트, 사용자 구분
-  agentName?: string;
   side?: DebateSide; // 입장 구분
   turn: Turn; // 0=시작, 1=에이전트 반박, 2=에이전트 주장 생성, 3=에이전트 재반박
   round?: number; // ui 표시용(api에 사용 X)
@@ -176,17 +175,23 @@ export interface DiscussionSummaryResponse {
   post_quiz_correct?: boolean;
   post_quiz_explanation?: string;
   quiz_comparison?: string;
+  // 메타 정보
+  difficulty?: string;
+  pre_quiz_score?: number;
+  pre_quiz_count?: number;
+  post_quiz_score?: number;
+  post_quiz_count?: number;
+  score_avg?: number;
 }
 
 // ─── 토론 기록 관련 ───────────────────────────────────────────────────────────
 
 export interface DiscussionHistoryItem {
   id: number;
-  title: string;
   topic: string;
+  difficulty: string;
   score: number;
   created_at: string;
-  completed_at: string | null;
 }
 
 // ─── 회원정보 관련 ────────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ import {
 } from "react-router-dom";
 
 // --- Types & Services ---
-import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep, Turn, MultipleChoiceQuiz/*, ResponseSpeed*/ } from "./types";
+import { DebateMessage, UserData, DiscussionSummaryResponse, Difficulty, AgentStep, Turn, MultipleChoiceQuiz, UserEvaluationScore/*, ResponseSpeed*/ } from "./types";
 import { debateApi, userApi } from "./services/api";
 import { formatTime } from "./utils";
 // import {
@@ -133,6 +133,9 @@ export default function App() {
     setAgentSteps([]);
     setAgentLog([]);
     setIsQuizLoading(false);
+    setEvaluationScores({});
+    setEvaluationScore(null);
+    setIsLoadingScore(false);
   };
 
   /**
@@ -157,6 +160,9 @@ export default function App() {
     setAgentSteps([]);
     setAgentLog([]);
     setIsQuizLoading(false);
+    setEvaluationScores({});
+    setEvaluationScore(null);
+    setIsLoadingScore(false);
     setIsGenerating(true);
 
     navigate("/debate");
@@ -192,7 +198,6 @@ export default function App() {
         round: 1,
         content: '서버에 연결할 수 없습니다. 잠시 후 다시 시도해주세요.',
         timestamp: formatTime(),
-        agentName: 'AI 에이전트',
       }]);
       setDiscussionId(null);
     } finally {
@@ -261,7 +266,8 @@ export default function App() {
    */
   const handlePreQuizComplete = async (answers: number[]) => {
     if (discussionId != null && preQuizzes.length > 0) {
-      await debateApi.submitQuiz(discussionId, 'pre', preQuizzes, answers);
+      const res = await debateApi.submitQuiz(discussionId, 'pre', preQuizzes, answers);
+      if (res != null) setPreQuizResult({ total_score: res.total_score, count: res.count });
     }
     setDebatePhase('debating');
   };
@@ -321,6 +327,19 @@ export default function App() {
         ));
       }
 
+      // AI 응답이 오기 전, 유저 메시지 인덱스 기준으로 evaluation 호출
+      if (discussionId) {
+        const msgIdx = messages.length; // userMsg가 추가된 후의 인덱스
+        setIsLoadingScore(true);
+        debateApi.getUserEvaluation(discussionId, topic)
+          .then((score) => {
+            setEvaluationScores((prev) => ({ ...prev, [msgIdx]: score }));
+            setEvaluationScore(score);
+          })
+          .catch(() => {})
+          .finally(() => setIsLoadingScore(false));
+      }
+
       const nextspeechTurn = speechTurn + 1;
 
       // AI 응답 메시지 추가
@@ -329,7 +348,6 @@ export default function App() {
         {
           discussion_id: data.aiResponse.discussion_id,
           role: "agent",
-          agentName: data.aiResponse.agentName,
           side: data.aiResponse.side || undefined,
           /*
           토론 진행 단계 (turn)
@@ -404,6 +422,14 @@ export default function App() {
   // 사용 위치: DebateView(post-quiz 완료) → ResultView
   // =========================================================
   const [debateResult, setDebateResult] = useState<DiscussionSummaryResponse | string>("");
+  const [analyzeProgress, setAnalyzeProgress] = useState<string>("");
+  // 사전 퀴즈 점수 — handlePreQuizComplete에서 채점 후 저장
+  const [preQuizResult, setPreQuizResult] = useState<{ total_score: number; count: number } | null>(null);
+  // DebateView evaluationScores 평균 — onScoreAvg 콜백으로 수신
+  const [scoreAvg, setScoreAvg] = useState<number | undefined>(undefined);
+  const [evaluationScores, setEvaluationScores] = useState<Record<number, UserEvaluationScore>>({});
+  const [evaluationScore, setEvaluationScore] = useState<UserEvaluationScore | null>(null);
+  const [isLoadingScore, setIsLoadingScore] = useState(false);
 
   /**
    * 사후 퀴즈 완료 후 토론 결과 분석 요청 및 결과 화면 이동
@@ -411,19 +437,37 @@ export default function App() {
    * 사용 위치: DebateView 내 인라인 사후퀴즈 완료 콜백
    */
   const showResult = async (answers: number[]) => {
+    let postScore: { total_score: number; count: number } | null = null;
+
     if (discussionId != null && postQuizzes.length > 0) {
-      await debateApi.submitQuiz(discussionId, 'post', postQuizzes, answers);
+      const res = await debateApi.submitQuiz(discussionId, 'post', postQuizzes, answers);
+      if (res != null) postScore = { total_score: res.total_score, count: res.count };
     }
 
     navigate("/result", { replace: true });
+    setAnalyzeProgress("토론 기록을 정리하는 중...");
     setDebateResult("토론 결과를 분석 중입니다...");
 
     try {
-      const data = await debateApi.analyze(topic, messages, discussionId);
-      setDebateResult(data);
+      const data = await debateApi.analyze(
+        topic, messages, discussionId,
+        (step) => setAnalyzeProgress(step),
+      );
+      // difficulty·퀴즈점수·평가평균을 result 객체에 주입해 ResultView로 전달
+      setDebateResult({
+        ...data,
+        difficulty,
+        pre_quiz_score: preQuizResult?.total_score,
+        pre_quiz_count: preQuizResult?.count,
+        post_quiz_score: postScore?.total_score,
+        post_quiz_count: postScore?.count,
+        score_avg: scoreAvg,
+      });
     } catch (error) {
       console.error("토론 분석에 실패했습니다:", error);
       setDebateResult("결과 분석에 실패했습니다.");
+    } finally {
+      setAnalyzeProgress("");
     }
   };
 
@@ -512,6 +556,29 @@ export default function App() {
                       onPostQuizComplete={showResult}
                       onRestart={resetDebateState}
                       onRegisterExitHandler={(handler) => setDebateExitHandler(() => handler)}
+                      onScoreAvg={setScoreAvg}
+                      evaluationScores={evaluationScores}
+                      evaluationScore={evaluationScore}
+                      isLoadingScore={isLoadingScore}
+                      onViewScore={(msgIdx) => {
+                        if (evaluationScores[msgIdx]) {
+                          setEvaluationScore(evaluationScores[msgIdx]);
+                          return;
+                        }
+                        if (!discussionId) return;
+                        // msgIdx 기준으로 유저 메시지가 몇 번째 유저 발언인지 계산 → DB turn_number
+                        const userMsgsBefore = messages.slice(0, msgIdx + 1).filter(m => m.role === 'user');
+                        const turnNumber = userMsgsBefore.length;
+                        if (!turnNumber) return;
+                        setIsLoadingScore(true);
+                        debateApi.getUserEvaluation(discussionId, topic, turnNumber)
+                          .then((score) => {
+                            setEvaluationScores((prev) => ({ ...prev, [msgIdx]: score }));
+                            setEvaluationScore(score);
+                          })
+                          .catch(() => {})
+                          .finally(() => setIsLoadingScore(false));
+                      }}
                       userData={userData}
                     />
                   ) : (
@@ -523,7 +590,7 @@ export default function App() {
               {/* 결과 */}
               <Route
                 path="/result"
-                element={<ResultView topic={topic} result={debateResult} />}
+                element={<ResultView topic={topic} result={debateResult} analyzeProgress={analyzeProgress} />}
               />
 
               {/* FAQ */}

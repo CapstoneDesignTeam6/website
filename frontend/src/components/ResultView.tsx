@@ -1,15 +1,22 @@
-import { Download, RefreshCw, FileText } from "lucide-react";
-import { useNavigate } from "react-router-dom"; // useNavigate 훅 임포트
-import React, { useRef } from "react"; // useRef 임포트
-import { DiscussionSummaryResponse } from '../types'; // DiscussionSummaryResponse 타입 임포트
-import html2pdf from "html2pdf.js"; // html2pdf.js 임포트
+import { Download, RefreshCw, FileText, Loader2 } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
+import React, { useRef } from "react";
+import { DiscussionSummaryResponse } from '../types';
+import html2pdf from "html2pdf.js";
 
 interface ResultViewProps {
   topic: string;
-  result: DiscussionSummaryResponse | string; // result 타입을 DiscussionSummaryResponse 객체 또는 문자열로 변경
+  result: DiscussionSummaryResponse | string;
+  analyzeProgress?: string;
 }
 
-export const ResultView = ({ topic, result }: ResultViewProps) => {
+const DIFFICULTY_LABEL: Record<string, string> = {
+  easy: '쉬움',
+  normal: '보통',
+  hard: '어려움',
+};
+
+export const ResultView = ({ topic, result, analyzeProgress }: ResultViewProps) => {
   const navigate = useNavigate();
   const reportRef = useRef<HTMLDivElement>(null); // PDF로 변환할 리포트 섹션에 대한 ref 생성
   const [isDownloadingPdf, setIsDownloadingPdf] = React.useState(false);
@@ -93,6 +100,9 @@ export const ResultView = ({ topic, result }: ResultViewProps) => {
       }
     }
   };
+  const isLoading = typeof result === 'string';
+  const meta = typeof result === 'object' ? result : null;
+
   return (
     <div className="max-w-5xl mx-auto px-4 md:px-8 py-8 md:py-20">
       {/* PDF로 변환할 리포트 섹션을 ref로 감싸기 */}
@@ -103,19 +113,59 @@ export const ResultView = ({ topic, result }: ResultViewProps) => {
               <h2 className="text-xl md:text-2xl font-black font-headline mb-2">
                 토론 결과 리포트
               </h2>
-              <p className="text-sm md:text-sm text-outline">
+              <p className="text-sm text-outline">
                 Agora Editorial Analysis #{new Date().getFullYear()}-
                 {Math.floor(Math.random() * 9000 + 1000)}
               </p>
             </div>
-            <div className="text-left md:text-right text-sm md:text-sm text-outline space-y-1">
+            <div className="text-left md:text-right text-sm text-outline space-y-1">
               <p>발행일: {new Date().toLocaleDateString("ko-KR")}</p>
               <p>분석 대상: {topic}</p>
             </div>
           </div>
 
+          {/* ── 요약 메타 카드 (난이도·퀴즈점수·평가평균) ── */}
+          {meta && (meta.difficulty || meta.pre_quiz_score != null || meta.post_quiz_score != null || meta.score_avg != null) && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+              {meta.difficulty && (
+                <div className="bg-gray-50 rounded-2xl p-4 flex flex-col gap-1">
+                  <p className="text-xs font-bold text-outline uppercase">난이도</p>
+                  <p className="text-lg font-black text-on-surface">{DIFFICULTY_LABEL[meta.difficulty] ?? meta.difficulty}</p>
+                </div>
+              )}
+              {meta.pre_quiz_score != null && (
+                <div className="bg-primary/5 rounded-2xl p-4 flex flex-col gap-1">
+                  <p className="text-xs font-bold text-outline uppercase">사전 퀴즈</p>
+                  <p className="text-lg font-black text-primary">
+                    {meta.pre_quiz_score} / {meta.pre_quiz_count ?? '?'}
+                  </p>
+                </div>
+              )}
+              {meta.post_quiz_score != null && (
+                <div className="bg-primary/5 rounded-2xl p-4 flex flex-col gap-1">
+                  <p className="text-xs font-bold text-outline uppercase">사후 퀴즈</p>
+                  <p className="text-lg font-black text-primary">
+                    {meta.post_quiz_score} / {meta.post_quiz_count ?? '?'}
+                  </p>
+                </div>
+              )}
+              {meta.score_avg != null && (
+                <div className="bg-secondary/5 rounded-2xl p-4 flex flex-col gap-1">
+                  <p className="text-xs font-bold text-outline uppercase">실시간 평가 평균 점수</p>
+                  <p className="text-lg font-black text-secondary">{meta.score_avg} / 25</p>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="prose prose-sm max-w-none leading-relaxed">
-            {typeof result === 'object' ? (
+            {/* ── 분석 중 로딩 상태 ── */}
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center gap-4 py-16">
+                <Loader2 size={36} className="animate-spin text-primary" />
+                <p className="text-base font-bold text-on-surface">{analyzeProgress || result}</p>
+              </div>
+            ) : typeof result === 'object' ? (
               <>
                 <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">토론 요약</h3>
                 <div className="mb-8 text-black whitespace-pre-wrap">{renderSummary(result.summary)}</div>
@@ -177,9 +227,7 @@ export const ResultView = ({ topic, result }: ResultViewProps) => {
                 <h3 className="text-lg md:text-xl font-bold text-on-surface mb-4">추가 사례·정보</h3>
                 <p className="mb-8 text-black whitespace-pre-wrap">{result.extra_info}</p>
               </>
-            ) : (
-              result || "리포트를 생성하는 중입니다..."
-            )}
+            ) : null}
           </div>
         </section>
       </div>

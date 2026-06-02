@@ -66,6 +66,11 @@ interface DebateViewProps {
   onPostQuizComplete?: (answers: number[]) => void;  // 사후 퀴즈 완료 → ResultView 이동
   onRestart?: () => void;           // "다시 시작" → 토론 상태 초기화 후 /setup 이동
   onRegisterExitHandler?: (handler: (path: string) => void) => void; // 이탈 가로채기 핸들러 등록
+  onScoreAvg?: (avg: number) => void; // 평가 점수 평균을 App으로 전달
+  evaluationScores?: Record<number, UserEvaluationScore>;
+  evaluationScore?: UserEvaluationScore | null;
+  isLoadingScore?: boolean;
+  onViewScore?: (msgIdx: number) => void;
   userData?: UserData | null;
 }
 
@@ -349,7 +354,6 @@ export const DebateView = ({
   onFinish,
   currentRound = 1,
   totalRounds = 2,
-  progress = 25,
   discussionId,
   agentSteps,
   agentLog,
@@ -366,6 +370,11 @@ export const DebateView = ({
   onPostQuizComplete,
   onRestart,
   onRegisterExitHandler,
+  onScoreAvg,
+  evaluationScores = {},
+  evaluationScore = null,
+  isLoadingScore = false,
+  onViewScore,
   userData,
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
@@ -373,9 +382,6 @@ export const DebateView = ({
   const [isPreQuizDone, setIsPreQuizDone] = useState(false);
   const [isPostQuizDone, setIsPostQuizDone] = useState(false);
   const [isScoreSidebarOpen, setIsScoreSidebarOpen] = useState(true);
-  const [evaluationScores, setEvaluationScores] = useState<Record<number, UserEvaluationScore>>({});
-  const [evaluationScore, setEvaluationScore] = useState<UserEvaluationScore | null>(null);
-  const [isLoadingScore, setIsLoadingScore] = useState(false);
   const [showPrevScoreWhileLoading, setShowPrevScoreWhileLoading] = useState(false);
   const [viewingMsgIdx, setViewingMsgIdx] = useState<number | null>(null);
   const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
@@ -505,27 +511,23 @@ export const DebateView = ({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
+  // evaluationScores 변경 시 total 평균을 App으로 전달
   useEffect(() => {
-    const hasUserMessage = messages.some(m => m.role === 'user');
-    if (!hasUserMessage || speechTurn === 0) return;
-    const lastMessage = messages[messages.length - 1];
-    if (lastMessage?.role !== 'user') return;
-    const msgIdx = messages.length - 1;
-    const fetchScore = async () => {
-      setIsLoadingScore(true);
-      setShowPrevScoreWhileLoading(false);
-      try {
-        const score = await debateApi.getUserEvaluation(discussionId, topic);
-        setEvaluationScores(prev => ({ ...prev, [msgIdx]: score }));
-        setEvaluationScore(score);
-        setViewingMsgIdx(msgIdx);
-      } catch (_) {
-      } finally {
-        setIsLoadingScore(false);
-      }
-    };
-    fetchScore();
-  }, [messages.length, discussionId]);
+    const scores = Object.values(evaluationScores);
+    if (scores.length === 0 || !onScoreAvg) return;
+    const totals = scores.map(s => s.total ?? 0).filter(t => t > 0);
+    if (totals.length === 0) return;
+    const avg = Math.round(totals.reduce((a, b) => a + b, 0) / totals.length);
+    onScoreAvg(avg);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evaluationScores]);
+
+  const handleViewScore = (msgIdx: number) => {
+    setIsScoreSidebarOpen(true);
+    setViewingMsgIdx(msgIdx);
+    setShowPrevScoreWhileLoading(false);
+    onViewScore?.(msgIdx);
+  };
 
   // 의견 생성 시작 시 참고자료 로딩 상태 활성화
   useEffect(() => {
@@ -845,7 +847,26 @@ export const DebateView = ({
   };
 
   return (
-    <div className={`flex ${isFullScreen ? 'h-screen' : 'h-[calc(100vh-72px)]'} overflow-hidden relative`}>
+    <div className={`flex ${isFullScreen ? 'h-screen' : 'h-[calc(100vh-72px)]'} overflow-hidden relative`} onWheel={(e) => {
+        const target = e.target as HTMLElement;
+        const scrollable = target.closest('[data-panel-scroll]') as HTMLElement | null;
+        // 스크롤 가능한 패널 안에 있지 않으면 전체 페이지 스크롤
+        if (!scrollable) {
+          window.scrollBy({ top: e.deltaY });
+          return;
+        }
+        // 패널 내에서 스크롤바가 없거나(내용이 뷰포트에 맞을 때) 스크롤 경계에 도달한 경우 전체 페이지 스크롤
+        const canScroll = scrollable.scrollHeight > scrollable.clientHeight;
+        if (!canScroll) {
+          window.scrollBy({ top: e.deltaY });
+          return;
+        }
+        const atTop = scrollable.scrollTop === 0 && e.deltaY < 0;
+        const atBottom = scrollable.scrollTop + scrollable.clientHeight >= scrollable.scrollHeight - 1 && e.deltaY > 0;
+        if (atTop || atBottom) {
+          window.scrollBy({ top: e.deltaY });
+        }
+      }}>
       <DebateTutorial
         run={isTutorialRunning}
         onFinish={() => setIsTutorialRunning(false)}
@@ -927,7 +948,7 @@ export const DebateView = ({
         animate={{ width: isScoreSidebarOpen ? 320 : 0, opacity: isScoreSidebarOpen ? 1 : 0 }}
         className="bg-white flex flex-col border-r border-gray-200 overflow-hidden relative md:flex order-first"
       >
-        <div id="tutorial-score-panel" className="p-6 flex flex-col gap-3 h-full w-80 overflow-y-auto custom-scrollbar">
+        <div id="tutorial-score-panel" data-panel-scroll className="p-6 flex flex-col gap-3 h-full w-80 overflow-y-auto custom-scrollbar" style={{ overscrollBehavior: 'contain' }}>
           <div className="flex items-center gap-2">
             <BarChart3 size={20} className={evaluationScore ? 'text-primary' : 'text-outline'} />
             <h2 className="text-base font-black font-headline">실시간 평가 지표</h2>
@@ -1028,16 +1049,23 @@ export const DebateView = ({
             <div className="flex flex-row items-center justify-between gap-3">
               <div id="tutorial-header" className="flex flex-col gap-1 flex-1">
                 <h2 className="text-lg md:text-xl font-black font-headline line-clamp-1">{topic}</h2>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <motion.div
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progress}%` }}
-                      className="h-full bg-primary"
-                    />
-                  </div>
-                  <span className="text-sm font-bold text-primary whitespace-nowrap">{progress}%</span>
-                </div>
+                {(() => {
+                  const totalSteps = totalRounds * 3;
+                  const completedSteps = (currentRound - 1) * 3 + (speechTurn - 1);
+                  const computedProgress = Math.min(100, Math.round((completedSteps / totalSteps) * 100));
+                  return (
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${computedProgress}%` }}
+                          className="h-full bg-primary"
+                        />
+                      </div>
+                      <span className="text-sm font-bold text-primary whitespace-nowrap">{computedProgress}%</span>
+                    </div>
+                  );
+                })()}
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <div id="tutorial-round-badge" className="flex flex-col gap-0.5 px-5 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
@@ -1067,7 +1095,7 @@ export const DebateView = ({
           </div>
         </div>
 
-        <div id="tutorial-chat-area" className={`flex-1 overflow-y-auto py-2 md:py-6 ${debatePhase === 'debating' ? 'pb-32 md:pb-36' : 'pb-8'} flex flex-col gap-6 md:gap-8 custom-scrollbar relative transition-all duration-300 ${isScoreSidebarOpen && isRelatedMaterialsSidebarOpen ? 'px-6 md:px-7' : isScoreSidebarOpen || isRelatedMaterialsSidebarOpen ? 'px-7 md:px-12' : 'px-8 md:px-21'}`} ref={scrollRef} style={{ overscrollBehavior: 'contain' }}>
+        <div id="tutorial-chat-area" data-panel-scroll className={`flex-1 overflow-y-auto py-2 md:py-6 ${debatePhase === 'debating' ? 'pb-32 md:pb-36' : 'pb-8'} flex flex-col gap-6 md:gap-8 custom-scrollbar relative transition-all duration-300 ${isScoreSidebarOpen && isRelatedMaterialsSidebarOpen ? 'px-6 md:px-7' : isScoreSidebarOpen || isRelatedMaterialsSidebarOpen ? 'px-7 md:px-12' : 'px-8 md:px-21'}`} ref={scrollRef} style={{ overscrollBehavior: 'contain' }}>
 
           {/* ── intro 단계: turn=0 로딩 스피너 ── */}
           {debatePhase === 'intro' && isGenerating && (
@@ -1086,7 +1114,7 @@ export const DebateView = ({
 
               {messages.map((msg, idx) => {
                 const prevMsg = idx > 0 ? messages[idx - 1] : null;
-                const showRoundIndicator = msg.round && (!prevMsg || prevMsg.round !== msg.round);
+                const showRoundIndicator = debatePhase === 'debating' && msg.round && (!prevMsg || prevMsg.round !== msg.round);
 
                 const isFirstUserMsg = msg.role === 'user' && !messages.slice(0, idx).some(m => m.role === 'user');
 
@@ -1117,9 +1145,9 @@ export const DebateView = ({
                         </div>
                         <div className={`flex flex-col gap-1 md:gap-1.5 max-w-[82%] ${msg.role === 'user' ? 'items-end' : ''}`}>
                           <div className="flex items-center gap-2 px-1">
-                            {msg.role === 'user' && evaluationScores[idx] && idx !== lastUserMsgIdx && (
+                            {msg.role === 'user' && idx !== lastUserMsgIdx && (
                               <button
-                                onClick={() => { setIsScoreSidebarOpen(true); setShowPrevScoreWhileLoading(false); setViewingMsgIdx(idx); setEvaluationScore(evaluationScores[idx]); }}
+                                onClick={() => handleViewScore(idx)}
                                 className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-sm font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                               >
                                 <BarChart3 size={10} /> 평가 완료 · 보기
@@ -1132,7 +1160,7 @@ export const DebateView = ({
                                 </span>
                               ) : (
                                 <button
-                                  onClick={() => { setIsScoreSidebarOpen(true); setViewingMsgIdx(idx); setEvaluationScore(evaluationScores[idx]); }}
+                                  onClick={() => handleViewScore(idx)}
                                   className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                                 >
                                   <BarChart3 size={10} /> 평가 완료 · 보기
@@ -1140,7 +1168,7 @@ export const DebateView = ({
                               )
                             )}
                             <span className="text-sm md:text-sm font-bold text-on-surface">
-                              {msg.role === 'user' ? '나 (사용자)' : msg.agentName || 'AI 에이전트'}
+                              {msg.role === 'user' ? '나 (사용자)' : 'AI 에이전트'}
                             </span>
                             <span className="text-sm md:text-sm text-outline">{msg.timestamp || '14:02'}</span>
                           </div>
@@ -1401,7 +1429,7 @@ export const DebateView = ({
         animate={{ width: isRelatedMaterialsSidebarOpen ? 360 : 0, opacity: isRelatedMaterialsSidebarOpen ? 1 : 0 }}
         className="bg-white flex flex-col border-l border-gray-200 overflow-hidden relative md:flex order-last" // order-last로 우측 정렬
       >
-        <div id="tutorial-materials-panel" className="p-6 flex flex-col gap-3 h-full w-90 overflow-y-auto custom-scrollbar">
+        <div id="tutorial-materials-panel" data-panel-scroll className="p-6 flex flex-col gap-3 h-full w-90 overflow-y-auto custom-scrollbar" style={{ overscrollBehavior: 'contain' }}>
           {(!hasFetchedMaterials || relatedMaterials.length > 0 || isLoadingRelatedMaterials || hasMaterialsFetchError) && (
             <div className="flex items-center gap-2">
               <FileText size={20} className="text-secondary" />
