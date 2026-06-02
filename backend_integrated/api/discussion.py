@@ -326,9 +326,6 @@ async def get_user_discussions(
                 "id": r["id"],
                 "topic": r["topic"],
                 "difficulty": r.get("difficulty", "normal"),
-                "status": "completed",
-                "score": 0.0,
-                "exp_earned": 0,
                 "has_report": bool(r.get("summary_report")),
                 "created_at": r["created_at"],
             }

@@ -79,9 +79,7 @@ class DiscussionHistoryResponse(BaseModel):
     id: int
     topic: str
     difficulty: Optional[str] = "normal"
-    status: Optional[str] = "completed"
-    score: float
-    exp_earned: int
+    has_report: bool = False
     created_at: datetime
 
     class Config:
