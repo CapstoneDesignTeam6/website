@@ -81,7 +81,7 @@ async def send_message(
 
             # 세션 저장: 로그인 유저는 정수 user_id, 게스트는 "GUEST_<discussion_id>"
             if user.get('id') and not user.get('is_guest'):
-                uid = user['id']
+                uid = str(user['id'])
             else:
                 uid = f"GUEST_{discussion_id}"
             _sb.table("discussion_sessions").insert({
@@ -324,7 +324,7 @@ async def get_user_discussions(
         rows = (
             sb.table("discussion_sessions")
             .select("id, topic, difficulty, created_at")
-            .eq("user_id", user_id)
+            .eq("user_id", str(user_id))
             .order("created_at", desc=True)
             .range(skip, skip + limit - 1)
             .execute()
