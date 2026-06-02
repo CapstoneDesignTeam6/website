@@ -6,9 +6,6 @@ import type { AgentStep } from '../types';
 // 로컬 스토리지에 저장되는 인증 토큰 키
 const TOKEN_KEY = 'agora_token';
 
-// Vercel 프록시 타임아웃을 우회하기 위해 SSE 스트림 요청은 Render에 직접 호출
-const DIRECT_API_BASE = import.meta.env.VITE_DIRECT_API_URL ?? 'https://website-2ob3.onrender.com';
-
 const getHeaders = () => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -106,7 +103,7 @@ export const debateApi = {
     onStep?: (step: AgentStep) => void,
     onLog?: (message: string) => void,
   ): Promise<{ userSide: string; aiResponse: DebateMessage; used_materials?: string[]; agent_steps?: AgentStep[] }> => {
-    const res = await fetch(`${DIRECT_API_BASE}/api/debate/message`, {
+    const res = await fetch('/api/debate/message', {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ topic, message, history, discussion_id: discussionId ?? null, difficulty, turn: turn ?? 0 }),
@@ -215,7 +212,7 @@ export const debateApi = {
     discussionId?: number | null,
     onProgress?: (step: string) => void,
   ): Promise<DiscussionSummaryResponse> => {
-    const res = await fetch(`${DIRECT_API_BASE}/api/debate/analyze`, {
+    const res = await fetch('/api/debate/analyze', {
       method: 'POST',
       headers: getHeaders(),
       body: JSON.stringify({ topic, messages, discussion_id: discussionId ?? null }),
