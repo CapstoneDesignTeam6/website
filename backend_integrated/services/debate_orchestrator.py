@@ -152,6 +152,13 @@ def clear_event_queue(discussion_id) -> None:
     _event_queues.pop(str(discussion_id or "local"), None)
 
 
+# agent_id → 프론트 step 카드 타입 (실제 진행 단계 표시용)
+_AGENT_STEP_TYPE: dict[int, str] = {
+    0: "search", 1: "generate", 2: "generate", 3: "generate",
+    4: "simplify", 5: "simplify", 6: "orchestrator",
+}
+
+
 # ── 턴 관리 함수 ────────────────────────────────────────────────────
 
 
@@ -1102,6 +1109,12 @@ def run_step(context_json):
     print(f"⚙️  [Step {count}] 오케스트레이터 호출 시작")
     print(f"📊 [Orchestrator] 현재 반박 완료 횟수(refutation_turn): {refutation_turn}")
 
+    # step UI: 직전 에이전트 단계를 done 처리하고 오케스트레이터를 running으로
+    _last_agent = context_json.get("last_action", {}).get("agent_id")
+    if isinstance(_last_agent, int) and _last_agent not in (6, -1):
+        _emit({"type": "step", "step": _AGENT_STEP_TYPE.get(_last_agent, "generate"),
+               "status": "done", "data": {"agent_id": _last_agent}})
+    _emit({"type": "step", "step": "orchestrator", "status": "running", "data": {"agent_id": 6}})
     _log("🧭 다음 전략 수립 중...")
 
     messages = [
@@ -1164,6 +1177,11 @@ def run_orchestrator_test(result):
     if user_cmd == "stop":
         print("🛑 실행을 중단합니다.")
         return
+
+    # step UI: 오케스트레이터 done → 실제 다음 에이전트 running
+    _emit({"type": "step", "step": "orchestrator", "status": "done", "data": {"agent_id": 6}})
+    _emit({"type": "step", "step": _AGENT_STEP_TYPE.get(agent_id, "generate"),
+           "status": "running", "data": {"agent_id": agent_id}})
 
     if agent_id == 0:
         print("🔄 Agent 0 (Explorer) 실행 중...")
