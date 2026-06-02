@@ -380,7 +380,6 @@ export const DebateView = ({
   const [isPreQuizDone, setIsPreQuizDone] = useState(false);
   const [isPostQuizDone, setIsPostQuizDone] = useState(false);
   const [isScoreSidebarOpen, setIsScoreSidebarOpen] = useState(true);
-  const [showPrevScoreWhileLoading, setShowPrevScoreWhileLoading] = useState(false);
   const [viewingMsgIdx, setViewingMsgIdx] = useState<number | null>(null);
   const [isRelatedMaterialsSidebarOpen, setIsRelatedMaterialsSidebarOpen] = useState(true);
   const [relatedMaterials, setRelatedMaterials] = useState<RelatedMaterial[]>([]); // 참고 자료 상태
@@ -523,11 +522,6 @@ export const DebateView = ({
   const handleViewScore = (msgIdx: number) => {
     setIsScoreSidebarOpen(true);
     setViewingMsgIdx(msgIdx);
-    if (isLoadingScore && msgIdx !== lastUserMsgIdx) {
-      setShowPrevScoreWhileLoading(true);
-    } else {
-      setShowPrevScoreWhileLoading(false);
-    }
     onViewScore?.(msgIdx);
   };
 
@@ -536,6 +530,7 @@ export const DebateView = ({
     if (debatePhase === 'post-quiz') {
     }
   }, [debatePhase]);
+
 
   // 의견 생성 시작 시 참고자료 로딩 상태 활성화 (아직 자료가 없을 때만)
   useEffect(() => {
@@ -968,13 +963,19 @@ export const DebateView = ({
           </div>
           {/* 현재 표시할 평가: 이전 메시지 보기 중이면 해당 인덱스 평가, 아니면 prop으로 받은 evaluationScore */}
           {(() => {
-            const isPrevView = isLoadingScore && showPrevScoreWhileLoading && viewingMsgIdx !== null;
-            const displayScore = isPrevView ? (evaluationScores[viewingMsgIdx!] ?? null) : evaluationScore;
+            // 이전 메시지 보기: viewingMsgIdx가 마지막 유저 메시지가 아닌 다른 메시지인 경우
+            const isViewingPrev = viewingMsgIdx !== null && viewingMsgIdx !== lastUserMsgIdx;
+            // 평가/생성 로딩 중이고 이전 메시지를 보고 있으면 배너 표시
+            const showLoadingBanner = (isLoadingScore || isGenerating) && isViewingPrev;
+            // 표시할 점수: 이전 메시지 보기면 해당 점수, 아니면 최신 평가
+            const displayScore = isViewingPrev ? (evaluationScores[viewingMsgIdx!] ?? null) : evaluationScore;
+            // 전체 로딩 화면: 이전 메시지 보기 중이 아니면서 로딩 중인 경우
+            const showFullLoading = !isViewingPrev && (isLoadingScore || isGenerating);
 
             return (
               <>
                 {/* 로딩 중 + 이전 평가 보기 → 상단 배너 */}
-                {isPrevView && (
+                {showLoadingBanner && (
                   <div className="flex items-center gap-2 bg-blue-50 border border-primary/20 rounded-xl px-3 py-2">
                     <Loader2 size={13} className="animate-spin text-primary shrink-0" />
                     <div className="flex flex-col min-w-0">
@@ -985,12 +986,12 @@ export const DebateView = ({
                 )}
 
                 {/* 로딩 중 + 전체 로딩 화면 */}
-                {isLoadingScore && !showPrevScoreWhileLoading ? (
+                {showFullLoading ? (
                   <div className="flex flex-col items-center justify-center gap-3 flex-1">
                     <Loader2 size={28} className="animate-spin text-primary" />
-                    <p className="text-sm text-outline">점수를 계산하는 중...</p>
+                    <p className="text-sm text-outline">{isGenerating ? '에이전트 응답 대기 중...' : '점수를 계산하는 중...'}</p>
                   </div>
-                ) : !isLoadingScore && !evaluationScore ? (
+                ) : !showFullLoading && !evaluationScore && !isViewingPrev ? (
                   <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
                     <p className="text-sm text-outline">첫 발언 후 점수가 표시됩니다.</p>
                   </div>
@@ -1135,7 +1136,7 @@ export const DebateView = ({
                 // 퀴즈가 있으면 퀴즈 완료 후에만, 없으면 debating 진입 후 바로 표시
                 const quizExists = preQuizzes.length > 0 || isPreQuizDone || (isQuizLoading && debatePhase === 'pre-quiz');
                 const roundVisible = quizExists ? isPreQuizDone : (debatePhase === 'debating' || debatePhase === 'post-quiz');
-                const showRoundIndicator = roundVisible && msg.round && (!prevMsg || prevMsg.round !== msg.round);
+                const showRoundIndicator = roundVisible && msg.round && (!prevMsg || prevMsg.round !== msg.round) && !(msg.role !== 'user' && msg.turn === 0);
 
                 return (
                   <React.Fragment key={idx}>
@@ -1183,8 +1184,8 @@ export const DebateView = ({
                                 <BarChart3 size={10} /> 평가 완료 · 보기
                               </button>
                             )}
-                            {msg.role === 'user' && idx === lastUserMsgIdx && (!!evaluationScores[idx] || isLoadingScore) && (
-                              isLoadingScore ? (
+                            {msg.role === 'user' && idx === lastUserMsgIdx && (!!evaluationScores[idx] || isLoadingScore || isGenerating) && (
+                              (isLoadingScore || (isGenerating && !evaluationScores[idx])) ? (
                                 <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-sm font-bold bg-gray-100 text-outline">
                                   <Loader2 size={9} className="animate-spin" /> 평가 중
                                 </span>

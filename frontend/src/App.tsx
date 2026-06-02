@@ -306,6 +306,11 @@ export default function App() {
       };
       setMessages((prev) => [...prev, userMsg]);
 
+      // 진행률 계산: 사용자 메시지 전송 직후 즉시 업데이트
+      const totalSteps = totalRounds * 3;
+      const completedSteps = (currentRound - 1) * 3 + speechTurn;
+      setProgress(Math.min(100, Math.round((completedSteps / totalSteps) * 100)));
+
       setAgentLog([]);
       const data = await debateApi.sendMessage(
         topic, text, messages, discussionId, difficulty, currentTurn,
@@ -329,14 +334,7 @@ export default function App() {
         setAgentSteps(data.agent_steps);
       }
 
-      // userSide가 응답에 포함된 경우 앞서 추가한 사용자 메시지의 side를 업데이트
-      if (data.userSide) {
-        setMessages((prev) => prev.map((m, i) =>
-          i === prev.length - 1 && m.role === 'user' ? { ...m, side: data.userSide } : m
-        ));
-      }
-
-      // AI 응답이 오기 전, 유저 메시지 인덱스 기준으로 evaluation 호출
+      // AI 응답 완료 후 평가 호출 (백엔드가 이 시점에 discussion_turns에 유저 메시지 저장 완료)
       if (discussionId) {
         const msgIdx = messages.length; // userMsg가 추가된 후의 인덱스
         setIsLoadingScore(true);
@@ -347,6 +345,13 @@ export default function App() {
           })
           .catch(() => {})
           .finally(() => setIsLoadingScore(false));
+      }
+
+      // userSide가 응답에 포함된 경우 앞서 추가한 사용자 메시지의 side를 업데이트
+      if (data.userSide) {
+        setMessages((prev) => prev.map((m, i) =>
+          i === prev.length - 1 && m.role === 'user' ? { ...m, side: data.userSide } : m
+        ));
       }
 
       const nextspeechTurn = speechTurn + 1;
@@ -371,11 +376,6 @@ export default function App() {
           round: currentRound,
         },
       ]);
-
-      // 진행률 계산: 각 라운드는 주장/반박/재반박(3) = 3스텝 (주제 설명·사전퀴즈 제외)
-      const totalSteps = totalRounds * 3;
-      const completedSteps = (currentRound - 1) * 3 + speechTurn;
-      setProgress(Math.min(100, Math.round((completedSteps / totalSteps) * 100)));
 
       if (speechTurn < 3) {
         setspeechTurn(speechTurn + 1);
