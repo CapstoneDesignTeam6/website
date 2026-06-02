@@ -1,4 +1,4 @@
-import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, RelatedMaterial, DiscussionHistoryItem, MultipleChoiceQuiz, BackgroundSummary } from '../types';
+import { DebateMessage, UserData, DiscussionSummaryResponse, UserEvaluationScore, RelatedMaterial, DiscussionHistoryItem, MultipleChoiceQuiz } from '../types';
 import type { DebateTopic } from '../types';
 import type { AgentStep } from '../types';
 // import { MOCK_RELATED_MATERIALS, MOCK_TOPICS, MOCK_DEBATE_SUMMARY, MOCK_USER_EVALUATION_SCORE, MOCK_PRE_QUIZ_MC, MOCK_POST_QUIZ_MC } from '../mockData';
@@ -56,20 +56,6 @@ export const debateApi = {
       }
     } catch (_) { /* 실패 시 빈 배열 반환 */ }
     return [];
-  },
-
-  // ─── 배경 요약 관련 (BackgroundSummary) — QuizView 전용, 현재 미사용 ──────────
-  // QuizView.tsx는 라우팅에서 제외되어 사용되지 않으므로 주석 처리
-  getBackgroundSummary: async (topic: string): Promise<BackgroundSummary> => {
-    try {
-      const res = await fetch(`/api/debate/background?topic=${encodeURIComponent(topic)}`, {
-        headers: getHeaders(),
-      });
-      if (!res.ok) throw new Error(`API error: ${res.statusText}`);
-      return res.json();
-    } catch (_) {
-      return { topic, summary: '' };
-    }
   },
 
   // ─── 퀴즈 관련 (Quiz) ────────────────────────────────────────────────────────

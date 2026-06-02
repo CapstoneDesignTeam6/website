@@ -5,12 +5,9 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from database import create_all_tables
-from models.level_config import LevelConfig, LEVEL_CONFIG_DATA
-from services.level_service import LevelService
 from services.agent_service import AgentService
-from api import auth, discussion, level
+from api import auth, discussion
 from api.auth import auth_router
-from database import SessionLocal
 from config import settings
 import asyncio
 import logging
@@ -106,7 +103,6 @@ app.include_router(auth.router)
 app.include_router(auth_router)
 app.include_router(discussion.router)
 app.include_router(discussion.public_router)
-app.include_router(level.router)
 
 @app.on_event("startup")
 async def startup_event():
@@ -123,15 +119,7 @@ async def startup_event():
     except Exception as e:
         logger.error(f"❌ Supabase 연결 실패: {e}")
         logger.error("→ Supabase 대시보드에서 프로젝트가 Active 상태인지 확인하세요.")
-    
-    # 레벨 설정 초기화
-    db = SessionLocal()
-    try:
-        LevelService.initialize_level_configs(db)
-        logger.info("Level configurations initialized")
-    finally:
-        db.close()
-    
+
     logger.info("✅ 요청 기반 자동 갱신 활성화 (뉴스: 1일, 주제: 7일)")
 
     # LLM 설정 상태 확인

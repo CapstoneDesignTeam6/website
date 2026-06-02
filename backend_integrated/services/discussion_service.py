@@ -3,8 +3,7 @@ from sqlalchemy.orm import Session
 from supabase import Client
 from models.discussion import DiscussionSession
 from models.message import Message
-from schemas.discussion import DiscussionCreate, DiscussionEndRequest
-from services.level_service import LevelService
+from schemas.discussion import DiscussionCreate
 from config import settings
 
 class DiscussionService:
@@ -38,38 +37,6 @@ class DiscussionService:
         db.commit()
         db.refresh(message)
         return message
-    
-    @staticmethod
-    def end_discussion(session: DiscussionSession, end_request: DiscussionEndRequest, user: dict, db: Session, supabase: Client) -> dict:
-        """토론 종료 및 평가"""
-        # 토론 상태 업데이트
-        session.status = "completed"
-        session.completed_at = datetime.utcnow()
-        
-        # 점수 및 평가 정보 설정
-        score = end_request.score if end_request.score is not None else 50.0  # 기본값: 50점
-        evaluation_detail = end_request.evaluation_detail or {}
-        
-        session.score = score
-        session.evaluation_detail = evaluation_detail
-        
-        # 경험치 계산
-        exp, star_rating = LevelService.calculate_score_exp(score)
-        session.exp_earned = exp
-        
-        db.commit()
-        db.refresh(session)
-        
-        # 사용자에게 경험치 추가 및 레벨업 확인
-        level_result = LevelService.add_experience(user, exp, db, supabase)
-        
-        return {
-            "discussion_id": session.id,
-            "score": session.score,
-            "star_rating": star_rating,
-            "exp_earned": exp,
-            "level_info": level_result
-        }
     
     @staticmethod
     def get_user_discussions(user: dict, db: Session, skip: int = 0, limit: int = 20) -> list:

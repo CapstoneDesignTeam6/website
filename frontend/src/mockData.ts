@@ -1,5 +1,5 @@
 // frontend/src/mockData.ts
-import { DebateMessage, DiscussionSummaryResponse, UserEvaluationScore, BackgroundSummary, OXQuiz, SubjectiveQuiz, MultipleChoiceQuiz, DiscussionHistoryItem } from './types';
+import { DebateMessage, DiscussionSummaryResponse, UserEvaluationScore, OXQuiz, SubjectiveQuiz, MultipleChoiceQuiz, DiscussionHistoryItem } from './types';
 
 // 목(mock) 관련 자료 데이터
 export const MOCK_RELATED_MATERIALS = [
@@ -169,12 +169,6 @@ export const MOCK_REBUTTAL_HINT = `원자력 발전의 전 생애주기 비용�
 
 // 목(mock) 재반박 힌트 데이터
 export const MOCK_COUNTER_HINT = `상대방이 ESS와 스마트 그리드로 재생에너지의 간헐성을 보완할 수 있다고 주장했지만, 현실적인 규모와 비용 문제를 짚어보세요. 국제에너지기구(IEA)에 따르면 2023년 기준 전 세계 배터리 저장 설비는 전체 전력 수요의 1% 미만을 커버하는 수준에 불과해요. 재생에너지 100% 전환을 위해 필요한 ESS 규모를 갖추려면 수십 년과 수백조 원의 투자가 필요하다는 점에서, '기술로 보완 가능하다'는 주장은 현재 기술 성숙도와 경제성을 과대평가한 것이에요. 반면 원자력은 이미 검증된 기저 전원으로, 프랑스는 원전 비중 70% 이상을 유지하며 유럽에서 가장 낮은 탄소 전력을 안정적으로 공급하고 있어요. "미래의 ESS 기술"이 아닌 "지금 당장 작동하는 저탄소 전원"이 필요하다는 점을 강조하며, 상대방의 재생에너지 전환 로드맵이 구체적 시간표와 비용 근거 없이 낙관론에 기반하고 있음을 지적해보는 건 어떨까요?`;
-
-// 목(mock) 배경 요약 데이터
-export const MOCK_BACKGROUND_SUMMARY: BackgroundSummary = {
-  topic: "원자력 발전소를 증설해야 하는가?",
-  summary: `기후 위기와 에너지 안보 문제가 동시에 부각되면서 원자력 발전의 역할을 둘러싼 논쟁이 다시 뜨거워지고 있어요. 탄소 중립 목표를 달성하기 위해 안정적이고 저탄소인 전력원이 필요하다는 주장과, 방사성 폐기물·사고 위험·높은 건설 비용이라는 고유한 위험을 감수해서는 안 된다는 주장이 팽팽하게 맞서고 있기 때문이죠. 이번 토론의 핵심 쟁점은 원자력 발전소를 추가 건설하는 것이 기후·에너지 문제의 해법인지, 아니면 더 큰 위험을 불러오는 선택인지입니다. 찬성 측에서는 IPCC 보고서 기준 생애주기 탄소 배출량이 kWh당 약 12g으로 태양광보다도 낮고, 날씨에 관계없이 24시간 안정적인 전력을 공급할 수 있다는 점을 강조해요. 프랑스는 전력의 70% 이상을 원자력으로 충당하며 유럽 최저 수준의 전기요금을 유지하는 사례로 자주 거론됩니다. 반대 측에서는 후쿠시마·체르노빌 사고가 보여준 회복 불가능한 생태계 파괴, 아직 영구 처분장이 확정되지 않은 사용후핵연료 문제, 그리고 라자드 2024년 보고서 기준 원자력 균등화발전비용(LCOE)이 182달러/MWh로 육상 풍력·태양광보다 훨씬 높다는 점을 근거로 들고 있어요. 여기에 태양광·풍력 발전 단가가 지난 10년간 급격히 하락하면서 재생에너지가 현실적인 대안으로 부상했다는 점도 반대 논거를 뒷받침합니다.`,
-};
 
 // 목(mock) 사전 퀴즈 세트 (데이터 형식 예시)
 export const MOCK_PRE_QUIZ_OX: OXQuiz[] = [

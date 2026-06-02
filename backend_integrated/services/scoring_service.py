@@ -189,6 +189,32 @@ def _to_frontend(turn_result: dict) -> dict:
 
 # ── 공개 API ───────────────────────────────────────────────────────────────────
 
+def get_saved_evaluation(discussion_id: int, turn_number: int) -> Optional[dict]:
+    """특정 턴의 저장된 평가 점수를 DB에서 직접 조회 (GPT 호출 없음).
+
+    discussion_turns.score 컬럼에는 이미 UserEvaluationScore 형식(JSON)이 저장돼 있으므로
+    그대로 반환한다. 점수가 아직 없으면 None.
+    """
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        rows = (
+            sb.table("discussion_turns")
+            .select("score")
+            .eq("discussion_id", discussion_id)
+            .eq("turn_number", turn_number)
+            .limit(1)
+            .execute()
+            .data
+        ) or []
+        if not rows:
+            return None
+        return rows[0].get("score")  # 저장된 UserEvaluationScore JSON (없으면 None)
+    except Exception as e:
+        logger.error(f"[ScoringService] 저장 점수 조회 실패: {e}")
+        return None
+
+
 def get_evaluation(discussion_id: int, topic: str) -> Optional[dict]:
     """
     최신 유저 발언 기준으로 평가 점수 반환.

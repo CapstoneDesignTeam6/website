@@ -181,11 +181,26 @@ async def send_message(
 async def get_evaluation(
     discussion_id: int,
     topic: str = "",
+    turn_number: int | None = None,
 ):
-    """최신 유저 발언 기준 5개 지표 평가 점수 반환 (UserEvaluationScore 형식)"""
-    import asyncio
-    from services.scoring_service import get_evaluation as _evaluate
+    """5개 지표 평가 점수 반환 (UserEvaluationScore 형식).
 
+    - turn_number 없음 → 최신 유저 발언을 GPT로 평가해 반환 (기존 동작)
+    - turn_number 있음 → discussion_turns.score를 DB에서 직접 조회해 반환 (GPT 호출 없음)
+    """
+    import asyncio
+
+    if turn_number is not None:
+        from services.scoring_service import get_saved_evaluation
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None, lambda: get_saved_evaluation(discussion_id=discussion_id, turn_number=turn_number)
+        )
+        if result is None:
+            raise HTTPException(status_code=404, detail="해당 턴의 저장된 평가가 없습니다.")
+        return result
+
+    from services.scoring_service import get_evaluation as _evaluate
     loop = asyncio.get_running_loop()
     result = await loop.run_in_executor(
         None, lambda: _evaluate(discussion_id=discussion_id, topic=topic)
@@ -359,7 +374,7 @@ async def get_discussion_turns(
         sb = get_supabase_client()
         rows = (
             sb.table("discussion_turns")
-            .select("turn_number, user_message, ai_summary")
+            .select("turn_number, turn_type, user_message, ai_summary, score, score_total")
             .eq("discussion_id", discussion_id)
             .order("turn_number", desc=False)
             .execute()
@@ -367,11 +382,29 @@ async def get_discussion_turns(
         ) or []
         messages = []
         for r in rows:
+            tn = r["turn_number"]
+            # 점수는 그 턴(유저 발언)에 대한 평가 → 유저 메시지에 함께 실어 보냄
             if r.get("user_message"):
-                messages.append({"role": "user", "content": r["user_message"], "turn": r["turn_number"]})
+                messages.append({
+                    "role": "user",
+                    "content": r["user_message"],
+                    "turn": tn,
+                    "score": r.get("score"),
+                    "score_total": r.get("score_total"),
+                })
             if r.get("ai_summary"):
-                messages.append({"role": "ai", "content": r["ai_summary"], "turn": r["turn_number"]})
-        return {"discussion_id": discussion_id, "messages": messages}
+                messages.append({"role": "ai", "content": r["ai_summary"], "turn": tn})
+        # turn_number별 점수 요약도 함께 제공 (조회 편의용)
+        scores = [
+            {
+                "turn_number": r["turn_number"],
+                "turn_type": r.get("turn_type"),
+                "score": r.get("score"),
+                "score_total": r.get("score_total"),
+            }
+            for r in rows
+        ]
+        return {"discussion_id": discussion_id, "messages": messages, "scores": scores}
     except HTTPException:
         raise
     except Exception as e:

@@ -26,13 +26,6 @@ export interface DebateTopic {
   related_news?: string[];
 }
 
-// ─── 배경 요약 관련 ──────────────────────────────────────────────────────────
-
-export interface BackgroundSummary {
-  topic: string;
-  summary: string;
-}
-
 // ─── 퀴즈 관련(객관식만 사용중 ) ─────────────────────────────────────────────
 
 export type QuizPhase = 'pre' | 'post';

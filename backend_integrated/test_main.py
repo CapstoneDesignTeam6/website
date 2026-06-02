@@ -5,7 +5,6 @@ from sqlalchemy.orm import sessionmaker
 from database import Base, get_db
 from main import app
 from models.user import User
-from models.level_config import LevelConfig, LEVEL_CONFIG_DATA
 from services.auth_service import AuthService
 
 # 테스트 데이터베이스 설정
@@ -180,28 +179,6 @@ class TestDiscussion:
 # ================================================================
 # 4. 레벨 시스템 테스트
 # ================================================================
-
-class TestLevel:
-    def test_level_initialization(self):
-        """레벨 설정 초기화"""
-        db = TestingSessionLocal()
-        
-        # 레벨 설정 추가
-        for config_data in LEVEL_CONFIG_DATA:
-            existing = db.query(LevelConfig).filter(
-                LevelConfig.level == config_data["level"]
-            ).first()
-            if not existing:
-                config = LevelConfig(**config_data)
-                db.add(config)
-        
-        db.commit()
-        
-        # 확인
-        levels = db.query(LevelConfig).all()
-        assert len(levels) > 0
-        
-        db.close()
 
 # ================================================================
 # 5. 통합 테스트

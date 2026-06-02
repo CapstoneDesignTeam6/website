@@ -276,10 +276,24 @@ def get_summary(discussion_id: int, topic: str) -> dict:
     if invalid_contents:
         extra_info = f"무효 발언 {len(invalid_contents)}건이 요약에서 제외됐습니다."
 
-    print(f"✅ [Summary] 요약 생성 완료 (discussion_id={discussion_id})")
-    return {
+    result = {
         "summary": summary,
         "issues": structured,
         "logic_feedback": logic_feedback,
         "extra_info": extra_info,
     }
+
+    # 요약·피드백을 discussion_sessions에 저장 (세션당 1개, id=discussion_id로 UPDATE)
+    if discussion_id:
+        try:
+            from database import get_supabase_client
+            sb = get_supabase_client()
+            sb.table("discussion_sessions").update({
+                "summary_report": result,
+            }).eq("id", discussion_id).execute()
+            print(f"💾 [Summary] 요약·피드백 DB 저장 완료 (discussion_id={discussion_id})")
+        except Exception as e:
+            print(f"⚠️ [Summary] 요약 DB 저장 실패: {e}")
+
+    print(f"✅ [Summary] 요약 생성 완료 (discussion_id={discussion_id})")
+    return result
