@@ -66,6 +66,7 @@ interface DebateViewProps {
   onPostQuizComplete?: (answers: number[]) => void;  // 사후 퀴즈 완료 → ResultView 이동
   onRestart?: () => void;           // "다시 시작" → 토론 상태 초기화 후 /setup 이동
   onRegisterExitHandler?: (handler: (path: string) => void) => void; // 이탈 가로채기 핸들러 등록
+  onExitNavigate?: (path: string) => void; // 이탈 확정 후 네비게이션 위임 (특수 경로 처리용)
   onScoreAvg?: (avg: number) => void; // 평가 점수 평균을 App으로 전달
   evaluationScores?: Record<number, UserEvaluationScore>;
   evaluationScore?: UserEvaluationScore | null;
@@ -170,15 +171,12 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
   const fallbackKeys = isEasy ? EASY_STEP_KEYS : NORMAL_STEP_KEYS;
   const steps = backendSteps ?? fallbackKeys.map(key => ({ ...STEP_META[key], status: 'pending' as const, data: undefined }));
 
-  const initialActive = backendSteps
-    ? Math.max(0, backendSteps.findIndex(s => s.status === 'running'))
-    : 0;
-  const [activeStep, setActiveStep] = useState(initialActive);
+  const [activeStep, setActiveStep] = useState(0);
 
   useEffect(() => {
-    if (backendSteps) {
-      const runningIdx = backendSteps.findIndex(s => s.status === 'running');
-      setActiveStep(runningIdx >= 0 ? runningIdx : backendSteps.length - 1);
+    if (agentSteps && agentSteps.length > 0) {
+      const runningIdx = agentSteps.findIndex(s => s.status === 'running');
+      setActiveStep(runningIdx >= 0 ? runningIdx : agentSteps.length - 1);
       return;
     }
     const interval = setInterval(() => {
@@ -224,7 +222,7 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
             </React.Fragment>
           ))}
         </div>
-        <div className="flex items-center gap-2 px-1">
+        {/* <div className="flex items-center gap-2 px-1">
           <motion.div
             className="flex gap-1"
             initial={false}
@@ -239,23 +237,21 @@ const AgentThinkingIndicator = ({ isEasy, agentSteps, agentLog }: { isEasy: bool
             ))}
           </motion.div>
           <span className="text-sm text-outline">{steps[activeStep]?.desc ?? ''}</span>
-        </div>
+        </div> */}
         {/* 현재 단계의 실시간 서버 로그 누적 표시 (단계 전환 시 초기화됨) */}
         {agentLog && agentLog.length > 0 && (
-          <div className="flex flex-col gap-1 px-1 pt-1">
-            <AnimatePresence initial={false}>
-              {agentLog.map((line, i) => (
-                <motion.span
-                  key={`${i}-${line}`}
-                  className="text-sm text-gray-400 leading-relaxed font-mono"
-                  initial={{ opacity: 0, x: -4 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                >
-                  {line}
-                </motion.span>
-              ))}
+          <div className="px-1 pt-1">
+            <AnimatePresence mode="wait">
+              <motion.span
+                key={agentLog[agentLog.length - 1]}
+                className="text-sm text-gray-400 leading-relaxed font-mono"
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.25 }}
+              >
+                {agentLog[agentLog.length - 1]}
+              </motion.span>
             </AnimatePresence>
           </div>
         )}
@@ -354,6 +350,7 @@ export const DebateView = ({
   onFinish,
   currentRound = 1,
   totalRounds = 2,
+  progress = 0,
   discussionId,
   agentSteps,
   agentLog,
@@ -370,6 +367,7 @@ export const DebateView = ({
   onPostQuizComplete,
   onRestart,
   onRegisterExitHandler,
+  onExitNavigate,
   onScoreAvg,
   evaluationScores = {},
   evaluationScore = null,
@@ -525,13 +523,25 @@ export const DebateView = ({
   const handleViewScore = (msgIdx: number) => {
     setIsScoreSidebarOpen(true);
     setViewingMsgIdx(msgIdx);
-    setShowPrevScoreWhileLoading(false);
+    if (isLoadingScore && msgIdx !== lastUserMsgIdx) {
+      setShowPrevScoreWhileLoading(true);
+    } else {
+      setShowPrevScoreWhileLoading(false);
+    }
     onViewScore?.(msgIdx);
   };
 
-  // 의견 생성 시작 시 참고자료 로딩 상태 활성화
+  // 평가 로딩 완료 시 이전 평가 보기 상태 초기화
   useEffect(() => {
-    if (isGenerating) {
+    if (!isLoadingScore) {
+      setShowPrevScoreWhileLoading(false);
+      setViewingMsgIdx(null);
+    }
+  }, [isLoadingScore]);
+
+  // 의견 생성 시작 시 참고자료 로딩 상태 활성화 (아직 자료가 없을 때만)
+  useEffect(() => {
+    if (isGenerating && !hasFetchedMaterials) {
       setIsLoadingRelatedMaterials(true);
     }
   }, [isGenerating]);
@@ -920,7 +930,12 @@ export const DebateView = ({
                         onFinish();
                       } else {
                         onRestart?.();
-                        navigate(confirmModal.pendingPath ?? '/setup', { replace: true });
+                        const dest = confirmModal.pendingPath ?? '/setup';
+                        if (onExitNavigate) {
+                          onExitNavigate(dest);
+                        } else {
+                          navigate(dest, { replace: true });
+                        }
                       }
                     }}
                     className="px-5 py-2 rounded-xl bg-secondary text-white font-bold text-sm hover:bg-secondary/90 transition-colors"
@@ -953,82 +968,92 @@ export const DebateView = ({
             <BarChart3 size={20} className={evaluationScore ? 'text-primary' : 'text-outline'} />
             <h2 className="text-base font-black font-headline">실시간 평가 지표</h2>
           </div>
-          {/* 로딩 중 + 이전 평가 보기 선택 → 배너만 표시 */}
-          {isLoadingScore && showPrevScoreWhileLoading && (
-            <div className="flex items-center gap-2 bg-blue-50 border border-primary/20 rounded-xl px-3 py-2">
-              <Loader2 size={13} className="animate-spin text-primary shrink-0" />
-              <div className="flex flex-col min-w-0">
-                <p className="text-sm font-bold text-primary">새 발언 평가 중...</p>
-                <p className="text-sm text-gray-600 truncate">{messages[lastUserMsgIdx]?.content}</p>
-              </div>
-            </div>
-          )}
+          {/* 현재 표시할 평가: 이전 메시지 보기 중이면 해당 인덱스 평가, 아니면 prop으로 받은 evaluationScore */}
+          {(() => {
+            const isPrevView = isLoadingScore && showPrevScoreWhileLoading && viewingMsgIdx !== null;
+            const displayScore = isPrevView ? (evaluationScores[viewingMsgIdx!] ?? null) : evaluationScore;
 
-          {/* 로딩 중 + 전체 로딩 화면 */}
-          {isLoadingScore && !showPrevScoreWhileLoading ? (
-            <div className="flex flex-col items-center justify-center gap-3 flex-1">
-              <Loader2 size={28} className="animate-spin text-primary" />
-              <p className="text-sm text-outline">점수를 계산하는 중...</p>
-            </div>
-          ) : !isLoadingScore && !evaluationScore ? (
-            <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
-              <p className="text-sm text-outline">첫 발언 후 점수가 표시됩니다.</p>
-            </div>
-          ) : evaluationScore ? (
-            <>
-            {(viewingMsgIdx ?? lastUserMsgIdx) >= 0 && (
-                <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-                  <p className="text-sm font-bold text-primary mb-1">평가 대상 발언</p>
-                  <p className="text-sm text-outline leading-relaxed line-clamp-2">
-                    {messages[viewingMsgIdx ?? lastUserMsgIdx]?.content}
-                  </p>
-                </div>
-              )}
-              <div className="w-full">
-                <PentagonChart score={evaluationScore} />
-              </div>
-              <p className="text-sm text-outline text-center -mt-5 mb-1">지표 이름을 클릭하면 설명을 볼 수 있어요</p>
-              
-              <AnimatePresence>
-                {activeTooltip !== null && (
-                  <motion.div
-                    key={activeTooltip}
-                    initial={{ opacity: 0, y: -8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -8 }}
-                    className="relative bg-indigo-50 border border-indigo-200 rounded-xl p-4"
-                  >
-                    <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
-                      <p className="text-sm font-black text-primary">{scoreLabels[activeTooltip].label}</p>
-                      <p className="text-base font-black text-primary">
-                        {evaluationScore[scoreLabels[activeTooltip].key].score} / 5
-                      </p>
-                      <button onClick={() => setActiveTooltip(null)} className="text-outline hover:text-on-surface">
-                        <X size={14} />
-                      </button>
+            return (
+              <>
+                {/* 로딩 중 + 이전 평가 보기 → 상단 배너 */}
+                {isPrevView && (
+                  <div className="flex items-center gap-2 bg-blue-50 border border-primary/20 rounded-xl px-3 py-2">
+                    <Loader2 size={13} className="animate-spin text-primary shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <p className="text-sm font-bold text-primary">새 발언 평가 중...</p>
+                      <p className="text-sm text-gray-600 truncate">{messages[lastUserMsgIdx]?.content}</p>
                     </div>
-                    <p className="text-sm text-on-surface leading-relaxed mt-1">{scoreLabels[activeTooltip].desc}</p>
-                    <div className="flex flex-col gap-1 border-t border-indigo-200 mt-2 pt-2">
-                      <p className="text-sm font-bold text-primary">평가 이유</p>
-                      <p className="text-sm text-outline leading-relaxed">{evaluationScore[scoreLabels[activeTooltip].key].reason}</p>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              <div className="flex flex-col gap-2">
-                {scoreLabels.map(({ key, label }, idx) => (
-                  <div
-                    key={key}
-                    className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 cursor-pointer hover:bg-indigo-50 transition-colors"
-                    onClick={() => setActiveTooltip(activeTooltip === idx ? null : idx)}
-                  >
-                    <span className="text-sm font-bold text-on-surface">{label}</span>
-                    <span className="text-sm font-black text-primary">{evaluationScore[key].score} / 5</span>
                   </div>
-                ))}
-              </div>
-            </>
-          ) : null}
+                )}
+
+                {/* 로딩 중 + 전체 로딩 화면 */}
+                {isLoadingScore && !showPrevScoreWhileLoading ? (
+                  <div className="flex flex-col items-center justify-center gap-3 flex-1">
+                    <Loader2 size={28} className="animate-spin text-primary" />
+                    <p className="text-sm text-outline">점수를 계산하는 중...</p>
+                  </div>
+                ) : !isLoadingScore && !evaluationScore ? (
+                  <div className="flex flex-col items-center justify-center flex-1 text-center opacity-50">
+                    <p className="text-sm text-outline">첫 발언 후 점수가 표시됩니다.</p>
+                  </div>
+                ) : displayScore ? (
+                  <>
+                    {(viewingMsgIdx ?? lastUserMsgIdx) >= 0 && (
+                      <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
+                        <p className="text-sm font-bold text-primary mb-1">평가 대상 발언</p>
+                        <p className="text-sm text-outline leading-relaxed line-clamp-2">
+                          {messages[viewingMsgIdx ?? lastUserMsgIdx]?.content}
+                        </p>
+                      </div>
+                    )}
+                    <div className="w-full">
+                      <PentagonChart score={displayScore} />
+                    </div>
+                    <p className="text-sm text-outline text-center -mt-5 mb-1">지표 이름을 클릭하면 설명을 볼 수 있어요</p>
+
+                    <AnimatePresence>
+                      {activeTooltip !== null && (
+                        <motion.div
+                          key={activeTooltip}
+                          initial={{ opacity: 0, y: -8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -8 }}
+                          className="relative bg-indigo-50 border border-indigo-200 rounded-xl p-4"
+                        >
+                          <div className="grid grid-cols-[1fr_auto_auto] items-center gap-3">
+                            <p className="text-sm font-black text-primary">{scoreLabels[activeTooltip].label}</p>
+                            <p className="text-base font-black text-primary">
+                              {displayScore[scoreLabels[activeTooltip].key].score} / 5
+                            </p>
+                            <button onClick={() => setActiveTooltip(null)} className="text-outline hover:text-on-surface">
+                              <X size={14} />
+                            </button>
+                          </div>
+                          <p className="text-sm text-on-surface leading-relaxed mt-1">{scoreLabels[activeTooltip].desc}</p>
+                          <div className="flex flex-col gap-1 border-t border-indigo-200 mt-2 pt-2">
+                            <p className="text-sm font-bold text-primary">평가 이유</p>
+                            <p className="text-sm text-outline leading-relaxed">{displayScore[scoreLabels[activeTooltip].key].reason}</p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    <div className="flex flex-col gap-2">
+                      {scoreLabels.map(({ key, label }, idx) => (
+                        <div
+                          key={key}
+                          className="flex items-center justify-between bg-gray-50 rounded-xl px-3 py-2 cursor-pointer hover:bg-indigo-50 transition-colors"
+                          onClick={() => setActiveTooltip(activeTooltip === idx ? null : idx)}
+                        >
+                          <span className="text-sm font-bold text-on-surface">{label}</span>
+                          <span className="text-sm font-black text-primary">{displayScore[key].score} / 5</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : null}
+              </>
+            );
+          })()}
         </div>
       </motion.aside>
 
@@ -1049,23 +1074,16 @@ export const DebateView = ({
             <div className="flex flex-row items-center justify-between gap-3">
               <div id="tutorial-header" className="flex flex-col gap-1 flex-1">
                 <h2 className="text-lg md:text-xl font-black font-headline line-clamp-1">{topic}</h2>
-                {(() => {
-                  const totalSteps = totalRounds * 3;
-                  const completedSteps = (currentRound - 1) * 3 + (speechTurn - 1);
-                  const computedProgress = Math.min(100, Math.round((completedSteps / totalSteps) * 100));
-                  return (
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${computedProgress}%` }}
-                          className="h-full bg-primary"
-                        />
-                      </div>
-                      <span className="text-sm font-bold text-primary whitespace-nowrap">{computedProgress}%</span>
-                    </div>
-                  );
-                })()}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <motion.div
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progress ?? 0}%` }}
+                      className="h-full bg-primary"
+                    />
+                  </div>
+                  <span className="text-sm font-bold text-primary whitespace-nowrap">{progress ?? 0}%</span>
+                </div>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <div id="tutorial-round-badge" className="flex flex-col gap-0.5 px-5 py-1 bg-gray-50 rounded-xl border border-gray-100 text-center">
@@ -1114,27 +1132,41 @@ export const DebateView = ({
 
               {messages.map((msg, idx) => {
                 const prevMsg = idx > 0 ? messages[idx - 1] : null;
-                const showRoundIndicator = debatePhase === 'debating' && msg.round && (!prevMsg || prevMsg.round !== msg.round);
-
                 const isFirstUserMsg = msg.role === 'user' && !messages.slice(0, idx).some(m => m.role === 'user');
+
+                // 퀴즈가 있으면 퀴즈 완료 후에만, 없으면 debating 진입 후 바로 표시
+                const quizExists = preQuizzes.length > 0 || isPreQuizDone || (isQuizLoading && debatePhase === 'pre-quiz');
+                const roundVisible = quizExists ? isPreQuizDone : (debatePhase === 'debating' || debatePhase === 'post-quiz');
+                const showRoundIndicator = roundVisible && msg.round && (!prevMsg || prevMsg.round !== msg.round);
 
                 return (
                   <React.Fragment key={idx}>
                     {/* ── 사전 퀴즈: 첫 번째 사용자 메시지 바로 위에 고정 삽입 ── */}
-                    {isFirstUserMsg && (debatePhase === 'pre-quiz' || debatePhase === 'debating') && (preQuizzes.length > 0 || isPreQuizDone || (isQuizLoading && debatePhase === 'pre-quiz')) && (
-                      <InlineQuizPanel
-                        quizzes={preQuizzes}
-                        isLoading={isQuizLoading && debatePhase === 'pre-quiz'}
-                        type="pre"
-                        isDone={isPreQuizDone}
-                        onComplete={(answers) => { setIsPreQuizDone(true); onPreQuizComplete?.(answers); }}
-                        isCompleting={false}
-                      />
+                    {isFirstUserMsg && (debatePhase === 'pre-quiz' || debatePhase === 'debating') && quizExists && (
+                      <>
+                        <InlineQuizPanel
+                          quizzes={preQuizzes}
+                          isLoading={isQuizLoading && debatePhase === 'pre-quiz'}
+                          type="pre"
+                          isDone={isPreQuizDone}
+                          onComplete={(answers) => { setIsPreQuizDone(true); onPreQuizComplete?.(answers); }}
+                          isCompleting={false}
+                        />
+                        {/* 라운드 1 배지: 사전 퀴즈 완료 후 표시 */}
+                        {showRoundIndicator && (
+                          <div className="flex justify-center">
+                            <span className="px-3 py-1 bg-gray-100 border border-gray-800 text-on-surface text-sm font-black rounded-full tracking-widest">
+                              라운드 {msg.round}
+                            </span>
+                          </div>
+                        )}
+                      </>
                     )}
-                    {showRoundIndicator && (
+                    {/* 라운드 2+ 배지: 퀴즈 없는 경우 또는 첫 메시지가 아닌 경우 */}
+                    {!isFirstUserMsg && showRoundIndicator && (
                       <div className="flex justify-center">
-                        <span className="px-3 py-1 bg-gray-100 border border-gray-800  text-on-surface text-sm font-black rounded-full tracking-widest">
-                          라운드 {msg.round} 
+                        <span className="px-3 py-1 bg-gray-100 border border-gray-800 text-on-surface text-sm font-black rounded-full tracking-widest">
+                          라운드 {msg.round}
                         </span>
                       </div>
                     )}

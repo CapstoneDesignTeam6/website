@@ -364,9 +364,9 @@ export default function App() {
         },
       ]);
 
-      // 진행률 계산: 각 라운드는 에이전트 설명(+1) + 주장/반박/재반박(3) = 4스텝
-      const totalSteps = totalRounds * 4;
-      const completedSteps = (currentRound - 1) * 4 + 1 + speechTurn;
+      // 진행률 계산: 각 라운드는 주장/반박/재반박(3) = 3스텝 (주제 설명·사전퀴즈 제외)
+      const totalSteps = totalRounds * 3;
+      const completedSteps = (currentRound - 1) * 3 + speechTurn;
       setProgress(Math.min(100, Math.round((completedSteps / totalSteps) * 100)));
 
       if (speechTurn < 3) {
@@ -478,8 +478,23 @@ export default function App() {
   // 토론 중 이탈 확인: DebateView가 등록한 콜백을 여기 저장
   const [debateExitHandler, setDebateExitHandler] = useState<((path: string) => void) | null>(null);
 
+  // '/logout' 경로는 실제 라우트가 아니라 로그아웃 액션을 의미하는 시그널
+  const executeLogout = () => {
+    userApi.logout();
+    setIsLoggedIn(false);
+    navigate('/', { replace: true });
+  };
+
   // Navbar 등에서 navigate 전에 호출 — 토론 중이면 DebateView 팝업으로 위임, 아니면 바로 이동
   const handleNavbarNavigate = (path: string) => {
+    if (path === '/logout') {
+      if (location.pathname === '/debate' && debateExitHandler) {
+        debateExitHandler('/logout');
+      } else {
+        executeLogout();
+      }
+      return;
+    }
     if (location.pathname === '/debate' && debateExitHandler) {
       debateExitHandler(path);
     } else {
@@ -556,6 +571,13 @@ export default function App() {
                       onPostQuizComplete={showResult}
                       onRestart={resetDebateState}
                       onRegisterExitHandler={(handler) => setDebateExitHandler(() => handler)}
+                      onExitNavigate={(path) => {
+                        if (path === '/logout') {
+                          executeLogout();
+                        } else {
+                          navigate(path, { replace: true });
+                        }
+                      }}
                       onScoreAvg={setScoreAvg}
                       evaluationScores={evaluationScores}
                       evaluationScore={evaluationScore}

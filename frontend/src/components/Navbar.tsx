@@ -37,28 +37,6 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn, onNavigate }: NavbarProps) =
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleUserClick = () => {
-    if (isLoggedIn) {
-      setIsDropdownOpen(!isDropdownOpen);
-    } else {
-      navigate('/login');
-    }
-  };
-
-  const handleLogout = () => {
-    userApi.logout();
-    setIsLoggedIn(false);
-    setIsDropdownOpen(false);
-    setIsMobileMenuOpen(false);
-    navigate('/');
-  };
-
-  const handleProfileUpdate = () => {
-    navigate('/profile');
-    setIsDropdownOpen(false);
-    setIsMobileMenuOpen(false);
-  };
-
   const navigateTo = (path: string) => {
     setIsMobileMenuOpen(false);
     if (onNavigate) {
@@ -66,6 +44,26 @@ export const Navbar = ({ isLoggedIn, setIsLoggedIn, onNavigate }: NavbarProps) =
     } else {
       navigate(path);
     }
+  };
+
+  const handleUserClick = () => {
+    if (isLoggedIn) {
+      setIsDropdownOpen(!isDropdownOpen);
+    } else {
+      navigateTo('/login');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsDropdownOpen(false);
+    setIsMobileMenuOpen(false);
+    navigateTo('/logout');
+  };
+
+  const handleProfileUpdate = () => {
+    setIsDropdownOpen(false);
+    setIsMobileMenuOpen(false);
+    navigateTo('/profile');
   };
 
   const isActive = (path: string) => {
