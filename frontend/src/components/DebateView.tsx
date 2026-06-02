@@ -66,6 +66,7 @@ interface DebateViewProps {
   onPostQuizComplete?: (answers: number[]) => void;  // 사후 퀴즈 완료 → ResultView 이동
   onRestart?: () => void;           // "다시 시작" → 토론 상태 초기화 후 /setup 이동
   onRegisterExitHandler?: (handler: (path: string) => void) => void; // 이탈 가로채기 핸들러 등록
+  onScoreAvg?: (avg: number) => void; // 평가 점수 평균을 App으로 전달
   userData?: UserData | null;
 }
 
@@ -366,6 +367,7 @@ export const DebateView = ({
   onPostQuizComplete,
   onRestart,
   onRegisterExitHandler,
+  onScoreAvg,
   userData,
 }: DebateViewProps) => {
   const [inputText, setInputText] = useState('');
@@ -526,6 +528,38 @@ export const DebateView = ({
     };
     fetchScore();
   }, [messages.length, discussionId]);
+
+  // 이전 메시지 평가 점수 보기 — 캐시에 있으면 바로 표시, 없으면 API 호출
+  const handleViewScore = async (msgIdx: number) => {
+    setIsScoreSidebarOpen(true);
+    setViewingMsgIdx(msgIdx);
+    if (evaluationScores[msgIdx]) {
+      setEvaluationScore(evaluationScores[msgIdx]);
+      setShowPrevScoreWhileLoading(false);
+      return;
+    }
+    setIsLoadingScore(true);
+    setShowPrevScoreWhileLoading(false);
+    try {
+      const score = await debateApi.getUserEvaluation(discussionId, topic);
+      setEvaluationScores(prev => ({ ...prev, [msgIdx]: score }));
+      setEvaluationScore(score);
+    } catch (_) {
+    } finally {
+      setIsLoadingScore(false);
+    }
+  };
+
+  // evaluationScores 변경 시 total 평균을 App으로 전달
+  useEffect(() => {
+    const scores = Object.values(evaluationScores);
+    if (scores.length === 0 || !onScoreAvg) return;
+    const totals = scores.map(s => s.total ?? 0).filter(t => t > 0);
+    if (totals.length === 0) return;
+    const avg = Math.round(totals.reduce((a, b) => a + b, 0) / totals.length);
+    onScoreAvg(avg);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [evaluationScores]);
 
   // 의견 생성 시작 시 참고자료 로딩 상태 활성화
   useEffect(() => {
@@ -1117,9 +1151,9 @@ export const DebateView = ({
                         </div>
                         <div className={`flex flex-col gap-1 md:gap-1.5 max-w-[82%] ${msg.role === 'user' ? 'items-end' : ''}`}>
                           <div className="flex items-center gap-2 px-1">
-                            {msg.role === 'user' && evaluationScores[idx] && idx !== lastUserMsgIdx && (
+                            {msg.role === 'user' && idx !== lastUserMsgIdx && (
                               <button
-                                onClick={() => { setIsScoreSidebarOpen(true); setShowPrevScoreWhileLoading(false); setViewingMsgIdx(idx); setEvaluationScore(evaluationScores[idx]); }}
+                                onClick={() => handleViewScore(idx)}
                                 className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-sm font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                               >
                                 <BarChart3 size={10} /> 평가 완료 · 보기
@@ -1132,7 +1166,7 @@ export const DebateView = ({
                                 </span>
                               ) : (
                                 <button
-                                  onClick={() => { setIsScoreSidebarOpen(true); setViewingMsgIdx(idx); setEvaluationScore(evaluationScores[idx]); }}
+                                  onClick={() => handleViewScore(idx)}
                                   className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                                 >
                                   <BarChart3 size={10} /> 평가 완료 · 보기
