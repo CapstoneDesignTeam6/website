@@ -374,7 +374,7 @@ async def get_discussion_turns(
         sb = get_supabase_client()
         rows = (
             sb.table("discussion_turns")
-            .select("turn_number, turn_type, user_message, ai_summary, score, score_total")
+            .select("turn_number, turn_type, user_message, ai_response, score, score_total")
             .eq("discussion_id", discussion_id)
             .order("turn_number", desc=False)
             .execute()
@@ -392,8 +392,8 @@ async def get_discussion_turns(
                     "score": r.get("score"),
                     "score_total": r.get("score_total"),
                 })
-            if r.get("ai_summary"):
-                messages.append({"role": "ai", "content": r["ai_summary"], "turn": tn})
+            if r.get("ai_response"):
+                messages.append({"role": "ai", "content": r["ai_response"], "turn": tn})
         # turn_number별 점수 요약도 함께 제공 (조회 편의용)
         scores = [
             {
