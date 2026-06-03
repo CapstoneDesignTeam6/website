@@ -244,8 +244,8 @@ export default function App() {
    */
   const getSpeechTurn = (step: number): Turn => {
     if (step === 1) return 1;
-    if (step === 2) return 3;
-    return 2;
+    if (step === 2) return 2;
+    return 3;
   };
 
   /**
