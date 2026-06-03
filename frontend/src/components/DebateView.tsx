@@ -680,12 +680,19 @@ export const DebateView = ({
     let processed = content.replace(/\\n/g, '\n');
     console.log("데이터 타입:", typeof processed);
     console.log("실제 원본 텍스트:", JSON.stringify(processed));
+
     if (isAgent) {
-      // [참고 자료] 같은 대괄호 헤더가 나오면, 줄 위치와 무관하게 그 이후를 전부 제거.
-      const regex = /[\s*#-]*\[\s*(?:참고\s*자료|참고문헌|참조|출처|레퍼런스|references?|sources?)\s*\][\s*#-]*/i;    }
+      // 1. 뒤에 [\s\S]* 를 붙여서 [참고 자료]부터 그 이후의 모든 링크/텍스트를 문자열 끝까지 잡도록 수정
+      const regex = /[\s*#-]*\[\s*(?:참고\s*자료|참고문헌|참조|출처|레퍼런스|references?|sources?)\s*\][\s\S]*/i;
+      
+      // 2. 🌟 중요: replace 결과를 processed 변수에 반드시 다시 할당(대입)해 줍니다!
+      processed = processed.replace(regex, '');
+    }
+
     processed = processed
       .replace(/^#{1,6}\s+.+$/gm, '')
       .replace(/\[\d+\]/g, '');
+
     return processed.trim();
   };
 
