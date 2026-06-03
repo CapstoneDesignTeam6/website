@@ -512,7 +512,7 @@ async def get_discussion_counter_hint(
     history = _get_history_from_supabase(discussion_id)
     if not history:
         raise HTTPException(status_code=404, detail="토론 기록을 찾을 수 없습니다.")
-    return AgentService.get_counter_hint(topic=topic, history=history)
+    return AgentService.get_counter_hint(topic=topic, history=history, discussion_id=discussion_id)
 
 
 @router.post("/{discussion_id}/rebuttal-hint")
@@ -524,7 +524,7 @@ async def get_discussion_rebuttal_hint(
     history = _get_history_from_supabase(discussion_id)
     if not history:
         raise HTTPException(status_code=404, detail="토론 기록을 찾을 수 없습니다.")
-    return AgentService.get_rebuttal_hint(topic=topic, history=history)
+    return AgentService.get_rebuttal_hint(topic=topic, history=history, discussion_id=discussion_id)
 
 
 # ====== 트렌딩 및 검색 엔드포인트 (공개 API) ======

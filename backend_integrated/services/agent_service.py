@@ -46,6 +46,45 @@ def _normalize_history(history: Optional[List[Dict]]) -> List[Dict]:
     ]
 
 
+# ── 힌트 에이전트 (jongtae 포팅, Gemini) ────────────────────────────────────
+# discussion_id 별로 HintAgent 인스턴스를 캐시 → 턴 간 반복방지 상태(도메인/전략/
+# 결론 패턴) 유지. evidence 는 매 호출 discussion_search_results 로 최신화.
+_hint_agents: Dict = {}
+
+
+def _fetch_evidence(discussion_id) -> List[Dict]:
+    """해당 토론의 discussion_search_results 를 HintAgent evidence 형식으로 변환."""
+    if not discussion_id:
+        return []
+    try:
+        from database import get_supabase_client
+        sb = get_supabase_client()
+        rows = (
+            sb.table("discussion_search_results")
+            .select("title, url, content")
+            .eq("discussion_id", str(discussion_id))
+            .execute()
+            .data
+        ) or []
+        return [
+            {"title": r.get("title", ""), "url": r.get("url", ""), "content": r.get("content", "")}
+            for r in rows
+        ]
+    except Exception:
+        return []
+
+
+def _get_hint_agent(discussion_id, user_label: str, ai_label: str):
+    key = discussion_id or 0
+    agent = _hint_agents.get(key)
+    if agent is None:
+        from services.hint_agent import HintAgent
+        agent = HintAgent(user_label=user_label, ai_label=ai_label)
+        _hint_agents[key] = agent
+    agent.evidence = _fetch_evidence(discussion_id)  # 매 호출 최신 근거 반영
+    return agent
+
+
 # ── AgentService ──────────────────────────────────────────────────────────
 
 
@@ -71,25 +110,13 @@ class AgentService:
         ai_label: str = "반대",
         history: Optional[List[Dict]] = None,
         news_data: Optional[List] = None,
+        discussion_id=None,
     ) -> dict:
-        """재반박 힌트 (AI 반박 직후, 사용자가 다시 반박할 때 도와줌)."""
+        """재반박 힌트 (AI 반박 직후, 사용자가 다시 반박할 때 도와줌).
+        jongtae HintAgent(Gemini 포팅): stance→전략선택→Tavily 검색→4문장 힌트."""
         try:
-            history_text = "\n".join([
-                f"{'사용자' if m.get('role') == 'user' else 'AI'}: {m.get('content', '')}"
-                for m in (history or [])[-6:]
-            ])
-            system_prompt = (
-                f"당신은 토론 코치입니다. 토론 주제: {topic}. "
-                f"사용자는 {user_label} 측, AI는 {ai_label} 측입니다. "
-                f"AI의 마지막 반박을 다시 반박할 수 있는 힌트를 1-2문장으로 제시하세요. "
-                f"한국어로 답하세요."
-            )
-            hint = _call_gpt(
-                system_prompt,
-                f"대화 기록:\n{history_text}\n\n사용자가 AI의 반박을 재반박하려면 어떤 논점을 제시하면 좋을까요?",
-                max_tokens=200,
-            )
-            return {"hint": hint}
+            agent = _get_hint_agent(discussion_id, user_label, ai_label)
+            return agent.counter_hint(_normalize_history(history), topic)
         except Exception as e:
             logger.error(f"❌ Counter hint 실패: {e}")
             return {"hint": "AI의 주장에 대한 반례를 제시해보세요."}
@@ -101,25 +128,13 @@ class AgentService:
         ai_label: str = "반대",
         history: Optional[List[Dict]] = None,
         news_data: Optional[List] = None,
+        discussion_id=None,
     ) -> dict:
-        """반박 힌트 (AI가 새 주장을 펼친 직후, 사용자에게 반박 방향 제시)."""
+        """반박 힌트 (AI가 새 주장을 펼친 직후, 사용자에게 반박 방향 제시).
+        jongtae HintAgent(Gemini 포팅): stance→전략선택→Tavily 검색→4문장 힌트."""
         try:
-            history_text = "\n".join([
-                f"{'사용자' if m.get('role') == 'user' else 'AI'}: {m.get('content', '')}"
-                for m in (history or [])[-6:]
-            ])
-            system_prompt = (
-                f"당신은 토론 코치입니다. 토론 주제: {topic}. "
-                f"사용자는 {user_label} 측, AI는 {ai_label} 측입니다. "
-                f"AI의 마지막 주장을 반박할 수 있는 힌트를 1-2문장으로 제시하세요. "
-                f"한국어로 답하세요."
-            )
-            hint = _call_gpt(
-                system_prompt,
-                f"대화 기록:\n{history_text}\n\nAI의 주장을 어떻게 반박하면 좋을까요?",
-                max_tokens=200,
-            )
-            return {"hint": hint}
+            agent = _get_hint_agent(discussion_id, user_label, ai_label)
+            return agent.rebuttal_hint(_normalize_history(history), topic)
         except Exception as e:
             logger.error(f"❌ Rebuttal hint 실패: {e}")
             return {"hint": "AI 주장의 전제를 점검해보세요."}
