@@ -216,26 +216,59 @@ async def analyze_debate(
 ):
     """토론 최종 분석 — SummaryAgent 기반 (Supabase discussion_turns 사용)
     프론트: { topic, messages, discussion_id } → DiscussionSummaryResponse
+
+    get_summary는 LLM 호출이 많아 1~3분 걸린다. 동기 JSON으로 응답하면 그 사이
+    프록시(Vercel→Render)가 게이트웨이 타임아웃(502)을 내므로, /message와 동일하게
+    SSE로 진행 하트비트를 계속 흘려 연결을 유지하고 끝나면 result 이벤트로 보낸다.
     """
     import asyncio
+    import json as _json
+    from fastapi.responses import StreamingResponse
     from services.summary_service import get_summary as _summarize
 
     discussion_id = body.discussion_id or 0
 
-    loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(
-        None, lambda: _summarize(discussion_id=discussion_id, topic=body.topic)
-    )
-
-    # 토론 종료 — 인메모리 파일 스토어 해제
-    if body.discussion_id:
+    async def generate():
+        loop = asyncio.get_running_loop()
+        future = loop.run_in_executor(
+            None, lambda: _summarize(discussion_id=discussion_id, topic=body.topic)
+        )
         try:
-            from services.debate_orchestrator import clear_discussion_store
-            clear_discussion_store(body.discussion_id)
-        except Exception:
-            pass
+            # 생성이 끝날 때까지 하트비트를 흘려 프록시 타임아웃 방지
+            while not future.done():
+                yield f"data: {_json.dumps({'type': 'progress', 'step': '리포트 생성 중...'}, ensure_ascii=False)}\n\n"
+                await asyncio.sleep(3)
 
-    return result
+            result = await future
+
+            # 토론 종료 — 인메모리 파일 스토어 해제
+            if body.discussion_id:
+                try:
+                    from services.debate_orchestrator import clear_discussion_store
+                    clear_discussion_store(body.discussion_id)
+                except Exception:
+                    pass
+
+            yield f"data: {_json.dumps({'type': 'result', 'data': result}, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+        except Exception as e:
+            print(f"❌ [analyze SSE] 오류: {e}")
+            fallback = {"summary": "분석에 실패했습니다.", "issues": "", "logic_feedback": "", "extra_info": ""}
+            yield f"data: {_json.dumps({'type': 'result', 'data': fallback}, ensure_ascii=False)}\n\n"
+            yield "data: [DONE]\n\n"
+        finally:
+            if not future.done():
+                future.cancel()
+
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
 
 
 @router.get("/quiz")
@@ -479,7 +512,7 @@ async def get_discussion_counter_hint(
     history = _get_history_from_supabase(discussion_id)
     if not history:
         raise HTTPException(status_code=404, detail="토론 기록을 찾을 수 없습니다.")
-    return AgentService.get_counter_hint(topic=topic, history=history)
+    return AgentService.get_counter_hint(topic=topic, history=history, discussion_id=discussion_id)
 
 
 @router.post("/{discussion_id}/rebuttal-hint")
@@ -491,7 +524,7 @@ async def get_discussion_rebuttal_hint(
     history = _get_history_from_supabase(discussion_id)
     if not history:
         raise HTTPException(status_code=404, detail="토론 기록을 찾을 수 없습니다.")
-    return AgentService.get_rebuttal_hint(topic=topic, history=history)
+    return AgentService.get_rebuttal_hint(topic=topic, history=history, discussion_id=discussion_id)
 
 
 # ====== 트렌딩 및 검색 엔드포인트 (공개 API) ======

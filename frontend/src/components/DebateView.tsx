@@ -679,28 +679,22 @@ export const DebateView = ({
   // 2. ## / ### 헤더 줄 제거
   // 3. [1], [2] 등 인라인 각주 번호 제거
   // 4. 참고자료 섹션 제거 (에이전트 메시지)
-  const preprocessContent = (content: string, isAgent = false): string => {
-    let processed = content.replace(/\\n/g, '\n');
-    if (isAgent) {
-      // 헤더 제거 전에 참고자료 섹션을 먼저 잘라냄 (헤더 제거 시 REF_HEADER_RE 매칭 불가 방지)
-      const lines = processed.split('\n');
-      let cutIdx = -1;
-      for (let i = 0; i < lines.length; i++) {
-        // 줄 앞쪽의 헤더 토큰([...], **...**, ###, 공백)만 제거한 뒤 REF_HEADER_RE 검사
-        // 헤더와 내용이 같은 줄에 있어도 (예: "[참고 자료] 김민정...") 헤더 줄로 인식
-        const headerToken = lines[i].match(/^([#*\[\]\s]*(?:참고|참조|출처|레퍼런스|reference|source)[^\n:：]*[:：]?\s*)/i)?.[0] ?? '';
-        if (headerToken.length > 0) {
-          cutIdx = i;
-          break;
-        }
-      }
-      if (cutIdx !== -1) processed = lines.slice(0, cutIdx).join('\n');
-    }
-    processed = processed
-      .replace(/^#{1,6}\s+.+$/gm, '')
-      .replace(/\[\d+\]/g, '');
-    return processed.trim();
-  };
+ const preprocessContent = (content: string, isAgent = false): string => {
+  let processed = content.replace(/\\n/g, '\n');
+
+  // ⭕ 언제나 작동하도록 if (isAgent) 조건문을 과감히 제거했습니다.
+  const regex = /[\s*#-]*\[\s*(?:참고\s*자료|참고문헌|참조|출처|레퍼런스|references?|sources?)\s*\][\s\S]*/i;
+  
+  // 무조건 지우기 실행
+  processed = processed.replace(regex, '');
+
+  // 본문 안의 나머지 마크다운 기호 정제
+  processed = processed
+    .replace(/^#{1,6}\s+.+$/gm, '')
+    .replace(/\[\d+\]/g, '');
+
+  return processed.trim();
+};
 
   // **레이블**: 형태의 섹션 레이블을 제거하고, 일반 **볼드** 는 <strong> 으로 유지하는 함수
   // ReactMarkdown은 **foo**: bar 를 [<strong>foo</strong>, ": bar"] 로 파싱함

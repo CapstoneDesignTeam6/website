@@ -121,6 +121,8 @@ domain_keywords 필드에 이번 발언의 도메인 키워드 1~3개 추출.
 
 ━━━ 출력 형식 (JSON만, 다른 텍스트 없이) ━━━
 
+⚠️ reason 등 문자열 값 안에서는 큰따옴표(")를 절대 쓰지 마세요. 인용이 필요하면 작은따옴표(')를 쓰세요. (JSON이 깨집니다)
+
 {{
   "turn": {turn_number},
   "scores": {{
@@ -136,9 +138,47 @@ domain_keywords 필드에 이번 발언의 도메인 키워드 1~3개 추출.
 
 # ── 파싱 ──────────────────────────────────────────────────────────────────────
 
+def _salvage_scores(raw: str) -> Optional[dict]:
+    """JSON 파싱 실패 시, 각 지표 블록에서 score(와 가능한 reason)만 정규식으로 추출.
+
+    `"specificity": { ... "score": 4 ... }` 형태에서 지표명 뒤 가장 가까운 score 숫자를
+    찾아낸다. 하나도 못 찾으면 None(완전 fallback으로 넘김).
+    """
+    found = {}
+    for m in METRICS:
+        mt = re.search(rf'"{m}"\s*:\s*\{{.*?"score"\s*:\s*(\d+)', raw, re.DOTALL)
+        if not mt:
+            continue
+        score = max(1, min(5, int(mt.group(1))))
+        # 같은 블록 안의 reason도 가능하면 살림 (따옴표 깨짐이 있으니 best-effort)
+        rt = re.search(rf'"{m}"\s*:\s*\{{.*?"reason"\s*:\s*"([^"]*)"', raw, re.DOTALL)
+        reason = rt.group(1) if rt else "평가 복구됨"
+        entry: dict = {"score": score, "reason": reason, "evidence": ""}
+        if m == "domain_breadth":
+            entry["domain_keywords"] = []
+        if m == "conceptual_accuracy":
+            entry["errors"] = None
+        found[m] = entry
+
+    if not found:
+        return None
+    # 못 찾은 지표는 3점으로 채움
+    for m in METRICS:
+        if m not in found:
+            entry = {"score": 3, "reason": "평가 불가", "evidence": ""}
+            if m == "domain_breadth":
+                entry["domain_keywords"] = []
+            if m == "conceptual_accuracy":
+                entry["errors"] = None
+            found[m] = entry
+    return found
+
+
 def _parse(raw: str, turn_number: int) -> dict:
+    # 코드펜스(```json) 제거
+    cleaned = re.sub(r"```(?:json)?", "", raw or "")
     try:
-        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        match = re.search(r"\{.*\}", cleaned, re.DOTALL)
         if match:
             parsed = json.loads(match.group())
             scores = parsed.get("scores", {})
@@ -153,7 +193,15 @@ def _parse(raw: str, turn_number: int) -> dict:
             parsed["turn"] = turn_number
             return parsed
     except Exception as e:
-        logger.error(f"[ScoringService] JSON 파싱 실패: {e}")
+        logger.error(f"[ScoringService] JSON 파싱 실패: {e} — 정규식 fallback 시도")
+
+    # JSON이 깨졌을 때(주로 reason 안의 이스케이프 안 된 따옴표): 지표별 score만 정규식으로 복구.
+    # 전부 3점으로 버리지 않고 실제 점수를 최대한 살린다.
+    salvaged = _salvage_scores(cleaned)
+    if salvaged is not None:
+        logger.info(f"[ScoringService] 정규식 fallback으로 점수 복구 성공 (turn={turn_number})")
+        return {"turn": turn_number, "scores": salvaged,
+                "total": sum(salvaged[m]["score"] for m in METRICS)}
 
     # fallback
     return {

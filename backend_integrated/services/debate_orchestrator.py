@@ -433,8 +433,10 @@ def _format_reference_docs(reference: list) -> str:
                         if isinstance(sub, dict):
                             docs.append(sub)
         elif isinstance(workspace, str) and workspace.strip():
-            # Agent 2/1/3 텍스트 결과
-            docs.append({"title": ref, "url": "", "content": workspace})
+            # Agent 2/1/3 텍스트 결과 — 우리 에이전트가 완성한 출력이라
+            # 본문 끝에 [참고 자료] 링크 목록이 붙어 있다. 길이 제한으로 자르면
+            # 이 링크 블록이 사라져 후속 Agent 4/5가 링크를 복원하지 못하므로 전체 보존.
+            docs.append({"title": ref, "url": "", "content": workspace, "_full": True})
 
     if not docs:
         return "(참고 자료 없음)"
@@ -443,7 +445,9 @@ def _format_reference_docs(reference: list) -> str:
     for i, doc in enumerate(docs, 1):
         url = doc.get("url", "")
         title = doc.get("title", "")
-        content = doc.get("content", "")[:600]
+        content = doc.get("content", "")
+        if not doc.get("_full"):
+            content = content[:600]  # 검색 원문 스니펫만 길이 제한
         parts.append(
             f"[자료 {i}]\n제목: {title}\nURL: {url}\n내용: {content}"
         )
@@ -724,7 +728,9 @@ def make_topic_explanation_agent(input_json_str):
     주제 정의 및 배경: (내용)
     핵심 쟁점 요약: (내용)
     [참고 자료]
-    [1] 링크...
+    [1] https://example1.com
+    [2] https://example2.com
+    [3] https://example3.com
     """
 
     response = llm.invoke(explanation_prompt)
