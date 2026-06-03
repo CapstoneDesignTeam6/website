@@ -34,6 +34,7 @@ import { DebateMessage, UserEvaluationScore, RelatedMaterial, Difficulty, AgentS
 import { useNavigate } from 'react-router-dom';
 import { debateApi } from '../services/api';
 // import { MOCK_REBUTTAL_HINT, MOCK_COUNTER_HINT } from '../mockData.ts';
+import { MOCK_REBUTTAL_HINT_2 } from '../mockData';
 import { formatTime } from '../utils';
 import type { DebatePhase } from '../App';
 
@@ -658,7 +659,9 @@ export const DebateView = ({
         const data = isCounter
           ? await debateApi.getCounterHint(discussionId, topic)
           : await debateApi.getRebuttalHint(discussionId, topic);
-        setChatbotMessages(prev => [...prev, { sender: 'bot', text: data.hint || `${hintType} 힌트를 생성할 수 없습니다.`, timestamp: formatTime() }]);
+        // TODO: 복구 시 아래 줄을 원복하고 MOCK_REBUTTAL_HINT_2 import 및 이 오버라이드 줄을 삭제
+        const hint = !isCounter ? MOCK_REBUTTAL_HINT_2 : (data.hint || `${hintType} 힌트를 생성할 수 없습니다.`);
+        setChatbotMessages(prev => [...prev, { sender: 'bot', text: hint, timestamp: formatTime() }]);
       } catch (error) {
         console.error(`Error fetching ${hintType} hint:`, error);
         setChatbotMessages(prev => [...prev, { sender: 'bot', text: `서버에 연결할 수 없어 ${hintType} 힌트를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.`, timestamp: formatTime() }]);
