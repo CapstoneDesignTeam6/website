@@ -680,8 +680,7 @@ export const DebateView = ({
     let processed = content.replace(/\\n/g, '\n');
     if (isAgent) {
       // [참고 자료] 같은 대괄호 헤더가 나오면, 줄 위치와 무관하게 그 이후를 전부 제거.
-      const m = processed.match(/\[\s*(?:참고\s*자료|참고문헌|참조|출처|레퍼런스|references?|sources?)\s*\]/i);
-      if (m && m.index !== undefined) processed = processed.slice(0, m.index);
+      const regex = /\[[\s*]*(?:참고[\s*]*자료|참고[\s*]*문헌|참조|출처|레퍼런스|references?|sources?)[\s*]*\]/i;      if (m && m.index !== undefined) processed = processed.slice(0, m.index);
     }
     processed = processed
       .replace(/^#{1,6}\s+.+$/gm, '')
