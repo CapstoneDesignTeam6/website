@@ -678,6 +678,8 @@ export const DebateView = ({
   // 4. 참고자료 섹션 제거 (에이전트 메시지)
   const preprocessContent = (content: string, isAgent = false): string => {
     let processed = content.replace(/\\n/g, '\n');
+    console.log("데이터 타입:", typeof processed);
+    console.log("실제 원본 텍스트:", JSON.stringify(processed));
     if (isAgent) {
       // [참고 자료] 같은 대괄호 헤더가 나오면, 줄 위치와 무관하게 그 이후를 전부 제거.
       const regex = /\[[\s*]*(?:참고[\s*]*자료|참고[\s*]*문헌|참조|출처|레퍼런스|references?|sources?)[\s*]*\]/i;      if (m && m.index !== undefined) processed = processed.slice(0, m.index);
