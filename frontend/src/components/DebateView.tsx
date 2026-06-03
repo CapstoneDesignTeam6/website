@@ -676,36 +676,22 @@ export const DebateView = ({
   // 2. ## / ### 헤더 줄 제거
   // 3. [1], [2] 등 인라인 각주 번호 제거
   // 4. 참고자료 섹션 제거 (에이전트 메시지)
-  const preprocessContent = (content: string, isAgent = false): string => {
-    let processed = content.replace(/\\n/g, '\n');
-    
-    // 1단계: 함수에 어떤 값으로 들어왔는지 확인
-    console.log("================ 디버깅 시작 ================");
-    console.log("1. 현재 isAgent 변수 값:", isAgent);
-    console.log("2. 원본 데이터:", JSON.stringify(processed));
+ const preprocessContent = (content: string, isAgent = false): string => {
+  let processed = content.replace(/\\n/g, '\n');
 
-    if (isAgent) {
-      console.log("3. [성공] if (isAgent) 조건문 내부로 들어왔습니다.");
-      
-      const regex = /[\s*#-]*\[\s*(?:참고\s*자료|참고문헌|참조|출처|레퍼런스|references?|sources?)\s*\][\s\S]*/i;
-      
-      // 2단계: 정규식이 실제로 찾아냈는지 확인
-      const matchResult = processed.match(regex);
-      console.log("4. 정규식 매칭 결과:", matchResult ? `찾음 ➔ ${matchResult[0]}` : "못 찾음 (null)");
+  // ⭕ 언제나 작동하도록 if (isAgent) 조건문을 과감히 제거했습니다.
+  const regex = /[\s*#-]*\[\s*(?:참고\s*자료|참고문헌|참조|출처|레퍼런스|references?|sources?)\s*\][\s\S]*/i;
+  
+  // 무조건 지우기 실행
+  processed = processed.replace(regex, '');
 
-      processed = processed.replace(regex, '');
-    } else {
-      // 3단계: 만약 이 로그가 찍힌다면 호출하는 곳에서 true를 안 보낸 것입니다!
-      console.log("3. [경고] isAgent가 false 원인으로 제거 로직을 건너뜁니다.");
-    }
+  // 본문 안의 나머지 마크다운 기호 정제
+  processed = processed
+    .replace(/^#{1,6}\s+.+$/gm, '')
+    .replace(/\[\d+\]/g, '');
 
-    processed = processed
-      .replace(/^#{1,6}\s+.+$/gm, '')
-      .replace(/\[\d+\]/g, '');
-
-    console.log("================ 디버깅 끝 ================");
-    return processed.trim();
-  };
+  return processed.trim();
+};
 
   // **레이블**: 형태의 섹션 레이블을 제거하고, 일반 **볼드** 는 <strong> 으로 유지하는 함수
   // ReactMarkdown은 **foo**: bar 를 [<strong>foo</strong>, ": bar"] 로 파싱함
