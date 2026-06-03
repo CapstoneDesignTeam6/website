@@ -51,7 +51,7 @@ def _fetch_turns(discussion_id: int) -> list[dict]:
         sb = get_supabase_client()
         rows = (
             sb.table("discussion_turns")
-            .select("turn_number, user_message, ai_summary")
+            .select("turn_number, turn_type, user_message, ai_summary")
             .eq("discussion_id", discussion_id)
             .order("turn_number", desc=False)
             .execute()
@@ -66,7 +66,9 @@ def _fetch_turns(discussion_id: int) -> list[dict]:
 def _build_history(turns: list[dict]) -> list[dict]:
     history = []
     for t in turns:
-        if t.get("user_message"):
+        # turn_type 0 = 주제 설명 단계의 자동 삽입 메시지("...설명해주세요")이므로
+        # 유저 발언으로 취급하지 않는다(무효발언 필터에 매번 잡히는 자동 메시지 제거).
+        if t.get("user_message") and t.get("turn_type") != 0:
             history.append({"role": "user", "content": t["user_message"]})
         if t.get("ai_summary"):
             history.append({"role": "ai", "content": t["ai_summary"]})
@@ -302,7 +304,7 @@ def get_summary(discussion_id: int, topic: str) -> dict:
 
     # 1. 무효 발언 필터
     invalid_contents, clean_history_block = _filter_invalid_turns(history, topic)
-    print(f"🔎 [Summary] 무효 발언 필터 완료 (제외 {len(invalid_contents)-1}건)")
+    print(f"🔎 [Summary] 무효 발언 필터 완료 (제외 {len(invalid_contents)}건)")
 
     # 2. 발언 추출
     extracted = _extract_claims(clean_history_block)
